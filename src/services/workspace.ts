@@ -15,6 +15,13 @@ import {
 
 // Helper for API fetch with standard Google error handling
 async function googleFetch(url: string, token: string, options: RequestInit = {}) {
+  if (!token) {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('gdeck_auth_expired', { detail: { message: 'Missing access token' } }));
+    }
+    throw new Error('Google Workspace session missing or expired. Please click "Reconnect Account".');
+  }
+
   const headers: Record<string, string> = {
     Authorization: `Bearer ${token}`,
     Accept: 'application/json',
@@ -33,6 +40,24 @@ async function googleFetch(url: string, token: string, options: RequestInit = {}
       } catch {
         // ignore
       }
+
+      // Check for 401 or invalid credential errors
+      if (
+        res.status === 401 ||
+        errorMsg.includes('invalid authentication credentials') ||
+        errorMsg.includes('UNAUTHENTICATED') ||
+        errorMsg.includes('OAuth 2 access token')
+      ) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('gdeck_auth_expired', {
+              detail: { message: 'Your Google session has expired. Click Reconnect to refresh credentials.' },
+            })
+          );
+        }
+        throw new Error('Your Google Workspace access token expired. Please click "Reconnect Account" above.');
+      }
+
       throw new Error(errorMsg);
     }
     if (res.status === 204) return null;

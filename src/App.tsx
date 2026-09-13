@@ -60,6 +60,8 @@ import { GoogleLogo } from './components/GoogleIcons';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationCenter } from './components/NotificationCenter';
 import { NotificationToast } from './components/NotificationToast';
+import { PrivacyPolicyView } from './components/PrivacyPolicyView';
+import { TermsOfServiceView } from './components/TermsOfServiceView';
 import {
   ALL_WORKSPACE_TOOLS,
   CATEGORIES,
@@ -86,7 +88,15 @@ export default function App() {
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const path = window.location.pathname.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      if (path.includes('privacy') || search.includes('privacy')) return 'privacy';
+      if (path.includes('terms') || search.includes('terms')) return 'terms';
+    }
+    return 'overview';
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
@@ -178,7 +188,20 @@ export default function App() {
       }
     });
 
-    return () => unsubscribe();
+    const handleAuthExpired = (e: any) => {
+      setNeedsAuth(true);
+      setAuthError(
+        e.detail?.message ||
+          'Your Google Workspace access credentials expired or are invalid. Please reconnect below.'
+      );
+    };
+
+    window.addEventListener('gdeck_auth_expired', handleAuthExpired);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener('gdeck_auth_expired', handleAuthExpired);
+    };
   }, []);
 
   const handleSignIn = async () => {
@@ -1003,9 +1026,44 @@ export default function App() {
             {activeTab === 'finance' && (
               <FinanceView onBackToOverview={() => setActiveTab('overview')} />
             )}
+            {activeTab === 'privacy' && (
+              <PrivacyPolicyView onBack={() => setActiveTab('overview')} />
+            )}
+            {activeTab === 'terms' && (
+              <TermsOfServiceView onBack={() => setActiveTab('overview')} />
+            )}
           </div>
         )}
       </main>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-[#dadce0] py-4 px-6 text-center text-xs text-[#5f6368] mt-auto">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>© 2026 G-Deck (gdeck.org). All rights reserved.</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveTab('privacy')}
+              className="text-[#1a73e8] hover:underline cursor-pointer"
+            >
+              Privacy Policy
+            </button>
+            <span>•</span>
+            <button
+              onClick={() => setActiveTab('terms')}
+              className="text-[#1a73e8] hover:underline cursor-pointer"
+            >
+              Terms of Service
+            </button>
+            <span>•</span>
+            <a
+              href="mailto:support@gdeck.org"
+              className="text-[#5f6368] hover:text-[#1f1f1f] hover:underline"
+            >
+              Contact Support
+            </a>
+          </div>
+        </div>
+      </footer>
 
       {/* Confirmation Modal for Logging Out */}
       <ConfirmModal

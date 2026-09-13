@@ -244,6 +244,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
             'https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=1',
             { headers: { Authorization: `Bearer ${token}` } }
           );
+          if (res.status === 401) {
+            window.dispatchEvent(new CustomEvent('gdeck_auth_expired', { detail: { message: 'Gmail authentication expired.' } }));
+            return;
+          }
           if (res.ok) {
             const data = await res.json();
             if (data.messages && data.messages.length > 0) {
@@ -258,6 +262,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
                   `https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}?format=metadata&metadataHeaders=Subject&metadataHeaders=From`,
                   { headers: { Authorization: `Bearer ${token}` } }
                 );
+                if (detailRes.status === 401) {
+                  window.dispatchEvent(new CustomEvent('gdeck_auth_expired', { detail: { message: 'Gmail authentication expired.' } }));
+                  return;
+                }
                 if (detailRes.ok) {
                   const detail = await detailRes.json();
                   const headers = detail.payload?.headers || [];
@@ -289,6 +297,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
             )}&timeMax=${encodeURIComponent(in15MinIso)}&singleEvents=true`,
             { headers: { Authorization: `Bearer ${token}` } }
           );
+          if (calRes.status === 401) {
+            window.dispatchEvent(new CustomEvent('gdeck_auth_expired', { detail: { message: 'Calendar authentication expired.' } }));
+            return;
+          }
           if (calRes.ok) {
             const calData = await calRes.json();
             if (calData.items && calData.items.length > 0) {
