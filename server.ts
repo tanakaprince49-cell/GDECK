@@ -23,7 +23,6 @@ async function startServer() {
       }
 
       const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
-      const isOAuthToken = apiKey.startsWith('AQ.') || apiKey.startsWith('ya29.');
 
       let sysInstruct = `You are G Pilot, an autonomous executive assistant fully integrated into the user's Google Workspace environment. Your role is to read context, organize work, manage schedules, handle communications, and execute tasks across Workspace tools efficiently, securely, and proactively. You have access to a long-term memory store. When the user tells you something about themselves, their preferences, or important facts, use the memory_save tool to remember it. Always review past memories implicitly when making decisions.`;
       
@@ -66,14 +65,51 @@ When an action requires confirmation, you must stop execution and output a struc
       let responseFunctionCalls: any[] | null = null;
       let lastError: any = null;
 
-      if (isOAuthToken) {
+      // Method 1: Official @google/genai SDK
+      const ai = new GoogleGenAI({ 
+        apiKey,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          }
+        }
+      });
+
+      for (const model of CANDIDATE_MODELS) {
+        try {
+          const sdkRes: any = await ai.models.generateContent({
+            model,
+            contents,
+            config: {
+              systemInstruction: sysInstruct,
+              tools: tools ? [{ functionDeclarations: tools }] : undefined,
+              temperature: 0.2,
+            },
+          });
+          if (sdkRes) {
+            if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
+              responseFunctionCalls = sdkRes.functionCalls;
+            } else {
+              responseText = sdkRes.text || '';
+            }
+            lastError = null;
+            break;
+          }
+        } catch (err: any) {
+          lastError = err;
+          console.warn(`SDK Model ${model} failed:`, err?.message || err);
+        }
+      }
+
+      // Method 2: Fallback REST with x-goog-api-key header
+      if (lastError && !responseText && !responseFunctionCalls) {
         for (const model of CANDIDATE_MODELS) {
           try {
             const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${apiKey}`,
+                'x-goog-api-key': apiKey,
               },
               body: JSON.stringify({
                 contents,
@@ -101,42 +137,7 @@ When an action requires confirmation, you must stop execution and output a struc
             break;
           } catch (err: any) {
             lastError = err;
-            console.warn(`OAuth model ${model} failed:`, err?.message || err);
-          }
-        }
-      } else {
-        const ai = new GoogleGenAI({ 
-          apiKey,
-          httpOptions: {
-            headers: {
-              'User-Agent': 'aistudio-build',
-            }
-          }
-        });
-
-        for (const model of CANDIDATE_MODELS) {
-          try {
-            const sdkRes: any = await ai.models.generateContent({
-              model,
-              contents,
-              config: {
-                systemInstruction: sysInstruct,
-                tools: tools ? [{ functionDeclarations: tools }] : undefined,
-                temperature: 0.2,
-              },
-            });
-            if (sdkRes) {
-              if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
-                responseFunctionCalls = sdkRes.functionCalls;
-              } else {
-                responseText = sdkRes.text || '';
-              }
-              lastError = null;
-              break;
-            }
-          } catch (err: any) {
-            lastError = err;
-            console.warn(`Model ${model} failed:`, err?.message || err);
+            console.warn(`REST x-goog-api-key ${model} failed:`, err?.message || err);
           }
         }
       }

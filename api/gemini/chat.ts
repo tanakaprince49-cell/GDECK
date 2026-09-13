@@ -19,7 +19,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
-    const isOAuthToken = apiKey.startsWith('AQ.') || apiKey.startsWith('ya29.');
 
     let sysInstruct = `You are G Pilot, an autonomous executive assistant fully integrated into the user's Google Workspace environment. Your role is to read context, organize work, manage schedules, handle communications, and execute tasks across Workspace tools efficiently, securely, and proactively. You have access to a long-term memory store. When the user tells you something about themselves, their preferences, or important facts, use the memory_save tool to remember it. Always review past memories implicitly when making decisions.`;
     
@@ -58,15 +57,51 @@ When an action requires confirmation, you must stop execution and output a struc
       "gemini-2.0-flash",
     ];
 
-    if (isOAuthToken) {
-      // Direct REST API call with Bearer authentication and NO ?key= parameter
+    // Method 1: Official @google/genai SDK
+    const ai = new GoogleGenAI({ 
+      apiKey,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        }
+      }
+    });
+
+    for (const model of CANDIDATE_MODELS) {
+      try {
+        const sdkRes: any = await ai.models.generateContent({
+          model,
+          contents,
+          config: {
+            systemInstruction: sysInstruct,
+            tools: tools ? [{ functionDeclarations: tools }] : undefined,
+            temperature: 0.2,
+          },
+        });
+        if (sdkRes) {
+          if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
+            responseFunctionCalls = sdkRes.functionCalls;
+          } else {
+            responseText = sdkRes.text || '';
+          }
+          lastError = null;
+          break;
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`SDK model ${model} failed:`, err?.message || err);
+      }
+    }
+
+    // Method 2: Fallback to REST API with x-goog-api-key header if SDK fails
+    if (lastError && !responseText && !responseFunctionCalls) {
       for (const model of CANDIDATE_MODELS) {
         try {
           const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': `Bearer ${apiKey}`,
+              'x-goog-api-key': apiKey,
             },
             body: JSON.stringify({
               contents,
@@ -94,43 +129,7 @@ When an action requires confirmation, you must stop execution and output a struc
           break;
         } catch (err: any) {
           lastError = err;
-          console.warn(`OAuth model ${model} failed:`, err?.message || err);
-        }
-      }
-    } else {
-      // Standard SDK call with API key (AIzaSy...)
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-          }
-        }
-      });
-
-      for (const model of CANDIDATE_MODELS) {
-        try {
-          const sdkRes: any = await ai.models.generateContent({
-            model,
-            contents,
-            config: {
-              systemInstruction: sysInstruct,
-              tools: tools ? [{ functionDeclarations: tools }] : undefined,
-              temperature: 0.2,
-            },
-          });
-          if (sdkRes) {
-            if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
-              responseFunctionCalls = sdkRes.functionCalls;
-            } else {
-              responseText = sdkRes.text || '';
-            }
-            lastError = null;
-            break;
-          }
-        } catch (err: any) {
-          lastError = err;
-          console.warn(`SDK model ${model} failed:`, err?.message || err);
+          console.warn(`REST x-goog-api-key ${model} failed:`, err?.message || err);
         }
       }
     }
@@ -147,15 +146,23 @@ When an action requires confirmation, you must stop execution and output a struc
 
   } catch (error: any) {
     console.error("Vercel Gemini API Error:", error);
+    const errMsg = error?.message || "";
+    
+    if (errMsg.includes("API_KEY_SERVICE_BLOCKED") || errMsg.includes("API keys are not supported")) {
+      return res.status(403).json({
+        error: "Your Google Cloud Project has API key service restrictions blocking the Generative Language API. In Google AI Studio or Google Cloud Console (Console -> APIs & Services -> Credentials), edit your API Key restrictions and set API Restrictions to 'Don't restrict key' or explicitly allow 'Generative Language API'."
+      });
+    }
+
     const isQuota =
-      error?.message?.includes("429") ||
+      errMsg.includes("429") ||
       error?.status === 429 ||
-      error?.message?.includes("RESOURCE_EXHAUSTED") ||
-      error?.message?.includes("Quota exceeded");
+      errMsg.includes("RESOURCE_EXHAUSTED") ||
+      errMsg.includes("Quota exceeded");
 
     const userMessage = isQuota
       ? "G-Pilot is experiencing high quota demand. Please wait a moment and try again."
-      : (error?.message || "Failed to connect to Gemini API.");
+      : (errMsg || "Failed to connect to Gemini API.");
 
     return res.status(isQuota ? 429 : 500).json({ error: userMessage });
   }
