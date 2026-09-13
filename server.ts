@@ -23,16 +23,7 @@ async function startServer() {
       }
 
       const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
-
-      const ai = new GoogleGenAI({ 
-        apiKey,
-        httpOptions: {
-          headers: {
-            'User-Agent': 'aistudio-build',
-            ...(apiKey.startsWith('AQ.') ? { 'Authorization': `Bearer ${apiKey}` } : {})
-          }
-        }
-      });
+      const isOAuthToken = apiKey.startsWith('AQ.') || apiKey.startsWith('ya29.');
 
       let sysInstruct = `You are G Pilot, an autonomous executive assistant fully integrated into the user's Google Workspace environment. Your role is to read context, organize work, manage schedules, handle communications, and execute tasks across Workspace tools efficiently, securely, and proactively. You have access to a long-term memory store. When the user tells you something about themselves, their preferences, or important facts, use the memory_save tool to remember it. Always review past memories implicitly when making decisions.`;
       
@@ -66,50 +57,99 @@ When an action requires confirmation, you must stop execution and output a struc
 - **Sensitive Guardrails:** If an email or document contains credentials, passwords, financial records, or personal health info, highlight the presence of sensitive data and confirm intent before forwarding or summarizing externally.`;
 
       const CANDIDATE_MODELS = [
-        "gemini-flash-latest",
-        "gemini-3.1-flash-lite",
         "gemini-2.5-flash",
+        "gemini-1.5-flash",
+        "gemini-2.0-flash",
       ];
 
-      let response: any = null;
+      let responseText = '';
+      let responseFunctionCalls: any[] | null = null;
       let lastError: any = null;
 
-      for (const model of CANDIDATE_MODELS) {
-        try {
-          response = await ai.models.generateContent({
-            model,
-            contents,
-            config: {
-              systemInstruction: sysInstruct,
-              tools: tools ? [{ functionDeclarations: tools }] : undefined,
-              temperature: 0.2,
-            },
-          });
-          if (response) break;
-        } catch (err: any) {
-          lastError = err;
-          console.warn(`Model ${model} failed, trying fallback...`, err?.message || err);
-          const isQuota = err?.message?.includes("429") || err?.status === 429 || err?.message?.includes("RESOURCE_EXHAUSTED") || err?.message?.includes("Quota exceeded");
-          if (!isQuota) {
-            // If it's a non-quota error, don't try all models blindly unless it's a model-not-found error
-            if (!err?.message?.includes("not found")) {
+      if (isOAuthToken) {
+        for (const model of CANDIDATE_MODELS) {
+          try {
+            const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`,
+              },
+              body: JSON.stringify({
+                contents,
+                systemInstruction: { parts: [{ text: sysInstruct }] },
+                tools: tools ? [{ functionDeclarations: tools }] : undefined,
+                generationConfig: { temperature: 0.2 },
+              })
+            });
+
+            const data = await apiRes.json();
+            if (!apiRes.ok) {
+              throw new Error(data?.error?.message || `HTTP ${apiRes.status}`);
+            }
+
+            const candidate = data?.candidates?.[0];
+            const parts = candidate?.content?.parts || [];
+            const functionCalls = parts.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
+            
+            if (functionCalls.length > 0) {
+              responseFunctionCalls = functionCalls;
+            } else {
+              responseText = parts.map((p: any) => p.text || '').join('');
+            }
+            lastError = null;
+            break;
+          } catch (err: any) {
+            lastError = err;
+            console.warn(`OAuth model ${model} failed:`, err?.message || err);
+          }
+        }
+      } else {
+        const ai = new GoogleGenAI({ 
+          apiKey,
+          httpOptions: {
+            headers: {
+              'User-Agent': 'aistudio-build',
+            }
+          }
+        });
+
+        for (const model of CANDIDATE_MODELS) {
+          try {
+            const sdkRes: any = await ai.models.generateContent({
+              model,
+              contents,
+              config: {
+                systemInstruction: sysInstruct,
+                tools: tools ? [{ functionDeclarations: tools }] : undefined,
+                temperature: 0.2,
+              },
+            });
+            if (sdkRes) {
+              if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
+                responseFunctionCalls = sdkRes.functionCalls;
+              } else {
+                responseText = sdkRes.text || '';
+              }
+              lastError = null;
               break;
             }
+          } catch (err: any) {
+            lastError = err;
+            console.warn(`Model ${model} failed:`, err?.message || err);
           }
         }
       }
 
-      if (!response && lastError) {
+      if (lastError && !responseText && !responseFunctionCalls) {
         throw lastError;
       }
 
-      // Handle function calls
-      if (response.functionCalls && response.functionCalls.length > 0) {
-        return res.json({ functionCalls: response.functionCalls });
+      if (responseFunctionCalls && responseFunctionCalls.length > 0) {
+        return res.json({ functionCalls: responseFunctionCalls });
       }
 
-      console.log("Gemini API raw text:", response.text);
-      res.json({ text: response.text || "" });
+      return res.json({ text: responseText });
     } catch (error: any) {
       console.error("Gemini API error:", error);
       const isQuota =
