@@ -884,18 +884,9 @@ export default function App() {
         ) : (
           /* Active Views */
           <div>
-            {/* Breadcrumb / Back to Overview Bar */}
+            {/* Breadcrumb Bar */}
             {activeTab !== 'overview' && (
               <div className="mb-5 flex items-center justify-between bg-white px-4 py-2.5 rounded-2xl border border-[#dadce0] shadow-xs">
-                <button
-                  id="global-back-to-overview-btn"
-                  onClick={() => setActiveTab('overview')}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-[#1f1f1f] hover:text-[#1a73e8] bg-[#f0f4f9] hover:bg-[#e8f0fe] border border-[#dadce0] rounded-full transition-all cursor-pointer group shadow-2xs"
-                  title="Return to the Workspace Dashboard"
-                >
-                  <ArrowLeft className="w-4 h-4 text-[#5f6368] group-hover:-translate-x-0.5 group-hover:text-[#1a73e8] transition-transform" />
-                  <span>Back to Dashboard</span>
-                </button>
                 <nav
                   aria-label="Breadcrumb"
                   className="text-xs text-[#5f6368] flex items-center gap-2 font-medium"

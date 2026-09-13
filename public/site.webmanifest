@@ -1,7 +1,7 @@
 {
-  "name": "GDECK — Google Workspace Command Center",
+  "name": "GDECK — All-in-One Google Workspace Command Center",
   "short_name": "GDECK",
-  "description": "GDECK — The liquid glass command center for Google Workspace (Sheets, Drive, Gmail, Messages, Calendar, Tasks, Chat, Contacts, Meet, Keep, and Forms).",
+  "description": "Stop tab overload. GDECK merges Gmail, Google Drive, Calendar, Sheets, Tasks, Contacts & AI into one unified liquid glass command center.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

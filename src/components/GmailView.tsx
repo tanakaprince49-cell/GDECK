@@ -49,17 +49,6 @@ const FormattedEmailBody: React.FC<{ body?: string; htmlBody?: string }> = ({ bo
   if (viewMode === 'html' && htmlBody) {
     return (
       <div className="space-y-3">
-        {body && (
-          <div className="flex items-center justify-between pb-1 border-b border-[#f1f3f4]">
-            <span className="text-[11px] font-medium text-[#5f6368]">Rich HTML Email View</span>
-            <button
-              onClick={() => setViewMode('text')}
-              className="text-[11px] font-semibold text-[#1a73e8] bg-[#f0f4f9] hover:bg-[#e8f0fe] px-2.5 py-1 rounded-full transition-colors cursor-pointer"
-            >
-              Switch to Clean Text View
-            </button>
-          </div>
-        )}
         <div className="rounded-2xl border border-[#dadce0] overflow-hidden bg-white shadow-2xs p-3">
           <iframe
             title="Email HTML Content"
@@ -129,18 +118,6 @@ const FormattedEmailBody: React.FC<{ body?: string; htmlBody?: string }> = ({ bo
 
   return (
     <div className="space-y-4">
-      {htmlBody && (
-        <div className="flex items-center justify-between pb-1 border-b border-[#f1f3f4]">
-          <span className="text-[11px] font-medium text-[#5f6368]">Text Mode View</span>
-          <button
-            onClick={() => setViewMode('html')}
-            className="text-[11px] font-semibold text-[#1a73e8] bg-[#e8f0fe] hover:bg-[#c2e7ff] px-2.5 py-1 rounded-full transition-colors cursor-pointer"
-          >
-            Switch to Rich HTML View
-          </button>
-        </div>
-      )}
-
       <div className="text-sm text-[#1f1f1f] leading-relaxed whitespace-pre-wrap break-words font-sans bg-[#f8fafd] p-4 rounded-2xl border border-[#e1e3e1] shadow-2xs">
         {textParts.map((part, idx) => {
           if (part.match(/^https?:\/\//i) || part.match(/^www\./i)) {

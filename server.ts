@@ -17,16 +17,19 @@ async function startServer() {
     try {
       const { contents, tools, userName } = req.body;
       
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
+      const rawApiKey = process.env.GEMINI_API_KEY;
+      if (!rawApiKey) {
         return res.status(500).json({ error: "Gemini API key is not configured" });
       }
+
+      const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
 
       const ai = new GoogleGenAI({ 
         apiKey,
         httpOptions: {
           headers: {
             'User-Agent': 'aistudio-build',
+            ...(apiKey.startsWith('AQ.') ? { 'Authorization': `Bearer ${apiKey}` } : {})
           }
         }
       });

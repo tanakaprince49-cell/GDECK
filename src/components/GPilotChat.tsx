@@ -414,17 +414,21 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
         body: JSON.stringify({ contents: context, tools: GPILOT_TOOLS, userName })
       });
       
-      const data = await res.json();
+      let data: any;
+      try {
+        data = await res.json();
+      } catch (jsonError) {
+        throw new Error(`Server returned status ${res.status}. If deployed on Vercel, please check that GEMINI_API_KEY is configured in Vercel Environment Variables.`);
+      }
       
-      if (data.error) {
-        let displayError = data.error;
+      if (!res.ok || data.error) {
+        let displayError = data.error || `Error ${res.status}: Unable to query Gemini API`;
         if (
           typeof displayError === 'string' &&
           (displayError.includes('quota') ||
             displayError.includes('429') ||
             displayError.includes('RESOURCE_EXHAUSTED') ||
-            displayError.includes('Quota exceeded') ||
-            displayError.startsWith('{'))
+            displayError.includes('Quota exceeded'))
         ) {
           displayError = "G-Pilot is experiencing high demand right now. Please wait a moment and try your request again.";
         }
@@ -478,9 +482,10 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
         setApiContext(prev => [...prev, { role: 'model', parts: [{ text: data.text }] }]);
       }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: "G-Pilot is momentarily unavailable. Please try again in a moment." }]);
+      const errMsg = error?.message || "G-Pilot is momentarily unavailable. Please try again in a moment.";
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: errMsg }]);
     }
     setIsLoading(false);
   };
