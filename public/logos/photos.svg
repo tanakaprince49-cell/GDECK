@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <path fill="#EA4335" d="M96 96c0-26.51-21.49-48-48-48S0 69.49 0 96h96z" transform="translate(48 0) scale(0.5)"/>
+  <path fill="#FBBC04" d="M96 96c26.51 0 48-21.49 48-48S122.51 0 96 0v96z" transform="translate(96 48) scale(0.5)"/>
+  <path fill="#34A853" d="M96 96c0 26.51 21.49 48 48 48s48-21.49 48-48H96z" transform="translate(48 96) scale(0.5)"/>
+  <path fill="#4285F4" d="M96 96c-26.51 0-48 21.49-48 48s21.49 48 48 48V96z" transform="translate(0 48) scale(0.5)"/>
+</svg>

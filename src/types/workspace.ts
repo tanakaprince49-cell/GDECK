@@ -1,0 +1,144 @@
+export interface WorkspaceUser {
+  uid: string;
+  displayName: string | null;
+  email: string | null;
+  photoURL: string | null;
+}
+
+export interface DriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime?: string;
+  size?: string;
+  webViewLink?: string;
+  iconLink?: string;
+  thumbnailLink?: string;
+}
+
+export interface GmailMessageItem {
+  id: string;
+  threadId: string;
+  snippet?: string;
+  from?: string;
+  to?: string;
+  subject?: string;
+  date?: string;
+  body?: string;
+  htmlBody?: string;
+  isStarred?: boolean;
+}
+
+export interface CalendarEvent {
+  id: string;
+  summary: string;
+  description?: string;
+  location?: string;
+  start?: { dateTime?: string; date?: string };
+  end?: { dateTime?: string; date?: string };
+  htmlLink?: string;
+  status?: string;
+}
+
+export interface TaskList {
+  id: string;
+  title: string;
+  updated?: string;
+}
+
+export interface TaskItem {
+  id: string;
+  title: string;
+  notes?: string;
+  status: 'needsAction' | 'completed';
+  due?: string;
+  completed?: string;
+}
+
+export interface ChatSpace {
+  name: string; // "spaces/{spaceId}"
+  displayName?: string;
+  type?: string;
+  spaceType?: string;
+}
+
+export interface ChatMessage {
+  name?: string;
+  text?: string;
+  createTime?: string;
+  sender?: {
+    name?: string;
+    displayName?: string;
+    avatarUrl?: string;
+  };
+}
+
+export interface ContactPerson {
+  resourceName: string;
+  etag?: string;
+  names?: Array<{ displayName?: string; familyName?: string; givenName?: string }>;
+  emailAddresses?: Array<{ value?: string; type?: string }>;
+  phoneNumbers?: Array<{ value?: string; type?: string }>;
+  photos?: Array<{ url?: string }>;
+}
+
+export interface MeetSpace {
+  name: string; // "spaces/{spaceId}"
+  meetingUri: string;
+  meetingCode: string;
+  config?: {
+    accessType?: string;
+  };
+}
+
+export interface FormItem {
+  itemId: string;
+  title?: string;
+  description?: string;
+  questionItem?: {
+    question?: {
+      questionId?: string;
+      required?: boolean;
+    };
+  };
+}
+
+export interface FormDetails {
+  formId: string;
+  info: {
+    title: string;
+    documentTitle?: string;
+    description?: string;
+  };
+  items?: FormItem[];
+  responderUri?: string;
+}
+
+export interface FormResponse {
+  responseId: string;
+  createTime: string;
+  lastSubmittedTime: string;
+  answers?: Record<string, {
+    questionId: string;
+    textAnswers?: {
+      answers: Array<{ value: string }>;
+    };
+  }>;
+}
+
+export interface SheetMetadata {
+  spreadsheetId: string;
+  properties: {
+    title: string;
+  };
+  sheets: Array<{
+    properties: {
+      sheetId: number;
+      title: string;
+      gridProperties?: {
+        rowCount: number;
+        columnCount: number;
+      };
+    };
+  }>;
+}

@@ -1,0 +1,188 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --google-blue: #1a73e8;
+    --google-blue-hover: #1557b0;
+    --google-blue-surface: #e8f0fe;
+    --google-blue-pill: #c2e7ff;
+    --google-blue-pill-text: #001d35;
+    --google-red: #d93025;
+    --google-red-surface: #fce8e6;
+    --google-yellow: #f29900;
+    --google-yellow-surface: #fef7e0;
+    --google-green: #188038;
+    --google-green-surface: #e6f4ea;
+    --google-surface: #f8fafd;
+    --google-surface-variant: #f0f4f9;
+    --google-border: #dadce0;
+    --google-text-primary: #1f1f1f;
+    --google-text-secondary: #444746;
+  }
+
+  body {
+    background-color: #f8fafd;
+    color: #1f1f1f;
+    min-height: 100vh;
+    overflow-x: hidden;
+    font-family: 'Google Sans', 'Roboto', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  }
+}
+
+/* Google-feel smooth transitions */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  transition-duration: 200ms;
+}
+
+/* ============================================================
+   GOOGLE MATERIAL DESIGN 3 BUTTONS & ACTION STYLES
+   ============================================================ */
+.btn-google-primary,
+.google-fab {
+  background-color: #1a73e8 !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.3), 0 4px 8px 3px rgba(60, 64, 67, 0.15) !important;
+  cursor: pointer;
+}
+
+.btn-google-primary:hover,
+.google-fab:hover {
+  background-color: #1557b0 !important;
+  box-shadow: 0 2px 6px 2px rgba(60, 64, 67, 0.3), 0 6px 12px 4px rgba(60, 64, 67, 0.15) !important;
+  transform: translateY(-1px);
+}
+
+.btn-google-fab-tonal {
+  background-color: #c2e7ff !important;
+  color: #001d35 !important;
+  font-weight: 600 !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.2), 0 4px 8px 1px rgba(60, 64, 67, 0.1) !important;
+  cursor: pointer;
+}
+
+.btn-google-fab-tonal:hover {
+  background-color: #b3defa !important;
+  box-shadow: 0 2px 6px 2px rgba(60, 64, 67, 0.25), 0 6px 10px 2px rgba(60, 64, 67, 0.12) !important;
+}
+
+.btn-google-secondary {
+  background-color: #ffffff;
+  color: #1f1f1f;
+  border: 1px solid #dadce0;
+  border-radius: 9999px;
+  font-weight: 500;
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.08);
+}
+
+.btn-google-secondary:hover {
+  background-color: #f1f3f4;
+  border-color: #dadce0;
+  color: #1a73e8;
+}
+
+/* Active Material 3 Pill Tabs */
+.google-nav-pill-active {
+  background-color: #c2e7ff !important;
+  color: #001d35 !important;
+  font-weight: 600 !important;
+  border-radius: 9999px !important;
+}
+
+.google-nav-pill-inactive {
+  color: #444746 !important;
+  background-color: transparent !important;
+  border-radius: 9999px !important;
+}
+
+.google-nav-pill-inactive:hover {
+  background-color: #f0f4f9 !important;
+  color: #1f1f1f !important;
+}
+
+/* ============================================================
+   GOOGLE MATERIAL SURFACE CARDS & CONTAINERS
+   ============================================================ */
+.google-card {
+  background-color: #ffffff !important;
+  border: 1px solid #e1e3e1 !important;
+  border-radius: 24px !important;
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.06), 0 1px 3px 1px rgba(60, 64, 67, 0.03) !important;
+}
+
+.google-card-interactive {
+  background-color: #ffffff;
+  border: 1px solid #e1e3e1;
+  border-radius: 20px;
+  box-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.06);
+  cursor: pointer;
+}
+
+.google-card-interactive:hover {
+  background-color: #ffffff;
+  border-color: #1a73e8;
+  box-shadow: 0 1px 3px 0 rgba(60, 64, 67, 0.2), 0 4px 12px 2px rgba(60, 64, 67, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Google Inputs & Search Bars */
+input[type="text"], 
+input[type="email"], 
+input[type="search"], 
+input[type="date"], 
+input[type="time"], 
+input[type="datetime-local"], 
+textarea, 
+select {
+  background-color: #f0f4f9 !important;
+  border: 1px solid transparent !important;
+  color: #1f1f1f !important;
+  border-radius: 9999px !important;
+}
+
+input:focus, 
+textarea:focus, 
+select:focus {
+  background-color: #ffffff !important;
+  border-color: #1a73e8 !important;
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2) !important;
+  outline: none !important;
+}
+
+textarea {
+  border-radius: 16px !important;
+}
+
+/* Google Tables */
+table thead {
+  background-color: #f8fafd !important;
+  color: #444746 !important;
+  border-bottom: 1px solid #e1e3e1 !important;
+}
+
+table tbody tr:hover {
+  background-color: #f8fafd !important;
+}
+
+/* Google-style thin scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #dadce0;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bdc1c6;
+}

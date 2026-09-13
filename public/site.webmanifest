@@ -1,0 +1,17 @@
+{
+  "name": "GDECK — Google Workspace Command Center",
+  "short_name": "GDECK",
+  "description": "GDECK — The liquid glass command center for Google Workspace (Sheets, Drive, Gmail, Messages, Calendar, Tasks, Chat, Contacts, Meet, Keep, and Forms).",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a73e8",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/logo.webp",
+      "sizes": "192x192 512x512",
+      "type": "image/webp"
+    }
+  ]
+}
