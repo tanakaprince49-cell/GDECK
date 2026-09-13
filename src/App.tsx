@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Analytics } from '@vercel/analytics/react';
 import { User } from 'firebase/auth';
 import {
   LogOut,
@@ -189,6 +190,7 @@ export default function App() {
     });
 
     const handleAuthExpired = (e: any) => {
+      setToken('');
       setNeedsAuth(true);
       setAuthError(
         e.detail?.message ||
@@ -1091,6 +1093,7 @@ export default function App() {
 
       {/* Floating Real-time Notification Toast */}
       <NotificationToast onNavigateTab={(tab) => setActiveTab(tab)} />
+      <Analytics />
     </div>
     </NotificationProvider>
   );

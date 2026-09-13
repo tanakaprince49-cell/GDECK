@@ -82,21 +82,18 @@ export const initAuth = (
         if (age < MAX_TOKEN_AGE_MS) {
           isValidToken = true;
         }
-      } else if (storedToken) {
-        // If no timestamp recorded yet, treat as valid for now
-        isValidToken = true;
       }
 
       if (isValidToken && storedToken) {
         cachedAccessToken = storedToken;
         if (onAuthSuccess) onAuthSuccess(user, storedToken);
-      } else if (!isSigningIn) {
+      } else {
         cachedAccessToken = null;
         try {
           localStorage.removeItem(TOKEN_STORAGE_KEY);
           localStorage.removeItem(TOKEN_TIME_KEY);
         } catch {}
-        if (onAuthFailure) onAuthFailure();
+        if (!isSigningIn && onAuthFailure) onAuthFailure();
       }
     } else {
       cachedAccessToken = null;
