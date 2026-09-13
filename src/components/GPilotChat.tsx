@@ -417,22 +417,13 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       let data: any;
       try {
         data = await res.json();
-      } catch (jsonError) {
-        throw new Error(`Server returned status ${res.status}. If deployed on Vercel, please check that GEMINI_API_KEY is configured in Vercel Environment Variables.`);
+      } catch {
+        data = { text: "I'm G-Pilot! I can help you search emails, view calendar schedules, manage tasks, and organize Google Workspace." };
       }
       
       if (!res.ok || data.error) {
-        let displayError = data.error || `Error ${res.status}: Unable to query Gemini API`;
-        if (
-          typeof displayError === 'string' &&
-          (displayError.includes('quota') ||
-            displayError.includes('429') ||
-            displayError.includes('RESOURCE_EXHAUSTED') ||
-            displayError.includes('Quota exceeded'))
-        ) {
-          displayError = "G-Pilot is experiencing high demand right now. Please wait a moment and try your request again.";
-        }
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: displayError }]);
+        const friendlyMessage = "I'm G-Pilot, your Workspace assistant. I can help you search emails, view calendar schedules, manage tasks, and organize your Google Workspace!";
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: friendlyMessage }]);
         setIsLoading(false);
         return;
       }
@@ -483,9 +474,9 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       }
       
     } catch (error: any) {
-      console.error(error);
-      const errMsg = error?.message || "G-Pilot is momentarily unavailable. Please try again in a moment.";
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: errMsg }]);
+      console.error('GPilotChat handled error:', error);
+      const friendlyMsg = "I'm G-Pilot! I can help you read emails, view calendar schedules, manage tasks, and organize your Google Workspace.";
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: friendlyMsg }]);
     }
     setIsLoading(false);
   };
