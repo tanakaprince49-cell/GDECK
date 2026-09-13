@@ -56,9 +56,9 @@ When an action requires confirmation, you must stop execution and output a struc
 - **Sensitive Guardrails:** If an email or document contains credentials, passwords, financial records, or personal health info, highlight the presence of sensitive data and confirm intent before forwarding or summarizing externally.`;
 
       const CANDIDATE_MODELS = [
+        "gemini-3.6-flash",
         "gemini-2.5-flash",
         "gemini-1.5-flash",
-        "gemini-2.0-flash",
       ];
 
       let responseText = '';

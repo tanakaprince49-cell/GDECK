@@ -52,9 +52,9 @@ When an action requires confirmation, you must stop execution and output a struc
     let lastError: any = null;
 
     const CANDIDATE_MODELS = [
+      "gemini-3.6-flash",
       "gemini-2.5-flash",
       "gemini-1.5-flash",
-      "gemini-2.0-flash",
     ];
 
     // Method 1: Official @google/genai SDK

@@ -57,6 +57,9 @@ import GPilotChat from './components/GPilotChat';
 import { OnboardingModal, OnboardingPreferences } from './components/OnboardingModal';
 import { GDeckLogo } from './components/GDeckLogo';
 import { GoogleLogo } from './components/GoogleIcons';
+import { NotificationProvider } from './context/NotificationContext';
+import { NotificationCenter } from './components/NotificationCenter';
+import { NotificationToast } from './components/NotificationToast';
 import {
   ALL_WORKSPACE_TOOLS,
   CATEGORIES,
@@ -237,7 +240,8 @@ export default function App() {
   });
 
   return (
-    <div className="min-h-screen bg-[#F8FAFD] flex flex-col font-sans antialiased text-[#1F1F1F] selection:bg-[#c2e7ff] selection:text-[#001d35] relative">
+    <NotificationProvider token={token}>
+      <div className="min-h-screen bg-[#F8FAFD] flex flex-col font-sans antialiased text-[#1F1F1F] selection:bg-[#c2e7ff] selection:text-[#001d35] relative">
       {/* Google Workspace Top App Bar */}
       <header className="sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.08)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
@@ -335,6 +339,9 @@ export default function App() {
 
           {/* Right Header: Google 9-dot Waffle + Account Controls */}
           <div className="flex items-center gap-2">
+            {!needsAuth && token && (
+              <NotificationCenter onNavigateTab={(tab) => setActiveTab(tab)} />
+            )}
             {user ? (
               <div className="flex items-center gap-2">
                 {/* Direct Desktop Sign Out button */}
@@ -1023,6 +1030,10 @@ export default function App() {
         onClose={() => setShowOnboarding(false)}
         initialTheme="light"
       />
+
+      {/* Floating Real-time Notification Toast */}
+      <NotificationToast onNavigateTab={(tab) => setActiveTab(tab)} />
     </div>
+    </NotificationProvider>
   );
 }
