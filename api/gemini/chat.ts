@@ -1,42 +1,104 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 
-// Helper to keep token consumption as low as possible
+function hasFunctionCall(turn: any): boolean {
+  return turn?.role === 'model' && Array.isArray(turn?.parts) && turn.parts.some((p: any) => p && (p.functionCall || p.function_call));
+}
+
+function hasFunctionResponse(turn: any): boolean {
+  return turn?.role === 'user' && Array.isArray(turn?.parts) && turn.parts.some((p: any) => p && (p.functionResponse || p.function_response));
+}
+
+function isRegularUserPrompt(turn: any): boolean {
+  return turn?.role === 'user' && !hasFunctionResponse(turn);
+}
+
+// Helper to keep token consumption low, ensure valid multi-turn sequencing, and prevent 429 quota exhaustion
 function pruneAndSanitizeContents(rawContents: any[]) {
   if (!Array.isArray(rawContents) || rawContents.length === 0) {
     return [];
   }
 
-  // Keep at most the last 4-6 conversational turns
-  let trimmed = rawContents.slice(-6);
+  // 1. Filter out malformed turns
+  const validTurns = rawContents.filter((turn: any) => {
+    return turn && (turn.role === 'user' || turn.role === 'model') && Array.isArray(turn.parts) && turn.parts.length > 0;
+  });
 
-  // Gemini requires the first turn to have role 'user'
-  while (trimmed.length > 0 && trimmed[0].role !== 'user') {
-    trimmed.shift();
+  if (validTurns.length === 0) return [];
+
+  // 2. Find valid conversation starting points (user turns with no functionResponse)
+  const validStartIndices: number[] = [];
+  for (let i = 0; i < validTurns.length; i++) {
+    if (isRegularUserPrompt(validTurns[i])) {
+      validStartIndices.push(i);
+    }
   }
 
-  if (trimmed.length === 0) {
-    trimmed = rawContents.slice(-2);
+  if (validStartIndices.length === 0) {
+    return [];
   }
 
-  // Sanitize parts to prevent giant JSON dumps from eating up tokens
-  return trimmed.map((turn: any) => {
-    if (!turn || !Array.isArray(turn.parts)) return turn;
+  // Choose the closest start point that keeps within the last 8-10 turns
+  let startIndex = validStartIndices[0];
+  for (const idx of validStartIndices) {
+    if (validTurns.length - idx <= 8) {
+      startIndex = idx;
+      break;
+    }
+  }
 
+  const slice = validTurns.slice(startIndex);
+
+  // 3. Build a strictly valid conversational chain ensuring paired function calls/responses
+  const verified: any[] = [];
+  for (let i = 0; i < slice.length; i++) {
+    const turn = slice[i];
+
+    if (hasFunctionResponse(turn)) {
+      const prevTurn = verified[verified.length - 1];
+      if (!prevTurn || !hasFunctionCall(prevTurn)) {
+        // Orphaned response, omit to prevent Gemini API schema error
+        continue;
+      }
+    }
+
+    if (hasFunctionCall(turn)) {
+      const nextTurn = slice[i + 1];
+      if (!nextTurn || !hasFunctionResponse(nextTurn)) {
+        // Dangling function call with no response, omit
+        continue;
+      }
+    }
+
+    verified.push(turn);
+  }
+
+  // Ensure first turn is still a regular user prompt
+  while (verified.length > 0 && !isRegularUserPrompt(verified[0])) {
+    verified.shift();
+  }
+
+  if (verified.length === 0) {
+    const lastPrompt = validTurns.slice().reverse().find(isRegularUserPrompt);
+    if (lastPrompt) verified.push(lastPrompt);
+    else return [];
+  }
+
+  // 4. Sanitize and compact payloads to prevent token quota issues
+  return verified.map((turn: any) => {
     const cleanParts = turn.parts.map((part: any) => {
-      // If function response has huge data, compact it
+      // Compact large function responses
       if (part.functionResponse?.response) {
         const resp = part.functionResponse.response;
         try {
           const serialized = JSON.stringify(resp);
-          if (serialized.length > 1000) {
-            // Trim arrays inside response to 3 items
+          if (serialized.length > 1500) {
             const compact: any = {};
             for (const [k, v] of Object.entries(resp)) {
               if (Array.isArray(v)) {
-                compact[k] = v.slice(0, 3);
-              } else if (typeof v === 'string' && v.length > 200) {
-                compact[k] = v.slice(0, 200) + '...';
+                compact[k] = v.slice(0, 4);
+              } else if (typeof v === 'string' && v.length > 250) {
+                compact[k] = v.slice(0, 250) + '...';
               } else {
                 compact[k] = v;
               }
@@ -54,9 +116,9 @@ function pruneAndSanitizeContents(rawContents: any[]) {
         }
       }
 
-      // If user text is huge, clamp
-      if (typeof part.text === 'string' && part.text.length > 2500) {
-        return { ...part, text: part.text.slice(0, 2500) + '...[truncated]' };
+      // Compact large user text
+      if (typeof part.text === 'string' && part.text.length > 3000) {
+        return { ...part, text: part.text.slice(0, 3000) + '...[truncated]' };
       }
 
       return part;

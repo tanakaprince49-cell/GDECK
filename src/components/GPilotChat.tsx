@@ -471,13 +471,15 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           };
         
         case 'calendar_read':
-          const events = await listCalendarEvents(token, Math.min(args.maxResults || 3, 3));
+          const events = await listCalendarEvents(token, Math.min(args?.maxResults || 15, 25));
           return {
             success: true,
-            events: events.slice(0, 3).map((e) => ({
-              summary: e.summary,
-              start: e.start,
-              location: e.location,
+            events: events.slice(0, 15).map((e) => ({
+              summary: e.summary || '(No title)',
+              start: typeof e.start === 'object' ? (e.start?.dateTime || e.start?.date) : e.start,
+              end: typeof e.end === 'object' ? (e.end?.dateTime || e.end?.date) : e.end,
+              location: e.location || '',
+              description: e.description ? e.description.slice(0, 120) : '',
             })),
           };
           
@@ -631,18 +633,11 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
   const processResponse = async (context: any[]) => {
     setIsLoading(true);
     try {
-      // Ensure we send only the last 4-6 turns to avoid blowing token quotas
-      let prunedContext = context.slice(-6);
-      while (prunedContext.length > 0 && prunedContext[0].role !== 'user') {
-        prunedContext.shift();
-      }
-      const finalContents = prunedContext.length > 0 ? prunedContext : context.slice(-2);
-
       const res = await fetch('/api/gemini/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: finalContents,
+          contents: context,
           tools: GPILOT_TOOLS,
           userName,
           memories: memoriesList,
