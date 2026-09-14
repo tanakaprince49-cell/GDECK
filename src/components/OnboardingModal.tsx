@@ -176,7 +176,17 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     }
   };
 
+  const handleCloseModal = () => {
+    try {
+      localStorage.setItem('gdeck_onboarding_completed', 'true');
+    } catch {}
+    if (onClose) onClose();
+  };
+
   const finishOnboarding = () => {
+    try {
+      localStorage.setItem('gdeck_onboarding_completed', 'true');
+    } catch {}
     const prefs: OnboardingPreferences = {
       userName,
       role: selectedRole,
@@ -220,7 +230,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               {onClose && (
                 <button
                   id="onboarding-close-btn"
-                  onClick={onClose}
+                  onClick={handleCloseModal}
                   className="p-1.5 text-slate-400 hover:text-slate-700 bg-white hover:bg-slate-100 rounded-full border border-slate-200 transition-colors cursor-pointer"
                   title="Close and finish later"
                 >

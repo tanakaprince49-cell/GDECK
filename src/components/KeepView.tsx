@@ -4,7 +4,6 @@ import {
   Plus,
   Trash2,
   ExternalLink,
-  Info,
   Pin,
   CheckCircle2,
   Tag,
@@ -151,16 +150,6 @@ export const KeepView: React.FC<KeepViewProps> = ({ onBackToOverview }) => {
         </div>
       </div>
 
-      {/* Notice info banner regarding Google Keep API policy */}
-      <div className="p-4 bg-amber-50/70 backdrop-blur-md border border-amber-200/80 rounded-2xl text-xs text-amber-800 flex items-start gap-3 shadow-2xs">
-        <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-        <div className="space-y-1">
-          <p className="font-bold">Google Keep Cloud Integration Note:</p>
-          <p className="leading-relaxed text-amber-700">
-            The Google Keep REST API is restricted by Google's policy strictly to Enterprise Google Workspace domains with domain-wide service account delegation. For personal and standard accounts, use the quick launcher above to open your Keep dashboard directly, and use this integrated fast scratchpad to capture notes during your hub workflow.
-          </p>
-        </div>
-      </div>
 
       {/* New Note Composer */}
       <form

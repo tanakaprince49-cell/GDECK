@@ -614,3 +614,35 @@ export async function getFormResponses(token: string, formId: string): Promise<F
   const data = await googleFetch(`https://forms.googleapis.com/v1/forms/${formId}/responses`, token);
   return data?.responses || [];
 }
+
+// ---------------- Google Photos & Drive Images ----------------
+export interface WorkspacePhotoItem {
+  id: string;
+  name: string;
+  mimeType: string;
+  modifiedTime: string;
+  webViewLink?: string;
+  thumbnailLink?: string;
+  webContentLink?: string;
+  size?: string;
+}
+
+export async function searchUserPhotos(token: string): Promise<WorkspacePhotoItem[]> {
+  const q = "mimeType contains 'image/' and trashed = false";
+  const url = `https://www.googleapis.com/drive/v3/files?pageSize=50&q=${encodeURIComponent(
+    q
+  )}&fields=files(id,name,mimeType,modifiedTime,webViewLink,thumbnailLink,webContentLink,size)&orderBy=modifiedTime desc`;
+  const data = await googleFetch(url, token);
+  return data?.files || [];
+}
+
+// ---------------- Google Sites ----------------
+export async function searchUserSites(token: string): Promise<DriveFile[]> {
+  const q = "mimeType = 'application/vnd.google-apps.site' and trashed = false";
+  const url = `https://www.googleapis.com/drive/v3/files?pageSize=30&q=${encodeURIComponent(
+    q
+  )}&fields=files(id,name,modifiedTime,webViewLink,iconLink)&orderBy=modifiedTime desc`;
+  const data = await googleFetch(url, token);
+  return data?.files || [];
+}
+

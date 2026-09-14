@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
+import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2, Brain, Plus, Sparkles } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { GPilotIcon } from './GoogleIcons';
 import { 
@@ -290,6 +290,17 @@ const GPILOT_TOOLS = [
 export default function GPilotChat({ token, userName }: GPilotChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
+  const [showMemories, setShowMemories] = useState(false);
+  const [newMemoryInput, setNewMemoryInput] = useState('');
+
+  const [memoriesList, setMemoriesList] = useState<{ fact: string; timestamp?: string }[]>(() => {
+    try {
+      const readMem = localStorage.getItem('gpilot_memory');
+      return readMem ? JSON.parse(readMem) : [];
+    } catch {
+      return [];
+    }
+  });
   
   const [messages, setMessages] = useState<Message[]>(() => {
     try {
@@ -317,30 +328,84 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
     return [{ role: 'model', parts: [{ text: "Hi, I'm G-Pilot, your autonomous Workspace assistant." }] }];
   });
 
-  // Save messages to localStorage whenever they change
+  // Save messages safely to localStorage whenever they change
   useEffect(() => {
     try {
       if (messages.length > 0) {
-        localStorage.setItem('gpilot_chat_messages_history_v1', JSON.stringify(messages));
+        const safeMessages = messages.slice(-50).map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content || '',
+          isApprovalRequest: !!m.isApprovalRequest,
+          pendingAction: m.pendingAction
+            ? { name: m.pendingAction.name, args: m.pendingAction.args }
+            : undefined,
+        }));
+        localStorage.setItem('gpilot_chat_messages_history_v1', JSON.stringify(safeMessages));
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Unable to persist chat messages:', e);
+    }
   }, [messages]);
 
-  // Save apiContext to localStorage whenever it changes
+  // Save apiContext safely to localStorage whenever it changes
   useEffect(() => {
     try {
       if (apiContext.length > 0) {
-        localStorage.setItem('gpilot_api_context_history_v1', JSON.stringify(apiContext));
+        const safeContext = apiContext.slice(-30).map((turn) => ({
+          role: turn.role,
+          parts: Array.isArray(turn.parts)
+            ? turn.parts.map((p: any) => {
+                if (p.text) return { text: p.text };
+                if (p.functionCall) {
+                  return { functionCall: { name: p.functionCall.name, args: p.functionCall.args } };
+                }
+                if (p.functionResponse) {
+                  const safeResp =
+                    typeof p.functionResponse.response === 'string'
+                      ? p.functionResponse.response.slice(0, 1500)
+                      : p.functionResponse.response;
+                  return {
+                    functionResponse: {
+                      name: p.functionResponse.name,
+                      response: safeResp,
+                    },
+                  };
+                }
+                return { text: '' };
+              })
+            : [{ text: '' }],
+        }));
+        localStorage.setItem('gpilot_api_context_history_v1', JSON.stringify(safeContext));
       }
-    } catch {}
+    } catch (e) {
+      console.warn('Unable to persist apiContext:', e);
+    }
   }, [apiContext]);
+
+  // Save memories to localStorage
+  const saveMemories = (newList: { fact: string; timestamp?: string }[]) => {
+    setMemoriesList(newList);
+    try {
+      localStorage.setItem('gpilot_memory', JSON.stringify(newList));
+    } catch {}
+  };
+
+  const handleAddMemory = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMemoryInput.trim()) return;
+    const item = { fact: newMemoryInput.trim(), timestamp: new Date().toISOString() };
+    saveMemories([...memoriesList, item]);
+    setNewMemoryInput('');
+  };
+
+  const handleDeleteMemory = (index: number) => {
+    const updated = memoriesList.filter((_, i) => i !== index);
+    saveMemories(updated);
+  };
 
   useEffect(() => {
     if (messages.length === 0) {
-      // Load memories on boot to inject into context
-      const readMem = localStorage.getItem('gpilot_memory');
-      const storedMemories = readMem ? JSON.parse(readMem) : [];
-      
       let initialGreeting = "Hi, I'm G-Pilot, your autonomous Workspace assistant.";
       if (userName) {
         initialGreeting = `Hi ${userName}, I'm G-Pilot, your autonomous Workspace assistant.`;
@@ -349,33 +414,35 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       const sysMsg: Message = {
         id: '1',
         role: 'system',
-        content: `${initialGreeting} I can read emails, check your calendar, send messages, and more. How can I help?`
+        content: `${initialGreeting} I can read emails, check your calendar, send messages, and more. How can I help?`,
       };
 
       setMessages([sysMsg]);
-      
+
       let contextStr = initialGreeting;
-      if (storedMemories.length > 0) {
-        contextStr += `\n\nHere are some things I remember about you from past conversations:\n${storedMemories.map((m: any) => `- ${m.fact}`).join('\n')}`;
+      if (memoriesList.length > 0) {
+        contextStr += `\n\nHere are some things I remember about you:\n${memoriesList.map((m) => `- ${m.fact}`).join('\n')}`;
       }
 
-      setApiContext([
-        { role: 'model', parts: [{ text: contextStr }] }
-      ]);
+      setApiContext([{ role: 'model', parts: [{ text: contextStr }] }]);
     }
-  }, [userName, messages.length]);
+  }, [userName, messages.length, memoriesList]);
 
   const handleClearHistory = () => {
     try {
       localStorage.removeItem('gpilot_chat_messages_history_v1');
       localStorage.removeItem('gpilot_api_context_history_v1');
     } catch {}
-    const initialGreeting = userName ? `Hi ${userName}, I'm G-Pilot, your autonomous Workspace assistant.` : "Hi, I'm G-Pilot, your autonomous Workspace assistant.";
-    setMessages([{
-      id: Date.now().toString(),
-      role: 'system',
-      content: `${initialGreeting} Conversation cleared. How can I help you?`
-    }]);
+    const initialGreeting = userName
+      ? `Hi ${userName}, I'm G-Pilot, your autonomous Workspace assistant.`
+      : "Hi, I'm G-Pilot, your autonomous Workspace assistant.";
+    setMessages([
+      {
+        id: Date.now().toString(),
+        role: 'system',
+        content: `${initialGreeting} Conversation cleared. How can I help you?`,
+      },
+    ]);
     setApiContext([{ role: 'model', parts: [{ text: initialGreeting }] }]);
   };
 
@@ -424,7 +491,17 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
 
         case 'workspace_search':
           const files = await listDriveFiles(token, args.query);
-          return { success: true, files: files.slice(0, 5) };
+          return {
+            success: true,
+            totalFound: files.length,
+            files: files.slice(0, 10).map((f) => ({
+              id: f.id,
+              name: f.name,
+              mimeType: f.mimeType,
+              modifiedTime: f.modifiedTime,
+              webViewLink: f.webViewLink,
+            })),
+          };
 
         case 'chat_read':
           if (!args.spaceName) {
@@ -523,9 +600,10 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
         case 'memory_save':
           const savedMem = localStorage.getItem('gpilot_memory');
           const memories = savedMem ? JSON.parse(savedMem) : [];
-          memories.push({ fact: args.fact, timestamp: new Date().toISOString() });
-          localStorage.setItem('gpilot_memory', JSON.stringify(memories));
-          return { success: true, message: "Fact saved to memory." };
+          const newEntry = { fact: args.fact, timestamp: new Date().toISOString() };
+          memories.push(newEntry);
+          saveMemories(memories);
+          return { success: true, message: `Fact saved to long-term memory: "${args.fact}"` };
 
         case 'memory_read':
           const readMem = localStorage.getItem('gpilot_memory');
@@ -547,7 +625,12 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       const res = await fetch('/api/gemini/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: context, tools: GPILOT_TOOLS, userName })
+        body: JSON.stringify({
+          contents: context,
+          tools: GPILOT_TOOLS,
+          userName,
+          memories: memoriesList,
+        }),
       });
       
       let data: any;
@@ -617,12 +700,13 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           parts: functionResponses
         });
         
+        setApiContext(currentContext);
         // After executing functions, get the model's textual response
         await processResponse(currentContext);
         
       } else if (data.text) {
         setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: data.text }]);
-        setApiContext(prev => [...prev, { role: 'model', parts: [{ text: data.text }] }]);
+        setApiContext([...context, { role: 'model', parts: [{ text: data.text }] }]);
       }
       
     } catch (error: any) {
@@ -706,6 +790,20 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
             </div>
             <div className="flex items-center gap-1">
               <button
+                onClick={() => setShowMemories(!showMemories)}
+                className={`p-1.5 rounded-full transition-colors cursor-pointer relative ${
+                  showMemories ? 'bg-amber-100 text-amber-700' : 'text-slate-400 hover:text-amber-600 hover:bg-slate-200/60'
+                }`}
+                title={`G-Pilot Memory (${memoriesList.length} saved facts)`}
+              >
+                <Brain className="w-4 h-4" />
+                {memoriesList.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 text-white rounded-full text-[9px] font-bold flex items-center justify-center">
+                    {memoriesList.length}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={handleClearHistory}
                 className="p-1.5 text-slate-400 hover:text-red-600 rounded-full hover:bg-slate-200/60 transition-colors cursor-pointer"
                 title="Clear Chat History"
@@ -721,6 +819,69 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               </button>
             </div>
           </div>
+
+          {/* Long-Term Memories Panel */}
+          {showMemories && (
+            <div className="bg-amber-50/90 border-b border-amber-200/80 p-3.5 animate-in slide-in-from-top-2 duration-150">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
+                  <Brain className="w-3.5 h-3.5 text-amber-600" />
+                  <span>Long-Term AI Memory</span>
+                  <span className="text-[10px] text-amber-700 font-normal">
+                    (Retained across browser refreshes)
+                  </span>
+                </div>
+                <button
+                  onClick={() => setShowMemories(false)}
+                  className="text-amber-700 hover:text-amber-900 text-xs font-semibold cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
+
+              {memoriesList.length === 0 ? (
+                <p className="text-[11px] text-amber-800/80 italic py-1">
+                  No memories saved yet. Tell G-Pilot facts (e.g. "Remember that my name is Tanaka" or "Remember I prefer short emails"), or add below.
+                </p>
+              ) : (
+                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 mb-2">
+                  {memoriesList.map((m, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white/90 border border-amber-200 rounded-xl px-2.5 py-1.5 flex items-center justify-between text-xs gap-2"
+                    >
+                      <span className="text-slate-800 text-[11px] font-medium leading-tight">
+                        {m.fact}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteMemory(idx)}
+                        className="text-slate-400 hover:text-red-600 p-0.5 shrink-0 cursor-pointer"
+                        title="Forget this fact"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleAddMemory} className="flex gap-1.5 mt-2">
+                <input
+                  type="text"
+                  placeholder="Add a new fact to remember..."
+                  value={newMemoryInput}
+                  onChange={(e) => setNewMemoryInput(e.target.value)}
+                  className="flex-1 px-2.5 py-1 text-xs bg-white border border-amber-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500 text-slate-800 placeholder:text-amber-800/50"
+                />
+                <button
+                  type="submit"
+                  className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-3 h-3" /> Save
+                </button>
+              </form>
+            </div>
+          )}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white/60">

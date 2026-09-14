@@ -7,7 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { contents, tools, userName } = req.body || {};
+    const { contents, tools, userName, memories } = req.body || {};
     
     // Check for GEMINI_API_KEY from environment variables
     const rawApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
@@ -24,6 +24,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     if (userName) {
       sysInstruct += `\n\nThe user's name is ${userName}. Refer to them by their name and be helpful.`;
+    }
+
+    if (Array.isArray(memories) && memories.length > 0) {
+      sysInstruct += `\n\n### Long-Term Memory (Saved Facts About User):\n${memories.map((m: any) => `- ${m.fact || m}`).join('\n')}`;
     }
 
     sysInstruct += `\n\n## Safety, Permissions & Governance Protocols

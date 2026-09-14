@@ -184,12 +184,7 @@ export default function App() {
       setToken(currentToken);
       setNeedsAuth(!currentUser || !currentToken);
 
-      if (currentUser && currentToken) {
-        const completed = localStorage.getItem('gdeck_onboarding_completed');
-        if (!completed) {
-          setShowOnboarding(true);
-        }
-      }
+      // Do not auto-pop onboarding modal on every launch
     });
 
     const handleAuthExpired = (e: any) => {
@@ -229,10 +224,6 @@ export default function App() {
         setUser(result.user);
         setToken(result.accessToken);
         setNeedsAuth(false);
-        const completed = localStorage.getItem('gdeck_onboarding_completed');
-        if (!completed) {
-          setShowOnboarding(true);
-        }
       }
     } catch (err: any) {
       console.error('Sign-in error:', err);
@@ -1006,7 +997,7 @@ export default function App() {
               <DrawingsView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'sites' && (
-              <SitesView onBackToOverview={() => setActiveTab('overview')} />
+              <SitesView token={token} onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'gmail' && (
               <GmailView token={token} onBackToOverview={() => setActiveTab('overview')} />
@@ -1045,7 +1036,7 @@ export default function App() {
               <KeepView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'photos' && (
-              <PhotosView onBackToOverview={() => setActiveTab('overview')} />
+              <PhotosView token={token} onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'youtube' && (
               <YouTubeStudioView onBackToOverview={() => setActiveTab('overview')} />
@@ -1129,7 +1120,12 @@ export default function App() {
       <OnboardingModal
         isOpen={showOnboarding}
         onComplete={handleCompleteOnboarding}
-        onClose={() => setShowOnboarding(false)}
+        onClose={() => {
+          try {
+            localStorage.setItem('gdeck_onboarding_completed', 'true');
+          } catch {}
+          setShowOnboarding(false);
+        }}
         initialTheme="light"
       />
 

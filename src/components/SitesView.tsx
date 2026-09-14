@@ -1,91 +1,134 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Globe,
   Plus,
   Search,
   ExternalLink,
   Layout,
-  Eye,
-  FileCode,
   ArrowLeft,
-  CheckCircle2,
-  Layers,
-  Sparkles,
+  Loader2,
   Trash2,
+  FolderPlus,
+  RefreshCw,
 } from 'lucide-react';
 import { GoogleSitesIcon } from './GoogleIcons';
+import { searchUserSites } from '../services/workspace';
+import { DriveFile } from '../types/workspace';
 
 interface SitesViewProps {
+  token?: string | null;
   onBackToOverview?: () => void;
 }
 
-interface SiteProject {
+export interface SiteItem {
   id: string;
   title: string;
   url: string;
-  lastEdited: string;
-  pagesCount: number;
-  published: boolean;
-  theme: string;
+  lastEdited?: string;
+  source: 'google' | 'custom';
 }
 
-const DEFAULT_SITES: SiteProject[] = [
-  {
-    id: 'site-1',
-    title: 'Acme Corp Team Portal',
-    url: 'https://sites.google.com/view/acme-hub',
-    lastEdited: '2 hours ago',
-    pagesCount: 6,
-    published: true,
-    theme: 'Modern Glass',
-  },
-  {
-    id: 'site-2',
-    title: 'Product Engineering Wiki',
-    url: 'https://sites.google.com/view/eng-docs-q4',
-    lastEdited: 'Yesterday',
-    pagesCount: 14,
-    published: true,
-    theme: 'Developer Clean',
-  },
-  {
-    id: 'site-3',
-    title: 'Employee Onboarding Guide',
-    url: 'https://sites.google.com/view/new-hire-hq',
-    lastEdited: '3 days ago',
-    pagesCount: 4,
-    published: false,
-    theme: 'Vibrant Corporate',
-  },
-];
+export const SitesView: React.FC<SitesViewProps> = ({ token, onBackToOverview }) => {
+  const [sites, setSites] = useState<SiteItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('gdeck_custom_sites');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
 
-export const SitesView: React.FC<SitesViewProps> = ({ onBackToOverview }) => {
-  const [sites, setSites] = useState<SiteProject[]>(DEFAULT_SITES);
-  const [selectedSite, setSelectedSite] = useState<SiteProject>(DEFAULT_SITES[0]);
-  const [previewMode, setPreviewMode] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [newTitle, setNewTitle] = useState<string>('');
+  const [newUrl, setNewUrl] = useState<string>('');
+
+  // Fetch real user Google Sites via Google Drive API
+  const fetchSites = async () => {
+    if (!token) return;
+    setIsLoading(true);
+    try {
+      const driveSites: DriveFile[] = await searchUserSites(token);
+      if (Array.isArray(driveSites)) {
+        const mappedSites: SiteItem[] = driveSites.map((item) => ({
+          id: item.id,
+          title: item.name,
+          url: item.webViewLink || `https://sites.google.com/view/${item.id}`,
+          lastEdited: item.modifiedTime
+            ? new Date(item.modifiedTime).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })
+            : undefined,
+          source: 'google',
+        }));
+
+        setSites((prev) => {
+          const customOnly = prev.filter((s) => s.source === 'custom');
+          return [...mappedSites, ...customOnly];
+        });
+      }
+    } catch (err) {
+      console.warn('Could not fetch Google Sites:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSites();
+  }, [token]);
 
   const handleCreateSite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    const newSite: SiteProject = {
-      id: `site-${Date.now()}`,
+
+    const formattedUrl =
+      newUrl.trim() ||
+      `https://sites.google.com/view/${encodeURIComponent(
+        newTitle.trim().toLowerCase().replace(/\s+/g, '-')
+      )}`;
+
+    const newSite: SiteItem = {
+      id: `custom-site-${Date.now()}`,
       title: newTitle.trim(),
-      url: `https://sites.google.com/view/${newTitle.toLowerCase().replace(/\s+/g, '-')}`,
-      lastEdited: 'Just now',
-      pagesCount: 1,
-      published: false,
-      theme: 'Modern Glass',
+      url: formattedUrl,
+      lastEdited: new Date().toLocaleDateString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      }),
+      source: 'custom',
     };
-    setSites([newSite, ...sites]);
-    setSelectedSite(newSite);
+
+    const updated = [newSite, ...sites];
+    setSites(updated);
+    try {
+      const customOnly = updated.filter((s) => s.source === 'custom');
+      localStorage.setItem('gdeck_custom_sites', JSON.stringify(customOnly));
+    } catch {}
+
     setShowCreateModal(false);
     setNewTitle('');
+    setNewUrl('');
   };
 
+  const handleDeleteSite = (id: string) => {
+    const updated = sites.filter((s) => s.id !== id);
+    setSites(updated);
+    try {
+      const customOnly = updated.filter((s) => s.source === 'custom');
+      localStorage.setItem('gdeck_custom_sites', JSON.stringify(customOnly));
+    } catch {}
+  };
+
+  const filteredSites = sites.filter((s) =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
-    <div id="sites-view" className="space-y-6">
+    <div id="sites-view" className="space-y-6 font-sans">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/75 backdrop-blur-2xl p-5 sm:p-6 rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)]">
         <div className="flex items-center gap-3">
@@ -105,190 +148,232 @@ export const SitesView: React.FC<SitesViewProps> = ({ onBackToOverview }) => {
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">Google Sites</h2>
-            <p className="text-sm text-slate-500">Internal wikis, project portals & responsive team intranet</p>
+            <p className="text-sm text-slate-500">
+              Manage and access your Google Sites web portals and published pages
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2.5">
           <button
             onClick={() => setShowCreateModal(true)}
-            className="px-4 py-2.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white text-xs font-semibold rounded-xl shadow-xs border border-indigo-400/40 flex items-center gap-2 cursor-pointer hover:scale-105"
+            className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all hover:scale-105"
           >
             <Plus className="w-4 h-4" />
-            Create Site
+            <span>Add Site</span>
           </button>
           <a
-            href="https://sites.google.com"
+            href="https://sites.google.com/new"
             target="_blank"
             rel="noopener noreferrer"
-            className="p-2.5 text-slate-600 hover:text-indigo-600 bg-white/70 hover:bg-white rounded-xl border border-white/90 transition-colors shadow-2xs cursor-pointer"
-            title="Open Google Sites Web"
+            className="px-3.5 py-2.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-xs font-semibold rounded-xl shadow-2xs flex items-center gap-1.5 cursor-pointer"
           >
-            <ExternalLink className="w-4 h-4" />
+            <span>Create on Google Sites</span>
+            <ExternalLink className="w-3.5 h-3.5" />
           </a>
         </div>
       </div>
 
-      {/* Main Grid Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-[520px]">
-        {/* Left: Sites Directory */}
-        <div className="lg:col-span-4 bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05)] p-4 space-y-3">
-          <div className="flex items-center justify-between px-1 text-xs font-bold text-slate-400 uppercase tracking-wider">
-            <span>My Google Sites ({sites.length})</span>
-          </div>
-
-          <div className="space-y-2">
-            {sites.map((site) => {
-              const isSelected = site.id === selectedSite.id;
-              return (
-                <div
-                  key={site.id}
-                  onClick={() => setSelectedSite(site)}
-                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-                    isSelected
-                      ? 'border-indigo-500 bg-indigo-50/70 text-indigo-950 shadow-xs'
-                      : 'border-slate-200/80 bg-white/70 hover:bg-white text-slate-700'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold truncate">{site.title}</h4>
-                    <span
-                      className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                        site.published
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-amber-100 text-amber-700'
-                      }`}
-                    >
-                      {site.published ? 'Published' : 'Draft'}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 truncate mt-1">{site.url}</p>
-                  <div className="flex items-center justify-between text-[10px] text-slate-500 mt-2">
-                    <span>{site.pagesCount} pages</span>
-                    <span>Edited {site.lastEdited}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+      {/* Toolbar */}
+      <div className="bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05)] p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search your sites by title..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 shadow-2xs text-slate-900 font-medium"
+          />
         </div>
 
-        {/* Right: Site Details & Page Builder Preview */}
-        <div className="lg:col-span-8 bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05)] p-6 space-y-6">
-          <div className="flex items-center justify-between pb-4 border-b border-slate-200/60">
-            <div>
-              <h3 className="text-lg font-bold text-slate-900">{selectedSite.title}</h3>
-              <a
-                href={selectedSite.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-indigo-600 hover:underline flex items-center gap-1 mt-0.5"
-              >
-                {selectedSite.url} <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPreviewMode(!previewMode)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer ${
-                  previewMode
-                    ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <Eye className="w-3.5 h-3.5" />
-                {previewMode ? 'Edit Mode' : 'Live Preview'}
-              </button>
-            </div>
-          </div>
-
-          {/* Interactive Portal Preview Container */}
-          <div className="border border-slate-200/90 rounded-2xl overflow-hidden bg-slate-50 shadow-inner">
-            {/* Mock Site Nav */}
-            <div className="bg-indigo-900 text-white px-6 py-3 flex items-center justify-between">
-              <span className="font-bold text-sm tracking-wide">{selectedSite.title}</span>
-              <div className="flex gap-4 text-xs opacity-90">
-                <span className="cursor-pointer hover:underline">Home</span>
-                <span className="cursor-pointer hover:underline">Team Directory</span>
-                <span className="cursor-pointer hover:underline">Resources</span>
-                <span className="cursor-pointer hover:underline">FAQ</span>
-              </div>
-            </div>
-
-            {/* Mock Banner */}
-            <div className="p-8 bg-gradient-to-r from-indigo-800 to-purple-800 text-white text-center space-y-2">
-              <h2 className="text-2xl font-black">Welcome to our Workspace Portal</h2>
-              <p className="text-xs text-indigo-200 max-w-md mx-auto">
-                Access company policies, sprint documentation, and internal assets in one unified location.
-              </p>
-            </div>
-
-            {/* Mock Content Blocks */}
-            <div className="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="p-4 bg-white rounded-xl shadow-2xs border border-slate-100">
-                <h5 className="font-bold text-xs text-slate-800">📁 Shared Drive Assets</h5>
-                <p className="text-[11px] text-slate-500 mt-1">Direct links to active Q4 pitch folders and templates.</p>
-              </div>
-              <div className="p-4 bg-white rounded-xl shadow-2xs border border-slate-100">
-                <h5 className="font-bold text-xs text-slate-800">🗓️ Company Calendar</h5>
-                <p className="text-[11px] text-slate-500 mt-1">Upcoming all-hands meetings, holidays and milestones.</p>
-              </div>
-              <div className="p-4 bg-white rounded-xl shadow-2xs border border-slate-100">
-                <h5 className="font-bold text-xs text-slate-800">💬 Communication Guidelines</h5>
-                <p className="text-[11px] text-slate-500 mt-1">Chat etiquette and asynchronous update workflows.</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={fetchSites}
+          disabled={isLoading}
+          className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+        >
+          <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+          <span>Sync Sites</span>
+        </button>
       </div>
 
-      {/* New Site Modal */}
+      {/* Loading state */}
+      {isLoading && (
+        <div className="p-8 text-center bg-white/70 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-sm flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-6 h-6 text-indigo-600 animate-spin" />
+          <p className="text-xs text-slate-600 font-medium">
+            Fetching your Google Sites from your account...
+          </p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && filteredSites.length === 0 && (
+        <div className="p-12 text-center bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05)] space-y-4 max-w-lg mx-auto">
+          <div className="w-16 h-16 rounded-3xl bg-indigo-50 text-indigo-600 flex items-center justify-center mx-auto shadow-xs">
+            <Globe className="w-8 h-8" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-900">No Google Sites Found</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              {searchQuery
+                ? `No sites matched "${searchQuery}".`
+                : 'You have not created any Google Sites in this workspace yet. Start building a new site or add an existing URL.'}
+            </p>
+          </div>
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <a
+              href="https://sites.google.com/new"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 cursor-pointer shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create New Google Site</span>
+            </a>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold inline-flex items-center gap-2 cursor-pointer shadow-2xs"
+            >
+              <FolderPlus className="w-4 h-4" />
+              <span>Add Custom Link</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Real Sites Grid */}
+      {!isLoading && filteredSites.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredSites.map((site) => (
+            <div
+              key={site.id}
+              className="bg-white/80 hover:bg-white rounded-3xl border border-slate-200/80 p-5 space-y-4 hover:border-indigo-300 hover:shadow-md transition-all flex flex-col justify-between"
+            >
+              <div className="space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                      <Layout className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-900">{site.title}</h4>
+                      <span className="text-[10px] text-slate-400 capitalize">
+                        {site.source === 'google' ? 'Google Sites' : 'Custom Portal'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {site.source === 'custom' && (
+                    <button
+                      onClick={() => handleDeleteSite(site.id)}
+                      className="p-1.5 text-slate-300 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                      title="Remove site"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <p className="text-xs text-slate-500 font-mono truncate bg-slate-50 p-2 rounded-xl border border-slate-100">
+                  {site.url}
+                </p>
+
+                {site.lastEdited && (
+                  <p className="text-[11px] text-slate-400">
+                    Modified: {site.lastEdited}
+                  </p>
+                )}
+              </div>
+
+              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                <a
+                  href={site.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:scale-105"
+                >
+                  <span>Open Site</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+
+                <a
+                  href="https://sites.google.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-slate-400 hover:text-indigo-600 font-medium"
+                >
+                  Manage on Sites
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add Site Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 max-w-md w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <GoogleSitesIcon className="w-6 h-6" />
-                <h3 className="text-base font-bold text-slate-900">Create New Google Site</h3>
+                <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                  <Globe className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-slate-900">Add Site Project</h3>
               </div>
               <button
                 onClick={() => setShowCreateModal(false)}
-                className="text-xs text-slate-400 hover:text-slate-600 font-bold"
+                className="text-slate-400 hover:text-slate-700 text-sm font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleCreateSite} className="space-y-4">
+            <form onSubmit={handleCreateSite} className="space-y-3">
               <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">
-                  Site Name / Title
+                  Site Name
                 </label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Sales Engineering Portal"
+                  placeholder="e.g. My Portfolio, Engineering Docs..."
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                  required
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Site URL (Optional)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://sites.google.com/view/..."
+                  value={newUrl}
+                  onChange={(e) => setNewUrl(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                />
+                <span className="text-[10px] text-slate-400 mt-1 block">
+                  Leave blank to auto-generate a Google Sites view URL.
+                </span>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowCreateModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs"
                 >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Create Site</span>
+                  Add Site
                 </button>
               </div>
             </form>
