@@ -3,12 +3,6 @@ import {
   Bell,
   Check,
   Trash2,
-  Mail,
-  Calendar,
-  HardDrive,
-  CheckSquare,
-  Video,
-  Sparkles,
   Settings,
   ArrowRight,
   Filter,
@@ -18,6 +12,15 @@ import {
 import { useNotifications } from '../context/NotificationContext';
 import { NotificationCategory, WorkspaceNotification } from '../types/notification';
 import { NotificationSettingsModal } from './NotificationSettingsModal';
+import {
+  GmailIcon,
+  GoogleCalendarIcon,
+  GoogleDriveIcon,
+  GoogleTasksIcon,
+  GoogleMeetIcon,
+  GoogleLogo,
+  GPilotIcon
+} from './GoogleIcons';
 
 interface NotificationCenterProps {
   onNavigateTab?: (tab: string) => void;
@@ -26,19 +29,19 @@ interface NotificationCenterProps {
 const getCategoryBadge = (category: NotificationCategory) => {
   switch (category) {
     case 'gmail':
-      return { icon: Mail, label: 'Gmail', bg: 'bg-[#fce8e6]', text: 'text-[#d93025]', border: 'border-[#f5c6cb]' };
+      return { icon: GmailIcon, label: 'Gmail', bg: 'bg-white', text: 'text-[#d93025]', border: 'border-[#dadce0]' };
     case 'calendar':
-      return { icon: Calendar, label: 'Calendar', bg: 'bg-[#e8f0fe]', text: 'text-[#1a73e8]', border: 'border-[#d2e3fc]' };
+      return { icon: GoogleCalendarIcon, label: 'Calendar', bg: 'bg-white', text: 'text-[#1a73e8]', border: 'border-[#dadce0]' };
     case 'drive':
-      return { icon: HardDrive, label: 'Drive', bg: 'bg-[#fef7e0]', text: 'text-[#b06000]', border: 'border-[#feefc3]' };
+      return { icon: GoogleDriveIcon, label: 'Drive', bg: 'bg-white', text: 'text-[#b06000]', border: 'border-[#dadce0]' };
     case 'tasks':
-      return { icon: CheckSquare, label: 'Tasks', bg: 'bg-[#e6f4ea]', text: 'text-[#137333]', border: 'border-[#ceead6]' };
+      return { icon: GoogleTasksIcon, label: 'Tasks', bg: 'bg-white', text: 'text-[#137333]', border: 'border-[#dadce0]' };
     case 'meet':
-      return { icon: Video, label: 'Meet', bg: 'bg-[#e6f4ea]', text: 'text-[#00832d]', border: 'border-[#ceead6]' };
+      return { icon: GoogleMeetIcon, label: 'Meet', bg: 'bg-white', text: 'text-[#00832d]', border: 'border-[#dadce0]' };
     case 'gpilot':
-      return { icon: Sparkles, label: 'G-Pilot', bg: 'bg-[#f3e8ff]', text: 'text-[#7e22ce]', border: 'border-[#e9d5ff]' };
+      return { icon: GPilotIcon, label: 'G-Pilot', bg: 'bg-white', text: 'text-[#1a73e8]', border: 'border-[#dadce0]' };
     default:
-      return { icon: Bell, label: 'System', bg: 'bg-slate-100', text: 'text-[#5f6368]', border: 'border-slate-200' };
+      return { icon: GoogleLogo, label: 'System', bg: 'bg-white', text: 'text-[#5f6368]', border: 'border-[#dadce0]' };
   }
 };
 
@@ -102,16 +105,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
 
       {/* Popover Menu */}
       {isOpen && (
-        <div className="fixed sm:absolute top-16 sm:top-auto left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 w-auto sm:w-96 rounded-3xl bg-white border border-[#dadce0] shadow-[0_8px_32px_rgba(60,64,67,0.22)] z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden flex flex-col max-h-[85vh]">
+        <div className="fixed sm:absolute top-16 sm:top-auto left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 w-auto sm:w-[400px] rounded-[24px] bg-white border border-[#dadce0] shadow-[0_8px_32px_rgba(60,64,67,0.15)] z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden flex flex-col max-h-[85vh]">
           {/* Header */}
-          <div className="p-4 bg-white border-b border-[#f1f3f4] flex items-center justify-between">
+          <div className="px-5 py-4 bg-white flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-[#1f1f1f] font-['Google_Sans',sans-serif]">
+              <h3 className="text-lg font-medium text-[#1f1f1f] font-['Google_Sans',sans-serif]">
                 Notifications
               </h3>
               {unreadCount > 0 && (
-                <span className="px-2 py-0.5 rounded-full bg-[#d93025]/10 text-[#d93025] text-xs font-bold">
-                  {unreadCount} unread
+                <span className="px-2 py-0.5 rounded-full bg-[#d93025] text-white text-xs font-medium">
+                  {unreadCount} new
                 </span>
               )}
             </div>
@@ -120,19 +123,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
-                  className="p-1.5 text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#e8f0fe] rounded-full transition-colors cursor-pointer"
+                  className="p-2 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
                   title="Mark all as read"
                 >
-                  <CheckCheck className="w-4 h-4" />
+                  <CheckCheck className="w-5 h-5" />
                 </button>
               )}
               {notifications.length > 0 && (
                 <button
                   onClick={clearAll}
-                  className="p-1.5 text-[#5f6368] hover:text-[#d93025] hover:bg-[#fce8e6] rounded-full transition-colors cursor-pointer"
+                  className="p-2 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
                   title="Clear all"
                 >
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 className="w-5 h-5" />
                 </button>
               )}
               <button
@@ -140,24 +143,24 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                   setShowSettingsModal(true);
                   setIsOpen(false);
                 }}
-                className="p-1.5 text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
+                className="p-2 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
                 title="Notification Settings"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-5 h-5" />
               </button>
             </div>
           </div>
 
           {/* Filter Bar */}
-          <div className="px-3 py-2 bg-[#f8fafd] border-b border-[#f1f3f4] flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <div className="px-5 pb-3 bg-white border-b border-[#f1f3f4] flex flex-wrap items-center gap-2">
             {['all', 'unread', 'gmail', 'calendar', 'drive', 'tasks', 'gpilot'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}
-                className={`px-3 py-1 rounded-full text-[11px] font-semibold capitalize whitespace-nowrap transition-colors cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium capitalize whitespace-nowrap transition-colors cursor-pointer ${
                   filter === cat
-                    ? 'bg-[#1a73e8] text-white shadow-xs'
-                    : 'bg-white text-[#5f6368] hover:bg-[#e8f0fe] border border-[#dadce0]'
+                    ? 'bg-[#e8f0fe] text-[#001d35]'
+                    : 'bg-transparent text-[#5f6368] hover:bg-[#f1f3f4]'
                 }`}
               >
                 {cat}
@@ -166,14 +169,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
           </div>
 
           {/* List Content */}
-          <div className="flex-1 overflow-y-auto divide-y divide-[#f1f3f4] max-h-96">
+          <div className="flex-1 overflow-y-auto max-h-[400px]">
             {filteredNotifications.length === 0 ? (
-              <div className="p-8 text-center space-y-2">
-                <div className="w-12 h-12 rounded-full bg-[#f8fafd] border border-[#dadce0] flex items-center justify-center mx-auto text-[#5f6368]">
-                  <Bell className="w-6 h-6" />
+              <div className="p-10 text-center space-y-3">
+                <div className="w-16 h-16 rounded-full bg-[#f8fafd] flex items-center justify-center mx-auto text-[#5f6368]">
+                  <Bell className="w-8 h-8 opacity-50" />
                 </div>
-                <p className="text-xs font-semibold text-[#1f1f1f]">No notifications</p>
-                <p className="text-[11px] text-[#5f6368]">
+                <p className="text-sm font-medium text-[#1f1f1f]">No notifications</p>
+                <p className="text-xs text-[#5f6368]">
                   {filter === 'unread' ? 'You are all caught up!' : 'Nothing to show in this filter.'}
                 </p>
               </div>
@@ -187,56 +190,56 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                   <div
                     key={n.id}
                     onClick={() => handleNotificationClick(n)}
-                    className={`p-3.5 transition-colors cursor-pointer flex items-start gap-3 group hover:bg-[#f0f4f9] ${
-                      !n.read ? 'bg-[#f4f8ff]/70 font-medium' : 'bg-white'
+                    className={`px-5 py-4 transition-colors cursor-pointer flex items-start gap-4 group hover:bg-[#f8fafd] border-b border-[#f1f3f4] last:border-0 ${
+                      !n.read ? 'bg-[#f4f8ff]/40' : 'bg-white'
                     }`}
                   >
                     {/* Category Icon */}
-                    <div className={`p-2 rounded-xl shrink-0 ${badge.bg} border ${badge.border}`}>
-                      <CategoryIcon className={`w-4 h-4 ${badge.text}`} />
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${badge.bg} border ${badge.border}`}>
+                      <CategoryIcon className={`w-6 h-6 ${badge.text}`} />
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className={`text-[10px] font-bold ${badge.text} truncate`}>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className={`text-xs font-medium ${badge.text} truncate`}>
                           {badge.label}
                         </span>
-                        <span className="text-[10px] text-[#5f6368] shrink-0">{timeAgo}</span>
+                        <span className="text-xs text-[#5f6368] shrink-0">{timeAgo}</span>
                       </div>
 
                       <h4
-                        className={`text-xs mt-0.5 truncate ${
-                          !n.read ? 'font-bold text-[#1f1f1f]' : 'text-[#444746]'
+                        className={`text-sm truncate ${
+                          !n.read ? 'font-medium text-[#1f1f1f]' : 'text-[#444746]'
                         }`}
                       >
                         {n.title}
                       </h4>
-                      <p className="text-[11px] text-[#5f6368] line-clamp-2 mt-0.5 leading-snug">
+                      <p className="text-sm text-[#5f6368] line-clamp-2 mt-0.5 leading-snug">
                         {n.message}
                       </p>
 
                       {n.actionTab && (
-                        <div className="mt-2 flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-[#1a73e8] group-hover:underline flex items-center gap-1">
-                            {n.actionText || 'View'} <ArrowRight className="w-3 h-3" />
-                          </span>
+                        <div className="mt-3 flex items-center justify-between">
+                          <button className="px-4 py-1.5 rounded-full border border-[#dadce0] text-sm font-medium text-[#1a73e8] hover:bg-[#f8fafd] transition-colors">
+                            {n.actionText || 'View'}
+                          </button>
 
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               clearNotification(n.id);
                             }}
-                            className="text-[#5f6368] hover:text-[#d93025] p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                            className="text-[#5f6368] hover:bg-[#f1f3f4] p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all"
                             title="Remove notification"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       )}
                     </div>
 
                     {!n.read && (
-                      <span className="w-2 h-2 rounded-full bg-[#1a73e8] shrink-0 mt-1.5" />
+                      <span className="w-2.5 h-2.5 rounded-full bg-[#1a73e8] shrink-0 mt-2" />
                     )}
                   </div>
                 );
@@ -245,12 +248,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
           </div>
 
           {/* Footer Action */}
-          <div className="p-3 bg-[#f8fafd] border-t border-[#f1f3f4] flex items-center justify-between">
+          <div className="p-4 bg-white border-t border-[#f1f3f4] flex items-center justify-between rounded-b-[24px]">
             <button
               onClick={triggerTestNotification}
-              className="text-xs font-semibold text-[#1a73e8] hover:text-[#1557b0] flex items-center gap-1.5 cursor-pointer hover:underline"
+              className="text-sm font-medium text-[#1a73e8] hover:bg-[#f8fafd] px-3 py-1.5 rounded-md flex items-center gap-2 cursor-pointer transition-colors"
             >
-              <Zap className="w-3.5 h-3.5" /> Simulate Incoming Alert
+              <Zap className="w-4 h-4" /> Simulate Alert
             </button>
             
             <button
@@ -258,9 +261,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                 setShowSettingsModal(true);
                 setIsOpen(false);
               }}
-              className="text-xs text-[#5f6368] hover:text-[#1f1f1f] flex items-center gap-1 cursor-pointer"
+              className="text-sm text-[#5f6368] hover:bg-[#f1f3f4] px-3 py-1.5 rounded-md flex items-center gap-2 cursor-pointer transition-colors"
             >
-              <Settings className="w-3.5 h-3.5" /> Settings
+              <Settings className="w-4 h-4" /> Settings
             </button>
           </div>
         </div>

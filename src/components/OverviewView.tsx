@@ -176,14 +176,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   return (
     <div className="space-y-8 animate-in fade-in duration-300">
       {/* Google Workspace Dashboard Banner */}
-      <div className="bg-white p-6 sm:p-8 rounded-3xl border border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.06)] relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="google-card p-6 sm:p-8 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-1.5 z-10">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-[#1a73e8] bg-[#e8f0fe] px-2.5 py-0.5 rounded-full border border-[#d2e3fc]">
               Workspace Command Center
             </span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#1f1f1f] font-['Google_Sans',Roboto,sans-serif]">
+          <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-[#1f1f1f] font-['Google_Sans',Roboto,sans-serif]">
             Good day{userName ? `, ${userName}` : ''}
           </h2>
           <p className="text-xs sm:text-sm text-[#5f6368] max-w-xl">
@@ -195,7 +195,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         <div className="flex items-center flex-wrap gap-2.5 z-10">
           <button
             onClick={() => setShowCustomizeModal(true)}
-            className="px-4 py-2 rounded-full text-xs font-medium text-[#1f1f1f] hover:text-[#1a73e8] bg-[#f0f4f9] hover:bg-[#e8f0fe] border border-[#dadce0] transition-all cursor-pointer flex items-center gap-2 shadow-2xs"
+            className="btn-google-secondary px-4 py-2 flex items-center gap-2"
             title="Choose which Google tools appear on this dashboard"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-[#1a73e8]" />
@@ -206,10 +206,10 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             id="overview-refresh-btn"
             onClick={handleManualRefresh}
             disabled={refreshing || loading}
-            className="p-2.5 rounded-full text-[#5f6368] hover:text-[#1f1f1f] bg-[#f0f4f9] hover:bg-[#e8f0fe] border border-[#dadce0] transition-all cursor-pointer shadow-2xs disabled:opacity-50"
+            className="btn-google-secondary p-2.5 disabled:opacity-50"
             title="Refresh workspace feeds"
           >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-[#1a73e8]' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin text-[#1a73e8]' : 'text-[#5f6368]'}`} />
           </button>
         </div>
       </div>
@@ -265,7 +265,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   key={tool.id}
                   id={`overview-launch-${tool.id}`}
                   onClick={() => onNavigateTab(tool.id)}
-                  className={`p-5 rounded-3xl border transition-all duration-200 text-left cursor-pointer group flex flex-col justify-between min-h-[160px] relative bg-white border-[#dadce0] hover:border-[#1a73e8] hover:shadow-[0_2px_8px_0_rgba(60,64,67,0.12)] hover:-translate-y-0.5 ${
+                  className={`google-card-interactive p-5 text-left group flex flex-col justify-between min-h-[160px] relative ${
                     isAnchor ? 'ring-2 ring-[#1a73e8]/30' : ''
                   }`}
                 >
@@ -312,7 +312,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       {/* Live Workspace Feeds Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Google Calendar Card */}
-        <div className="bg-white p-6 rounded-3xl border border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.06)] flex flex-col justify-between">
+        <div className="google-card p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#f1f3f4]">
               <div className="flex items-center gap-3">
@@ -389,7 +389,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Google Tasks Card */}
-        <div className="bg-white p-6 rounded-3xl border border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.06)] flex flex-col justify-between">
+        <div className="google-card p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#f1f3f4]">
               <div className="flex items-center gap-3">
@@ -458,7 +458,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Gmail Priority Inbox Card */}
-        <div className="bg-white p-6 rounded-3xl border border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.06)] flex flex-col justify-between">
+        <div className="google-card p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#f1f3f4]">
               <div className="flex items-center gap-3">
@@ -520,7 +520,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Google Drive Card */}
-        <div className="bg-white p-6 rounded-3xl border border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.06)] flex flex-col justify-between">
+        <div className="google-card p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#f1f3f4]">
               <div className="flex items-center gap-3">

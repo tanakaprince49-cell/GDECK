@@ -22,6 +22,8 @@ import {
   HelpCircle,
   Settings,
   Grid,
+  Maximize,
+  Minimize,
 } from 'lucide-react';
 
 import { initAuth, googleSignIn, logout } from './services/auth';
@@ -108,6 +110,7 @@ export default function App() {
   const [showProfileMenu, setShowProfileMenu] = useState<boolean>(false);
   const [globalSearchQuery, setGlobalSearchQuery] = useState<string>('');
   const [showSearchResults, setShowSearchResults] = useState<boolean>(false);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   const waffleRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -206,6 +209,17 @@ export default function App() {
     };
   }, []);
 
+  // Mobile full-screen effect
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      setIsFullscreen(false);
+    } else {
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        setIsFullscreen(true);
+      }
+    }
+  }, [activeTab]);
+
   const handleSignIn = async () => {
     setIsLoggingIn(true);
     setAuthError(null);
@@ -266,21 +280,27 @@ export default function App() {
 
   return (
     <NotificationProvider token={token}>
-      <div className="min-h-screen bg-[#F8FAFD] flex flex-col font-sans antialiased text-[#1F1F1F] selection:bg-[#c2e7ff] selection:text-[#001d35] relative">
+      <div className="min-h-screen bg-[#F8FAFD] flex flex-col antialiased text-[#1F1F1F] selection:bg-[#c2e7ff] selection:text-[#001d35] relative" style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}>
       {/* Google Workspace Top App Bar */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-[0_1px_2px_0_rgba(60,64,67,0.08)]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      {!isFullscreen && (
+        <header className="sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-sm">
+          <div className="w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           {/* Brand Identity - Google Workspace Deck */}
-          <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1 shrink-0">
+            {user && (
+              <button className="p-3 mr-1 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors hidden sm:block">
+                <Menu className="w-6 h-6" />
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('overview')}
-              className="flex items-center gap-2.5 p-1.5 rounded-xl hover:bg-[#f1f3f4] transition-colors cursor-pointer group"
+              className="flex items-center gap-2 p-1.5 pr-3 rounded-lg hover:bg-[#f1f3f4] transition-colors cursor-pointer group"
               title="Google Workspace Deck Dashboard"
             >
               <GDeckLogo size="sm" />
               <div className="flex flex-col text-left">
-                <span className="text-lg font-bold tracking-tight text-[#1f1f1f] font-['Google_Sans',Roboto,sans-serif]">
-                  GDECK
+                <span className="text-xl font-medium tracking-tight text-[#5f6368] font-['Google_Sans',Roboto,sans-serif]">
+                  G-Deck
                 </span>
               </div>
             </button>
@@ -848,9 +868,10 @@ export default function App() {
           </div>
         )}
       </header>
+      )}
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+      <main className={`flex-1 w-full mx-auto relative flex flex-col ${isFullscreen ? 'p-0 max-w-full' : 'max-w-7xl p-4 sm:p-6 lg:p-8'}`}>
         {needsAuth || !token ? (
           /* Google Workspace Hero Sign-In Screen */
           <div className="max-w-4xl mx-auto my-8">
@@ -883,10 +904,10 @@ export default function App() {
 
               <div className="space-y-2.5 max-w-2xl mx-auto">
                 <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1f1f1f] leading-tight font-['Google_Sans',Roboto,sans-serif]">
-                  One Unified Deck for Your Google Workspace
+                  One Unified Deck for Google Workspace.
                 </h1>
                 <p className="text-sm sm:text-base text-[#5f6368] leading-relaxed">
-                  Directly interact with Gmail, Drive, Sheets, Docs, Tasks, Meet, and Calendar in a single interface powered by your personal Google AI assistant.
+                  Command Gmail, Drive, Sheets, Docs, Tasks, Meet, and Calendar from a single interface driven by G-Pilot, your personal AI agent.
                 </p>
               </div>
 
@@ -915,9 +936,9 @@ export default function App() {
           </div>
         ) : (
           /* Active Views */
-          <div>
+          <div className="flex flex-col flex-1 h-full">
             {/* Breadcrumb Bar */}
-            {activeTab !== 'overview' && (
+            {activeTab !== 'overview' && !isFullscreen && (
               <div className="mb-5 flex items-center justify-between bg-white px-4 py-2.5 rounded-2xl border border-[#dadce0] shadow-xs">
                 <nav
                   aria-label="Breadcrumb"
@@ -934,6 +955,25 @@ export default function App() {
                     {activeTab}
                   </span>
                 </nav>
+                <button
+                  onClick={() => setIsFullscreen(true)}
+                  className="p-1.5 text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#f0f4f9] rounded-lg transition-colors cursor-pointer"
+                  title="Enter Fullscreen"
+                >
+                  <Maximize className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {isFullscreen && activeTab !== 'overview' && (
+              <div className="fixed top-4 right-6 z-50 pointer-events-auto">
+                <button
+                  onClick={() => setIsFullscreen(false)}
+                  className="p-2.5 bg-white/90 backdrop-blur-md border border-[#dadce0] shadow-lg text-[#5f6368] hover:text-[#d93025] hover:bg-[#fce8e6] rounded-full transition-all cursor-pointer flex items-center justify-center group"
+                  title="Exit Fullscreen"
+                >
+                  <Minimize className="w-5 h-5 group-hover:scale-95 transition-transform" />
+                </button>
               </div>
             )}
 
@@ -1039,6 +1079,7 @@ export default function App() {
       </main>
 
       {/* Footer */}
+      {!isFullscreen && (
       <footer className="bg-white border-t border-[#dadce0] py-4 px-6 text-center text-xs text-[#5f6368] mt-auto">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>© 2026 G-Deck (gdeck.org). All rights reserved.</span>
@@ -1066,6 +1107,7 @@ export default function App() {
           </div>
         </div>
       </footer>
+      )}
 
       {/* Confirmation Modal for Logging Out */}
       <ConfirmModal

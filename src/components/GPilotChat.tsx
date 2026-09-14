@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, Sparkles, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
-import { AIIcon } from './GoogleIcons';
+import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
+import { GPilotIcon } from './GoogleIcons';
 import { 
   listGmailMessages, 
   sendGmailMessage, 
@@ -28,6 +28,88 @@ type Message = {
   content: string;
   isApprovalRequest?: boolean;
   pendingAction?: any;
+};
+
+const ActionApprovalBox: React.FC<{
+  msg: Message;
+  onApprove: (action: any, approved: boolean, msgId: string) => void;
+}> = ({ msg, onApprove }) => {
+  const [argsObj, setArgsObj] = useState<Record<string, any>>(() => msg.pendingAction?.args || {});
+
+  const handleApprove = () => {
+    onApprove({ ...msg.pendingAction, args: argsObj }, true, msg.id);
+  };
+
+  const handleArgChange = (key: string, value: string) => {
+    setArgsObj((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const formatActionName = (name?: string) => {
+    if (!name) return 'Action';
+    return name
+      .split('_')
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  };
+
+  return (
+    <div className="space-y-3 w-full min-w-[240px] sm:min-w-[280px]">
+      <div className="flex items-center gap-2 text-[#f29900] font-bold text-xs uppercase tracking-wider">
+        <AlertTriangle className="w-4 h-4 text-[#f29900]" /> Action Approval
+      </div>
+      <div className="bg-white border border-[#fbbc04]/80 p-3.5 rounded-xl shadow-2xs space-y-3">
+        <div className="text-sm font-semibold text-[#1f1f1f] flex items-center gap-2 pb-2 border-b border-[#f1f3f4]">
+          {formatActionName(msg.pendingAction?.name)}
+        </div>
+        <div className="space-y-3">
+          {Object.entries(argsObj).map(([key, value]) => {
+            const isTextArea =
+              key.toLowerCase().includes('body') ||
+              key.toLowerCase().includes('description') ||
+              (typeof value === 'string' && value.length > 40);
+
+            return (
+              <div key={key} className="space-y-1">
+                <label className="text-xs font-semibold text-[#5f6368] capitalize">
+                  {key.replace(/([A-Z])/g, ' $1').trim()}
+                </label>
+                {isTextArea ? (
+                  <textarea
+                    value={typeof value === 'string' ? value : JSON.stringify(value)}
+                    onChange={(e) => handleArgChange(key, e.target.value)}
+                    className="w-full text-sm text-[#1f1f1f] bg-[#f8fafd] border border-[#dadce0] rounded-lg p-2 focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] resize-none"
+                    rows={3}
+                  />
+                ) : (
+                  <input
+                    type="text"
+                    value={typeof value === 'string' ? value : JSON.stringify(value)}
+                    onChange={(e) => handleArgChange(key, e.target.value)}
+                    className="w-full text-sm text-[#1f1f1f] bg-[#f8fafd] border border-[#dadce0] rounded-lg p-2 focus:outline-none focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8]"
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <p className="text-xs font-medium text-[#1f1f1f]">Review details before proceeding.</p>
+      <div className="flex items-center gap-2 pt-1">
+        <button
+          onClick={() => onApprove(msg.pendingAction, false, msg.id)}
+          className="flex-1 px-3 py-2 rounded-xl border border-[#dadce0] hover:bg-[#f1f3f4] text-xs font-semibold text-[#5f6368] transition-colors cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleApprove}
+          className="flex-1 px-3 py-2 rounded-xl bg-[#1a73e8] hover:bg-[#1557b0] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+        >
+          <CheckCircle className="w-3.5 h-3.5" /> Approve
+        </button>
+      </div>
+    </div>
+  );
 };
 
 // Map of available functions with their JSON Schema descriptions
@@ -470,12 +552,15 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       try {
         data = await res.json();
       } catch {
-        data = { text: "I'm G-Pilot! I can help you search emails, view calendar schedules, manage tasks, and organize Google Workspace." };
+        data = { error: "Network response error" };
       }
       
       if (!res.ok || data.error) {
-        const friendlyMessage = "I'm G-Pilot, your Workspace assistant. I can help you search emails, view calendar schedules, manage tasks, and organize your Google Workspace!";
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: friendlyMessage }]);
+        let displayError = "G-Pilot is experiencing high demand right now. Please wait a moment and try again.";
+        if (typeof data.error === 'string' && !data.error.includes("Network")) {
+           displayError = data.error;
+        }
+        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: displayError }]);
         setIsLoading(false);
         return;
       }
@@ -581,27 +666,27 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           onClick={() => setIsOpen(true)}
           id="gpilot-chat-floating-btn"
           aria-label="Open G-Pilot AI Assistant"
-          className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-tr from-[#fbe618] via-amber-400 to-yellow-300 rounded-2xl shadow-[0_8px_30px_rgba(251,230,24,0.35)] flex items-center justify-center z-50 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-yellow-200/60 group p-1.5"
+          className="fixed bottom-6 right-6 w-14 h-14 bg-[#0B0F17] rounded-[20px] shadow-[0_8px_30px_rgba(251,230,24,0.25)] flex items-center justify-center z-50 hover:scale-105 active:scale-95 transition-all cursor-pointer border border-[#fbe618]/30 group"
         >
-          <AIIcon className="w-10 h-10 group-hover:scale-105 transition-transform" />
+          <GPilotIcon className="w-10 h-10 group-hover:scale-105 transition-transform" />
         </button>
       )}
 
       {/* Chat Window */}
       {isOpen && (
-        <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 w-auto sm:w-[420px] h-[80vh] sm:h-[620px] max-h-[85vh] bg-white/95 backdrop-blur-3xl border border-slate-200/90 rounded-3xl shadow-[0_20px_60px_rgba(15,23,42,0.15)] flex flex-col overflow-hidden z-50 animate-in slide-in-from-bottom-10 fade-in duration-200">
+        <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 w-auto sm:w-[420px] h-[80vh] sm:h-[620px] max-h-[85vh] bg-white/95 backdrop-blur-3xl border border-[#dadce0] rounded-3xl shadow-[0_20px_60px_rgba(60,64,67,0.15)] flex flex-col overflow-hidden z-50 animate-in slide-in-from-bottom-10 fade-in duration-200">
           {/* Header */}
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+          <div className="px-5 py-4 border-b border-[#f1f3f4] flex items-center justify-between bg-[#f8fafd]">
             <div className="flex items-center gap-3">
-              <div className="p-1 rounded-xl bg-white border border-slate-200/60 shadow-2xs">
-                <AIIcon className="w-8 h-8" />
+              <div className="rounded-[12px] bg-[#0B0F17] shadow-2xs overflow-hidden w-9 h-9 flex items-center justify-center">
+                <GPilotIcon className="w-9 h-9" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black text-slate-900">G-Pilot</h3>
-                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fbe618] text-[#0B0F17] border border-amber-300 shadow-2xs">AI</span>
+                  <h3 className="text-sm font-bold text-[#1f1f1f] font-['Google_Sans',Roboto,sans-serif]">G-Pilot</h3>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fbe618] text-[#0B0F17] border border-[#fbbc04]">AI</span>
                 </div>
-                <p className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">AUTONOMOUS WORKSPACE ASSISTANT</p>
+                <p className="text-[10px] text-[#5f6368] font-medium tracking-wider uppercase">WORKSPACE ASSISTANT</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -630,40 +715,16 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
+                  className={`max-w-[85%] rounded-3xl px-5 py-3 text-sm ${
                     msg.role === 'user'
-                      ? 'bg-[#fbe618] text-[#0B0F17] font-semibold shadow-xs'
+                      ? 'bg-[#e8f0fe] text-[#001d35] shadow-xs'
                       : msg.isApprovalRequest
-                      ? 'bg-amber-50/90 border border-amber-300 text-slate-900 shadow-xs'
-                      : 'bg-slate-50 border border-slate-200/90 text-slate-800 shadow-2xs'
+                      ? 'bg-[#fef7e0] border border-[#fbbc04] text-[#1f1f1f] shadow-xs'
+                      : 'bg-[#f0f4f9] border border-[#e1e3e1] text-[#1f1f1f] shadow-2xs'
                   }`}
                 >
                   {msg.isApprovalRequest ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-amber-800 font-black text-xs uppercase tracking-wider">
-                        <AlertTriangle className="w-4 h-4 text-amber-600" /> Action Approval
-                      </div>
-                      <p className="text-xs text-amber-950 font-mono bg-white border border-amber-200/80 p-2.5 rounded-xl shadow-2xs">
-                        <strong className="text-amber-800">Action:</strong> {msg.pendingAction.name}
-                        <br/>
-                        <strong className="text-amber-800">Args:</strong> {JSON.stringify(msg.pendingAction.args, null, 2)}
-                      </p>
-                      <p className="text-xs font-medium text-slate-700">Proceed with this Google Workspace action?</p>
-                      <div className="flex items-center gap-2 pt-1">
-                        <button
-                          onClick={() => handleApproval(msg.pendingAction, false, msg.id)}
-                          className="flex-1 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={() => handleApproval(msg.pendingAction, true, msg.id)}
-                          className="flex-1 px-3 py-1.5 rounded-xl bg-[#fbe618] hover:bg-[#ffe600] text-[#0B0F17] text-xs font-black flex items-center justify-center gap-1.5 shadow-xs transition-colors cursor-pointer"
-                        >
-                          <CheckCircle className="w-3.5 h-3.5" /> Approve
-                        </button>
-                      </div>
-                    </div>
+                    <ActionApprovalBox msg={msg} onApprove={handleApproval} />
                   ) : (
                     <p className="whitespace-pre-wrap leading-relaxed text-xs sm:text-sm">{msg.content}</p>
                   )}
@@ -672,8 +733,8 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
             ))}
             {isLoading && (
               <div className="flex justify-start">
-                <div className="bg-slate-50 border border-slate-200/90 rounded-2xl px-4 py-3 flex items-center gap-2 text-slate-600 shadow-2xs">
-                  <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                <div className="bg-[#f0f4f9] border border-[#e1e3e1] rounded-3xl px-5 py-3 flex items-center gap-2 text-[#5f6368] shadow-2xs">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#1a73e8]" />
                   <span className="text-xs font-medium">G-Pilot is thinking...</span>
                 </div>
               </div>

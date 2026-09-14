@@ -56,9 +56,7 @@ When an action requires confirmation, you must stop execution and output a struc
 - **Sensitive Guardrails:** If an email or document contains credentials, passwords, financial records, or personal health info, highlight the presence of sensitive data and confirm intent before forwarding or summarizing externally.`;
 
       const CANDIDATE_MODELS = [
-        "gemini-2.5-flash",
-        "gemini-2.0-flash",
-        "gemini-1.5-flash-latest",
+        "gemini-3.6-flash",
       ];
 
       let responseText = '';
@@ -153,9 +151,17 @@ When an action requires confirmation, you must stop execution and output a struc
       return res.json({ text: responseText || "I'm G-Pilot, your autonomous Workspace assistant. I can help you search emails, view calendar schedules, manage tasks, and organize Google Workspace!" });
     } catch (error: any) {
       console.error("Gemini API error (handled gracefully):", error?.message || error);
-      return res.json({
-        text: "I'm G-Pilot, your autonomous Workspace assistant. I'm ready to help you search emails, view calendar schedules, manage tasks, create notes, and navigate Google Workspace!"
-      });
+      const isQuota =
+        error?.message?.includes("429") ||
+        error?.message?.includes("RESOURCE_EXHAUSTED") ||
+        error?.message?.includes("Quota exceeded") ||
+        error?.message?.includes("quota");
+
+      const userMessage = isQuota
+        ? "G-Pilot is experiencing high demand right now. Please wait a moment and try your request again."
+        : "G-Pilot could not process this request right now. Please try again in a moment.";
+
+      return res.status(isQuota ? 429 : 500).json({ error: userMessage });
     }
   });
 

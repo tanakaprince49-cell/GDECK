@@ -31,6 +31,39 @@ export const GoogleLogo: React.FC<GoogleIconProps> = ({ className = 'w-6 h-6', a
   </svg>
 );
 
+export const GPilotIcon: React.FC<GoogleIconProps> = ({ className = 'w-6 h-6', alt = 'G-Pilot AI' }) => (
+  <svg 
+    viewBox="0 0 100 100" 
+    fill="none" 
+    xmlns="http://www.w3.org/2000/svg"
+    className={`inline-block object-contain shrink-0 ${className}`}
+    aria-label={alt}
+    role="img"
+  >
+    {/* Dark Background Badge */}
+    <rect width="100" height="100" rx="20" fill="#0B0F17"/>
+    
+    {/* Outer AI Target Ring */}
+    <circle cx="50" cy="50" r="40" stroke="#fbe618" strokeWidth="1.5" strokeDasharray="4 6" opacity="0.3"/>
+
+    {/* Pilot Wings Accent */}
+    <path d="M 12,38 Q 32,28 48,44 Q 68,28 88,38 C 76,52 62,50 50,48 C 38,50 24,52 12,38 Z" fill="#fbe618" opacity="0.2"/>
+    <path d="M 8,42 L 28,48 M 92,42 L 72,48" stroke="#fbe618" strokeWidth="3" strokeLinecap="round"/>
+
+    {/* AI Gemini Sparkle (Top Pilot Emblem) */}
+    <path d="M 50,12 Q 50,20 56,20 Q 50,20 50,28 Q 50,20 44,20 Q 50,20 50,12 Z" fill="#fbe618"/>
+
+    {/* Pilot Aviator Visor / Goggles */}
+    <path d="M 20,40 C 20,30 35,28 48,34 C 50,35 50,35 52,34 C 65,28 80,30 80,40 C 80,52 65,55 50,50 C 35,55 20,52 20,40 Z" fill="#fbe618"/>
+    <path d="M 25,40 C 25,34 36,32 46,37 C 42,46 29,46 25,40 Z" fill="#0B0F17"/>
+    <path d="M 75,40 C 75,34 64,32 54,37 C 58,46 71,46 75,40 Z" fill="#0B0F17"/>
+
+    {/* Cybernetic Helmet / Comm Line */}
+    <path d="M 32,56 C 32,70 40,76 50,76 C 60,76 68,70 68,56" stroke="#fbe618" strokeWidth="3.5" strokeLinecap="round" fill="none"/>
+    <circle cx="50" cy="66" r="3" fill="#fbe618"/>
+  </svg>
+);
+
 export const GoogleDriveIcon: React.FC<GoogleIconProps> = ({
   className = 'w-6 h-6',
   alt = 'Google Drive',
