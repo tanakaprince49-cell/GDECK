@@ -111,11 +111,11 @@ Rules:
     let rawModelParts: any[] | null = null;
     let lastError: any = null;
 
-    // Failover model pool: Try fastest/cheapest models first; if one hits 429 quota, fallback immediately
+    // Modern active Gemini models (gemini-3.1-flash-lite as primary)
     const CANDIDATE_MODELS = [
-      'gemini-3.5-flash-lite',
-      'gemini-2.5-flash',
-      'gemini-3.6-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-3.8-flash',
+      'gemini-flash-latest',
     ];
 
     const ai = new GoogleGenAI({
@@ -128,47 +128,50 @@ Rules:
     });
 
     for (const model of CANDIDATE_MODELS) {
-      try {
-        const sdkRes: any = await ai.models.generateContent({
-          model,
-          contents: sanitizedContents,
-          config: {
-            systemInstruction: sysInstruct,
-            tools: tools ? [{ functionDeclarations: tools }] : undefined,
-            temperature: 0.2,
-          },
-        });
+      let succeeded = false;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const sdkRes: any = await ai.models.generateContent({
+            model,
+            contents: sanitizedContents,
+            config: {
+              systemInstruction: sysInstruct,
+              tools: tools ? [{ functionDeclarations: tools }] : undefined,
+              temperature: 0.2,
+            },
+          });
 
-        if (sdkRes) {
-          const candidate = sdkRes.candidates?.[0];
-          const parts = candidate?.content?.parts || [];
-          if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
-            responseFunctionCalls = sdkRes.functionCalls;
-            rawModelParts = parts;
-          } else {
-            responseText = sdkRes.text || '';
+          if (sdkRes) {
+            const candidate = sdkRes.candidates?.[0];
+            const parts = candidate?.content?.parts || [];
+            if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
+              responseFunctionCalls = sdkRes.functionCalls;
+              rawModelParts = parts;
+            } else {
+              responseText = sdkRes.text || '';
+            }
+            lastError = null;
+            succeeded = true;
+            break; // Success! Exit loop
           }
-          lastError = null;
-          break; // Success! Exit loop
-        }
-      } catch (err: any) {
-        lastError = err;
-        const isQuota =
-          err?.status === 429 ||
-          err?.message?.includes('429') ||
-          err?.message?.includes('RESOURCE_EXHAUSTED');
+        } catch (err: any) {
+          lastError = err;
+          const isTransient =
+            err?.status === 429 ||
+            err?.status === 503 ||
+            err?.message?.includes('429') ||
+            err?.message?.includes('503') ||
+            err?.message?.includes('RESOURCE_EXHAUSTED') ||
+            err?.message?.includes('high demand');
 
-        console.warn(`Model ${model} failed (Quota: ${isQuota}):`, err?.message || err);
+          console.warn(`Model ${model} attempt ${attempt + 1} failed (Transient: ${isTransient}):`, err?.message || err);
 
-        // If quota was exhausted on this model, continue loop to fallback model
-        if (isQuota) {
-          await new Promise((r) => setTimeout(r, 400));
-          continue;
-        } else {
-          // If other error, also attempt next model
-          continue;
+          if (isTransient && attempt === 0) {
+            await new Promise((r) => setTimeout(r, 600));
+          }
         }
       }
+      if (succeeded) break;
     }
 
     // Method 2: REST fallback if SDK attempt did not succeed
