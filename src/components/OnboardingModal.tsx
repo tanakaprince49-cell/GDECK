@@ -40,6 +40,7 @@ interface OnboardingModalProps {
   onComplete: (prefs: OnboardingPreferences) => void;
   onClose?: () => void;
   initialTheme?: string;
+  onDeleteAccount?: () => void;
 }
 
 const ROLES = [
@@ -125,6 +126,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   isOpen,
   onComplete,
   onClose,
+  onDeleteAccount,
 }) => {
   const [step, setStep] = useState<number>(1);
   const totalSteps = 4;
@@ -525,6 +527,19 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </button>
 
           <div className="flex items-center gap-3">
+            {onDeleteAccount && (
+              <button
+                type="button"
+                id="onboarding-delete-account-btn"
+                onClick={() => {
+                  if (onClose) onClose();
+                  onDeleteAccount();
+                }}
+                className="text-xs text-[#d93025] hover:text-[#b3261e] hover:bg-red-50 px-3 py-2 rounded-xl font-semibold transition-colors cursor-pointer"
+              >
+                Delete Account
+              </button>
+            )}
             <button
               id="onboarding-skip-btn"
               onClick={finishOnboarding}

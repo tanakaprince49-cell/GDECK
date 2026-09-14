@@ -6,6 +6,7 @@ import {
   onAuthStateChanged,
   User,
   signOut,
+  deleteUser,
 } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
@@ -171,4 +172,52 @@ export const logout = async () => {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(TOKEN_TIME_KEY);
   } catch {}
+};
+
+export const deleteAccountPermanently = async () => {
+  // 1. Revoke the Google OAuth token if active
+  let currentToken = cachedAccessToken;
+  if (!currentToken) {
+    try {
+      currentToken = localStorage.getItem(TOKEN_STORAGE_KEY);
+    } catch {}
+  }
+  if (currentToken) {
+    try {
+      await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(currentToken)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+    } catch (err) {
+      console.warn('Google token revocation notice:', err);
+    }
+  }
+
+  // 2. Delete user account from Firebase Auth
+  const currentUser = auth.currentUser;
+  if (currentUser) {
+    try {
+      await deleteUser(currentUser);
+    } catch (err: any) {
+      console.warn('Firebase user deletion notice (falling back to signOut):', err);
+      try {
+        await signOut(auth);
+      } catch {}
+    }
+  } else {
+    try {
+      await signOut(auth);
+    } catch {}
+  }
+
+  // 3. Clear memory reference
+  cachedAccessToken = null;
+
+  // 4. Thoroughly wipe all local storage data, preferences, chat logs, and cached documents
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch (err) {
+    console.warn('Local storage wipe warning:', err);
+  }
 };

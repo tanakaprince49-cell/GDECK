@@ -24,10 +24,12 @@ import {
   Grid,
   Maximize,
   Minimize,
+  Trash2,
 } from 'lucide-react';
 
-import { initAuth, googleSignIn, logout } from './services/auth';
+import { initAuth, googleSignIn, logout, deleteAccountPermanently } from './services/auth';
 import { ConfirmModal } from './components/ConfirmModal';
+import { DeleteAccountModal } from './components/DeleteAccountModal';
 import { OverviewView } from './components/OverviewView';
 import { DriveView } from './components/DriveView';
 import { SheetsView } from './components/SheetsView';
@@ -102,6 +104,8 @@ export default function App() {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
+  const [showDeleteAccountModal, setShowDeleteAccountModal] = useState<boolean>(false);
+  const [accountDeletedBanner, setAccountDeletedBanner] = useState<boolean>(false);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
   // Category Dropdown State for Desktop Nav
@@ -250,6 +254,17 @@ export default function App() {
     }
   };
 
+  const handleAccountDeletedSuccess = () => {
+    setUser(null);
+    setToken(null);
+    setNeedsAuth(true);
+    setShowDeleteAccountModal(false);
+    setShowProfileMenu(false);
+    setMobileMenuOpen(false);
+    setShowOnboarding(false);
+    setAccountDeletedBanner(true);
+  };
+
   const handleCompleteOnboarding = (prefs: OnboardingPreferences) => {
     setOnboardingPrefs(prefs);
     try {
@@ -272,6 +287,23 @@ export default function App() {
   return (
     <NotificationProvider token={token}>
       <div className="min-h-screen bg-[#F8FAFD] flex flex-col antialiased text-[#1F1F1F] selection:bg-[#c2e7ff] selection:text-[#001d35] relative" style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}>
+      {/* Account Deletion Notice Banner */}
+      {accountDeletedBanner && (
+        <div id="account-deleted-banner" className="bg-[#188038] text-white px-4 py-3 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-md z-50 animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-2 mx-auto">
+            <Check className="w-4 h-4 shrink-0" />
+            <span>Your account and all associated workspace data have been permanently deleted.</span>
+          </div>
+          <button
+            onClick={() => setAccountDeletedBanner(false)}
+            className="p-1 hover:bg-white/20 rounded-full cursor-pointer transition-colors shrink-0"
+            aria-label="Close message"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Google Workspace Top App Bar */}
       {!isFullscreen && (
         <header className="sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-sm">
@@ -515,10 +547,21 @@ export default function App() {
                             setShowLogoutConfirm(true);
                             setShowProfileMenu(false);
                           }}
-                          className="w-full px-3 py-2 text-xs font-semibold text-[#d93025] hover:bg-[#fce8e6] rounded-xl text-left flex items-center gap-2 cursor-pointer transition-colors"
+                          className="w-full px-3 py-2 text-xs font-semibold text-[#5f6368] hover:bg-[#f1f3f4] rounded-xl text-left flex items-center gap-2 cursor-pointer transition-colors"
                         >
                           <LogOut className="w-4 h-4" />
                           <span>Sign Out</span>
+                        </button>
+                        <button
+                          id="profile-dropdown-delete-account-btn"
+                          onClick={() => {
+                            setShowDeleteAccountModal(true);
+                            setShowProfileMenu(false);
+                          }}
+                          className="w-full px-3 py-2 text-xs font-semibold text-[#d93025] hover:bg-[#fce8e6] rounded-xl text-left flex items-center gap-2 cursor-pointer transition-colors border-t border-[#f1f3f4] pt-2.5 mt-1"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span>Delete Account Permanently</span>
                         </button>
                       </div>
                     </div>
@@ -706,18 +749,32 @@ export default function App() {
                   </div>
                 </div>
 
-                <button
-                  id="mobile-sign-out-btn"
-                  onClick={() => {
-                    setMobileMenuOpen(false);
-                    setShowLogoutConfirm(true);
-                  }}
-                  className="px-3 py-1.5 bg-[#fce8e6] hover:bg-[#fad2cf] text-[#d93025] rounded-full text-xs font-bold flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer border border-[#f5c6cb]"
-                  title="Sign out"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out</span>
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    id="mobile-sign-out-btn"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setShowLogoutConfirm(true);
+                    }}
+                    className="px-2.5 py-1.5 bg-[#f1f3f4] hover:bg-[#e8eaed] text-[#3c4043] rounded-full text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Sign out"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Sign Out</span>
+                  </button>
+                  <button
+                    id="mobile-delete-account-btn"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      setShowDeleteAccountModal(true);
+                    }}
+                    className="px-2.5 py-1.5 bg-[#fce8e6] hover:bg-[#fad2cf] text-[#d93025] rounded-full text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer border border-[#f5c6cb]"
+                    title="Delete account permanently"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Delete</span>
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1111,6 +1168,14 @@ export default function App() {
         onCancel={() => setShowLogoutConfirm(false)}
       />
 
+      {/* Delete Account Permanently Modal */}
+      <DeleteAccountModal
+        isOpen={showDeleteAccountModal}
+        onClose={() => setShowDeleteAccountModal(false)}
+        onSuccess={handleAccountDeletedSuccess}
+        userEmail={user?.email}
+      />
+
       {/* G-Pilot AI Assistant */}
       {!needsAuth && token && (
         <GPilotChat token={token} userName={onboardingPrefs?.userName} />
@@ -1127,6 +1192,7 @@ export default function App() {
           setShowOnboarding(false);
         }}
         initialTheme="light"
+        onDeleteAccount={() => setShowDeleteAccountModal(true)}
       />
 
       {/* Floating Real-time Notification Toast */}

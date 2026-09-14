@@ -82,36 +82,36 @@ async function googleFetch(url: string, token: string, options: RequestInit = {}
 
 export async function searchDocs(token: string): Promise<DriveFile[]> {
   const q = "mimeType = 'application/vnd.google-apps.document' and trashed = false";
-  const url = `https://www.googleapis.com/drive/v3/files?pageSize=20&q=${encodeURIComponent(
+  const url = `https://www.googleapis.com/drive/v3/files?pageSize=30&supportsAllDrives=true&includeItemsFromAllDrives=true&q=${encodeURIComponent(
     q
-  )}&fields=files(id,name,modifiedTime,webViewLink)&orderBy=modifiedTime desc`;
+  )}&fields=files(id,name,modifiedTime,webViewLink,iconLink,thumbnailLink)&orderBy=modifiedTime desc`;
   const data = await googleFetch(url, token);
   return data?.files || [];
 }
 
 export async function searchSlides(token: string): Promise<DriveFile[]> {
   const q = "mimeType = 'application/vnd.google-apps.presentation' and trashed = false";
-  const url = `https://www.googleapis.com/drive/v3/files?pageSize=20&q=${encodeURIComponent(
+  const url = `https://www.googleapis.com/drive/v3/files?pageSize=30&supportsAllDrives=true&includeItemsFromAllDrives=true&q=${encodeURIComponent(
     q
-  )}&fields=files(id,name,modifiedTime,webViewLink)&orderBy=modifiedTime desc`;
+  )}&fields=files(id,name,modifiedTime,webViewLink,iconLink,thumbnailLink)&orderBy=modifiedTime desc`;
   const data = await googleFetch(url, token);
   return data?.files || [];
 }
 
 export async function searchDrawings(token: string): Promise<DriveFile[]> {
   const q = "mimeType = 'application/vnd.google-apps.drawing' and trashed = false";
-  const url = `https://www.googleapis.com/drive/v3/files?pageSize=20&q=${encodeURIComponent(
+  const url = `https://www.googleapis.com/drive/v3/files?pageSize=30&supportsAllDrives=true&includeItemsFromAllDrives=true&q=${encodeURIComponent(
     q
-  )}&fields=files(id,name,modifiedTime,webViewLink)&orderBy=modifiedTime desc`;
+  )}&fields=files(id,name,modifiedTime,webViewLink,iconLink,thumbnailLink)&orderBy=modifiedTime desc`;
   const data = await googleFetch(url, token);
   return data?.files || [];
 }
 
 export async function searchSites(token: string): Promise<DriveFile[]> {
   const q = "mimeType = 'application/vnd.google-apps.site' and trashed = false";
-  const url = `https://www.googleapis.com/drive/v3/files?pageSize=20&q=${encodeURIComponent(
+  const url = `https://www.googleapis.com/drive/v3/files?pageSize=30&supportsAllDrives=true&includeItemsFromAllDrives=true&q=${encodeURIComponent(
     q
-  )}&fields=files(id,name,modifiedTime,webViewLink)&orderBy=modifiedTime desc`;
+  )}&fields=files(id,name,modifiedTime,webViewLink,iconLink,thumbnailLink)&orderBy=modifiedTime desc`;
   const data = await googleFetch(url, token);
   return data?.files || [];
 }
@@ -140,9 +140,21 @@ export async function listDriveFiles(token: string, query?: string, mimeFilter?:
     q += ` and name contains '${query.replace(/'/g, "\\'")}'`;
   }
   if (mimeFilter) {
-    q += ` and mimeType contains '${mimeFilter}'`;
+    if (mimeFilter === 'document') {
+      q += ` and (mimeType = 'application/vnd.google-apps.document' or mimeType contains 'document' or mimeType contains 'word' or mimeType = 'application/pdf')`;
+    } else if (mimeFilter === 'spreadsheet') {
+      q += ` and (mimeType = 'application/vnd.google-apps.spreadsheet' or mimeType contains 'spreadsheet' or mimeType contains 'excel')`;
+    } else if (mimeFilter === 'presentation') {
+      q += ` and (mimeType = 'application/vnd.google-apps.presentation' or mimeType contains 'presentation' or mimeType contains 'powerpoint')`;
+    } else if (mimeFilter === 'image') {
+      q += ` and (mimeType contains 'image/' or mimeType = 'application/vnd.google-apps.photo')`;
+    } else if (mimeFilter === 'folder') {
+      q += ` and mimeType = 'application/vnd.google-apps.folder'`;
+    } else {
+      q += ` and mimeType contains '${mimeFilter}'`;
+    }
   }
-  const url = `https://www.googleapis.com/drive/v3/files?pageSize=40&q=${encodeURIComponent(
+  const url = `https://www.googleapis.com/drive/v3/files?pageSize=50&supportsAllDrives=true&includeItemsFromAllDrives=true&q=${encodeURIComponent(
     q
   )}&fields=nextPageToken,files(id,name,mimeType,modifiedTime,size,webViewLink,iconLink,thumbnailLink)&orderBy=modifiedTime desc`;
   const data = await googleFetch(url, token);
