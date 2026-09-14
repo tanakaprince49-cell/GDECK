@@ -1003,10 +1003,10 @@ export default function App() {
               <SlidesView token={token} onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'drawings' && (
-              <DrawingsView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <DrawingsView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'sites' && (
-              <SitesView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <SitesView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'gmail' && (
               <GmailView token={token} onBackToOverview={() => setActiveTab('overview')} />
@@ -1045,10 +1045,10 @@ export default function App() {
               <KeepView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'photos' && (
-              <PhotosView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <PhotosView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'youtube' && (
-              <YouTubeStudioView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <YouTubeStudioView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'maps' && (
               <MapsView onBackToOverview={() => setActiveTab('overview')} />
@@ -1057,10 +1057,10 @@ export default function App() {
               <TranslateView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'analytics' && (
-              <AnalyticsView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <AnalyticsView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'searchconsole' && (
-              <SearchConsoleView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <SearchConsoleView onBackToOverview={() => setActiveTab('overview')} />
             )}
             {activeTab === 'trends' && (
               <TrendsView onBackToOverview={() => setActiveTab('overview')} />

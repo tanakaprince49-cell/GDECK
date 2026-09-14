@@ -9,7 +9,8 @@ interface ConfirmModalProps {
   cancelLabel?: string;
   isDestructive?: boolean;
   onConfirm: () => void;
-  onCancel: () => void;
+  onCancel?: () => void;
+  onClose?: () => void;
   isLoading?: boolean;
   itemsList?: string[];
 }
@@ -23,9 +24,11 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   isDestructive = false,
   onConfirm,
   onCancel,
+  onClose,
   isLoading = false,
   itemsList,
 }) => {
+  const handleDismiss = onCancel || onClose || (() => {});
   if (!isOpen) return null;
 
   return (
@@ -54,7 +57,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             </div>
             <button
               id="confirm-modal-close-btn"
-              onClick={onCancel}
+              onClick={handleDismiss}
               className="text-[#94A3B8] hover:text-[#F8FAFC] p-1.5 rounded-xl hover:bg-white/[0.06] transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
@@ -78,7 +81,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             id="confirm-modal-cancel-btn"
             type="button"
             disabled={isLoading}
-            onClick={onCancel}
+            onClick={handleDismiss}
             className="px-4 py-2 text-sm font-medium text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-white/[0.06] rounded-xl transition-all cursor-pointer disabled:opacity-50"
           >
             {cancelLabel}

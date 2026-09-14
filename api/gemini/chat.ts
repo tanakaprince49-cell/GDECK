@@ -45,7 +45,11 @@ When an action requires confirmation, you must stop execution and output a struc
 - **Recipients/Target:** (e.g., Email addresses, Chat room name)
 - **Content Preview:** (Exact subject line, body text, or event details)
 
-*Do NOT call the underlying API function until the user explicitly responds with confirmation (e.g., "Yes", "Approved", "Send it").*`;
+*Do NOT call the underlying API function until the user explicitly responds with confirmation (e.g., "Yes", "Approved", "Send it").*
+
+### 3. Output Formatting & Clarity
+- Keep explanations and responses clean, conversational, and direct.
+- When listing files, calendar events, tasks, or emails, format them clearly and cleanly without clutter or excessive decorative symbols. Present names, dates, and details naturally.`;
 
     let responseText = '';
     let responseFunctionCalls: any[] | null = null;

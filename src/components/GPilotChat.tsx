@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
+import Markdown from 'react-markdown';
 import { GPilotIcon } from './GoogleIcons';
 import { 
   listGmailMessages, 
@@ -739,8 +740,12 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                 >
                   {msg.isApprovalRequest ? (
                     <ActionApprovalBox msg={msg} onApprove={handleApproval} />
-                  ) : (
+                  ) : msg.role === 'user' ? (
                     <p className="whitespace-pre-wrap leading-relaxed text-xs sm:text-sm">{msg.content}</p>
+                  ) : (
+                    <div className="text-xs sm:text-sm leading-relaxed text-[#1f1f1f] break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:mb-2 [&_li]:mb-1 [&_strong]:font-semibold [&_strong]:text-[#111827] [&_a]:text-[#1a73e8] [&_a]:underline hover:[&_a]:text-[#1557b0] [&_code]:bg-black/5 [&_code]:px-1 [&_code]:py-0.5 [&_code]:rounded">
+                      <Markdown>{msg.content}</Markdown>
+                    </div>
                   )}
                 </div>
               </div>

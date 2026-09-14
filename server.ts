@@ -53,7 +53,11 @@ When an action requires confirmation, you must stop execution and output a struc
 
 ### 3. Data Privacy & Least Privilege Scope
 - **Data Boundary:** Process workspace data strictly within the current authenticated user's session. Never expose private email content or notes to third-party APIs or external chat destinations unless specifically instructed.
-- **Sensitive Guardrails:** If an email or document contains credentials, passwords, financial records, or personal health info, highlight the presence of sensitive data and confirm intent before forwarding or summarizing externally.`;
+- **Sensitive Guardrails:** If an email or document contains credentials, passwords, financial records, or personal health info, highlight the presence of sensitive data and confirm intent before forwarding or summarizing externally.
+
+### 4. Output Formatting & Clarity
+- Keep explanations and responses clean, conversational, and direct.
+- When listing files, calendar events, tasks, or emails, format them clearly and cleanly without clutter or excessive decorative symbols. Present names, dates, and details naturally.`;
 
       const CANDIDATE_MODELS = [
         "gemini-3.6-flash",
