@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, Sparkles, AlertTriangle, CheckCircle } from 'lucide-react';
+import { X, Send, Loader2, Sparkles, AlertTriangle, CheckCircle, Trash2 } from 'lucide-react';
 import { AIIcon } from './GoogleIcons';
 import { 
   listGmailMessages, 
@@ -206,42 +206,94 @@ const GPILOT_TOOLS = [
 export default function GPilotChat({ token, userName }: GPilotChatProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<Message[]>([]);
+  
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const saved = localStorage.getItem('gpilot_chat_messages_history_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [];
+  });
+  
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   // Keep track of the raw conversation context for the Gemini API
-  const [apiContext, setApiContext] = useState<any[]>([
-    { role: 'model', parts: [{ text: "Hi, I'm G-Pilot, your autonomous Workspace assistant." }] }
-  ]);
+  const [apiContext, setApiContext] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('gpilot_api_context_history_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return [{ role: 'model', parts: [{ text: "Hi, I'm G-Pilot, your autonomous Workspace assistant." }] }];
+  });
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    try {
+      if (messages.length > 0) {
+        localStorage.setItem('gpilot_chat_messages_history_v1', JSON.stringify(messages));
+      }
+    } catch {}
+  }, [messages]);
+
+  // Save apiContext to localStorage whenever it changes
+  useEffect(() => {
+    try {
+      if (apiContext.length > 0) {
+        localStorage.setItem('gpilot_api_context_history_v1', JSON.stringify(apiContext));
+      }
+    } catch {}
+  }, [apiContext]);
 
   useEffect(() => {
-    // Load memories on boot to inject into context
-    const readMem = localStorage.getItem('gpilot_memory');
-    const storedMemories = readMem ? JSON.parse(readMem) : [];
-    
-    let initialGreeting = "Hi, I'm G-Pilot, your autonomous Workspace assistant.";
-    if (userName) {
-      initialGreeting = `Hi ${userName}, I'm G-Pilot, your autonomous Workspace assistant.`;
-    }
+    if (messages.length === 0) {
+      // Load memories on boot to inject into context
+      const readMem = localStorage.getItem('gpilot_memory');
+      const storedMemories = readMem ? JSON.parse(readMem) : [];
+      
+      let initialGreeting = "Hi, I'm G-Pilot, your autonomous Workspace assistant.";
+      if (userName) {
+        initialGreeting = `Hi ${userName}, I'm G-Pilot, your autonomous Workspace assistant.`;
+      }
 
-    const sysMsg: Message = {
-      id: '1',
+      const sysMsg: Message = {
+        id: '1',
+        role: 'system',
+        content: `${initialGreeting} I can read emails, check your calendar, send messages, and more. How can I help?`
+      };
+
+      setMessages([sysMsg]);
+      
+      let contextStr = initialGreeting;
+      if (storedMemories.length > 0) {
+        contextStr += `\n\nHere are some things I remember about you from past conversations:\n${storedMemories.map((m: any) => `- ${m.fact}`).join('\n')}`;
+      }
+
+      setApiContext([
+        { role: 'model', parts: [{ text: contextStr }] }
+      ]);
+    }
+  }, [userName, messages.length]);
+
+  const handleClearHistory = () => {
+    try {
+      localStorage.removeItem('gpilot_chat_messages_history_v1');
+      localStorage.removeItem('gpilot_api_context_history_v1');
+    } catch {}
+    const initialGreeting = userName ? `Hi ${userName}, I'm G-Pilot, your autonomous Workspace assistant.` : "Hi, I'm G-Pilot, your autonomous Workspace assistant.";
+    setMessages([{
+      id: Date.now().toString(),
       role: 'system',
-      content: `${initialGreeting} I can read emails, check your calendar, send messages, and more. How can I help?`
-    };
-
-    setMessages([sysMsg]);
-    
-    let contextStr = initialGreeting;
-    if (storedMemories.length > 0) {
-      contextStr += `\n\nHere are some things I remember about you from past conversations:\n${storedMemories.map((m: any) => `- ${m.fact}`).join('\n')}`;
-    }
-
-    setApiContext([
-      { role: 'model', parts: [{ text: contextStr }] }
-    ]);
-  }, [userName]);
+      content: `${initialGreeting} Conversation cleared. How can I help you?`
+    }]);
+    setApiContext([{ role: 'model', parts: [{ text: initialGreeting }] }]);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -552,13 +604,22 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                 <p className="text-[10px] text-slate-500 font-bold tracking-wider uppercase">AUTONOMOUS WORKSPACE ASSISTANT</p>
               </div>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="p-1.5 text-slate-400 hover:text-slate-800 rounded-full hover:bg-slate-200/60 transition-colors cursor-pointer"
-              title="Close G-Pilot"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={handleClearHistory}
+                className="p-1.5 text-slate-400 hover:text-red-600 rounded-full hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Clear Chat History"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-800 rounded-full hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Close G-Pilot"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Messages */}
