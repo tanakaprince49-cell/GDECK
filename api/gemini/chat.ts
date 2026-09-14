@@ -49,12 +49,11 @@ When an action requires confirmation, you must stop execution and output a struc
 
     let responseText = '';
     let responseFunctionCalls: any[] | null = null;
+    let rawModelParts: any[] | null = null;
     let lastError: any = null;
 
     const CANDIDATE_MODELS = [
       "gemini-3.6-flash",
-      "gemini-2.5-flash",
-      "gemini-1.5-flash",
     ];
 
     // Method 1: Official @google/genai SDK
@@ -79,8 +78,11 @@ When an action requires confirmation, you must stop execution and output a struc
           },
         });
         if (sdkRes) {
+          const candidate = sdkRes.candidates?.[0];
+          const parts = candidate?.content?.parts || [];
           if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
             responseFunctionCalls = sdkRes.functionCalls;
+            rawModelParts = parts;
           } else {
             responseText = sdkRes.text || '';
           }
@@ -122,6 +124,7 @@ When an action requires confirmation, you must stop execution and output a struc
           
           if (functionCalls.length > 0) {
             responseFunctionCalls = functionCalls;
+            rawModelParts = parts;
           } else {
             responseText = parts.map((p: any) => p.text || '').join('');
           }
@@ -139,7 +142,7 @@ When an action requires confirmation, you must stop execution and output a struc
     }
 
     if (responseFunctionCalls && responseFunctionCalls.length > 0) {
-      return res.json({ functionCalls: responseFunctionCalls });
+      return res.json({ functionCalls: responseFunctionCalls, modelParts: rawModelParts });
     }
 
     return res.json({ text: responseText });

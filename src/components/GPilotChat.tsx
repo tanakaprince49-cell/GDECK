@@ -28,16 +28,17 @@ type Message = {
   content: string;
   isApprovalRequest?: boolean;
   pendingAction?: any;
+  pendingModelParts?: any[];
 };
 
 const ActionApprovalBox: React.FC<{
   msg: Message;
-  onApprove: (action: any, approved: boolean, msgId: string) => void;
+  onApprove: (action: any, approved: boolean, msgId: string, modelParts?: any[]) => void;
 }> = ({ msg, onApprove }) => {
   const [argsObj, setArgsObj] = useState<Record<string, any>>(() => msg.pendingAction?.args || {});
 
   const handleApprove = () => {
-    onApprove({ ...msg.pendingAction, args: argsObj }, true, msg.id);
+    onApprove({ ...msg.pendingAction, args: argsObj }, true, msg.id, msg.pendingModelParts);
   };
 
   const handleArgChange = (key: string, value: string) => {
@@ -96,7 +97,7 @@ const ActionApprovalBox: React.FC<{
       <p className="text-xs font-medium text-[#1f1f1f]">Review details before proceeding.</p>
       <div className="flex items-center gap-2 pt-1">
         <button
-          onClick={() => onApprove(msg.pendingAction, false, msg.id)}
+          onClick={() => onApprove(msg.pendingAction, false, msg.id, msg.pendingModelParts)}
           className="flex-1 px-3 py-2 rounded-xl border border-[#dadce0] hover:bg-[#f1f3f4] text-xs font-semibold text-[#5f6368] transition-colors cursor-pointer"
         >
           Cancel
@@ -568,6 +569,10 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       if (data.functionCalls) {
         let currentContext = [...context];
         
+        // We will collect all function responses in one array to match the model's parts
+        const functionResponses = [];
+        let hasPendingApproval = false;
+        
         for (const call of data.functionCalls) {
           const { name, args } = call;
           
@@ -580,27 +585,36 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               role: 'system',
               content: `Approval Required: ${name}`,
               isApprovalRequest: true,
-              pendingAction: call
+              pendingAction: call,
+              pendingModelParts: data.modelParts // Save for handleApproval
             }]);
             
-            // We stop processing here, waiting for user approval
-            setIsLoading(false);
-            return;
+            // Stop processing here, wait for user
+            hasPendingApproval = true;
+            break;
           }
           
           // Execute automatically (Tier 1 & 2)
           const result = await executeFunction(name, args);
-          
-          currentContext.push({
-            role: 'model',
-            parts: [{ functionCall: call }]
-          });
-          
-          currentContext.push({
-            role: 'user',
-            parts: [{ functionResponse: { name, response: result } }]
-          });
+          functionResponses.push({ functionResponse: { name, response: result } });
         }
+        
+        if (hasPendingApproval) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Push model turn (raw parts if available to preserve thought_signature)
+        currentContext.push({
+          role: 'model',
+          parts: data.modelParts || data.functionCalls.map((c: any) => ({ functionCall: c }))
+        });
+        
+        // Push user turn with all responses
+        currentContext.push({
+          role: 'user',
+          parts: functionResponses
+        });
         
         // After executing functions, get the model's textual response
         await processResponse(currentContext);
@@ -632,7 +646,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
     await processResponse(newContext);
   };
 
-  const handleApproval = async (action: any, approved: boolean, msgId: string) => {
+  const handleApproval = async (action: any, approved: boolean, msgId: string, modelParts?: any[]) => {
     // Remove the approval message
     setMessages(prev => prev.filter(m => m.id !== msgId));
     
@@ -642,7 +656,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       const result = await executeFunction(action.name, action.args);
       
       const newContext = [...apiContext, 
-        { role: 'model', parts: [{ functionCall: action }] },
+        { role: 'model', parts: modelParts || [{ functionCall: action }] },
         { role: 'user', parts: [{ functionResponse: { name: action.name, response: result } }] }
       ];
       setApiContext(newContext);
@@ -650,7 +664,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
     } else {
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `(System: User Denied Action - ${action.name})` }]);
       const newContext = [...apiContext, 
-        { role: 'model', parts: [{ functionCall: action }] },
+        { role: 'model', parts: modelParts || [{ functionCall: action }] },
         { role: 'user', parts: [{ functionResponse: { name: action.name, response: { error: "User denied the action." } } }] }
       ];
       setApiContext(newContext);
