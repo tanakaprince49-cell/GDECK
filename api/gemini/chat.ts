@@ -1,6 +1,71 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { GoogleGenAI } from '@google/genai';
 
+// Helper to keep token consumption as low as possible
+function pruneAndSanitizeContents(rawContents: any[]) {
+  if (!Array.isArray(rawContents) || rawContents.length === 0) {
+    return [];
+  }
+
+  // Keep at most the last 4-6 conversational turns
+  let trimmed = rawContents.slice(-6);
+
+  // Gemini requires the first turn to have role 'user'
+  while (trimmed.length > 0 && trimmed[0].role !== 'user') {
+    trimmed.shift();
+  }
+
+  if (trimmed.length === 0) {
+    trimmed = rawContents.slice(-2);
+  }
+
+  // Sanitize parts to prevent giant JSON dumps from eating up tokens
+  return trimmed.map((turn: any) => {
+    if (!turn || !Array.isArray(turn.parts)) return turn;
+
+    const cleanParts = turn.parts.map((part: any) => {
+      // If function response has huge data, compact it
+      if (part.functionResponse?.response) {
+        const resp = part.functionResponse.response;
+        try {
+          const serialized = JSON.stringify(resp);
+          if (serialized.length > 1000) {
+            // Trim arrays inside response to 3 items
+            const compact: any = {};
+            for (const [k, v] of Object.entries(resp)) {
+              if (Array.isArray(v)) {
+                compact[k] = v.slice(0, 3);
+              } else if (typeof v === 'string' && v.length > 200) {
+                compact[k] = v.slice(0, 200) + '...';
+              } else {
+                compact[k] = v;
+              }
+            }
+            return {
+              ...part,
+              functionResponse: {
+                ...part.functionResponse,
+                response: compact,
+              },
+            };
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // If user text is huge, clamp
+      if (typeof part.text === 'string' && part.text.length > 2500) {
+        return { ...part, text: part.text.slice(0, 2500) + '...[truncated]' };
+      }
+
+      return part;
+    });
+
+    return { ...turn, parts: cleanParts };
+  });
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -8,83 +73,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { contents, tools, userName, memories } = req.body || {};
-    
-    // Check for GEMINI_API_KEY from environment variables
+
     const rawApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
-    
+
     if (!rawApiKey) {
-      return res.status(500).json({ 
-        error: "GEMINI_API_KEY is missing on Vercel. Please add GEMINI_API_KEY under Vercel -> Project Settings -> Environment Variables, then Redeploy." 
+      return res.status(500).json({
+        error:
+          'GEMINI_API_KEY is missing. Please check your environment variables.',
       });
     }
 
     const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
 
-    let sysInstruct = `You are G Pilot, an autonomous executive assistant fully integrated into the user's Google Workspace environment. Your role is to read context, organize work, manage schedules, handle communications, and execute tasks across Workspace tools efficiently, securely, and proactively. You have access to a long-term memory store. When the user tells you something about themselves, their preferences, or important facts, use the memory_save tool to remember it. Always review past memories implicitly when making decisions.`;
-    
-    if (userName) {
-      sysInstruct += `\n\nThe user's name is ${userName}. Refer to them by their name and be helpful.`;
-    }
+    // Prune contents to save tokens and prevent 429 quota exhaustion
+    const sanitizedContents = pruneAndSanitizeContents(contents);
+
+    // Ultra-lean, token-efficient system instruction (< 100 tokens)
+    let sysInstruct = `You are G-Pilot, an autonomous executive assistant for Google Workspace.
+User: ${userName || 'User'}.
+Role: Read context, organize schedules, read emails, manage Drive/Tasks/Meet.
+Rules:
+- Read actions (reading emails, searching Drive, calendar, tasks): Execute automatically.
+- Destructive or external actions (sending emails, posting to chat, booking external meetings): Request confirmation first.
+- Style: Concise, clear, natural conversation. No redundant symbols.
+- Memory: Call memory_save if user asks you to remember a fact.`;
 
     if (Array.isArray(memories) && memories.length > 0) {
-      sysInstruct += `\n\n### Long-Term Memory (Saved Facts About User):\n${memories.map((m: any) => `- ${m.fact || m}`).join('\n')}`;
+      const memorySnippet = memories
+        .slice(-5)
+        .map((m: any) => `- ${m.fact || m}`)
+        .join('\n');
+      sysInstruct += `\nSaved Memories:\n${memorySnippet}`;
     }
-
-    sysInstruct += `\n\n## Safety, Permissions & Governance Protocols
-
-You operate under strict security boundaries to protect data privacy and prevent unauthorized or accidental actions.
-
-### 1. Permissions Matrix (Execution Rules)
-
-| Tier | Action Type | Examples | Execution Behavior |
-| :--- | :--- | :--- | :--- |
-| **Tier 1: Read-Only** | Information gathering | Reading emails, searching drive/context, listing calendar events, viewing tasks/notes | **Execute Automatically** |
-| **Tier 2: Non-Destructive Write** | Internal productivity | Creating Keep notes, adding personal tasks, generating Google Meet links, drafting emails | **Execute Automatically** (Inform user upon completion) |
-| **Tier 3: External & Public Communication** | Sending messages to others | Sending emails, posting to Google Chat spaces, booking/canceling meetings with external guests | **Require Confirmation First** |
-| **Tier 4: Destructive Operations** | Permanently modifying data | Deleting emails, canceling internal/external meetings, removing notes or tasks | **Require Explicit Double-Confirmation** |
-
-### 2. Confirmation Gate Protocol (Tier 3 & Tier 4)
-When an action requires confirmation, you must stop execution and output a structured approval request to the user detailing:
-- **Action Type:** (e.g., Send Email, Book Meeting, Post Chat)
-- **Recipients/Target:** (e.g., Email addresses, Chat room name)
-- **Content Preview:** (Exact subject line, body text, or event details)
-
-*Do NOT call the underlying API function until the user explicitly responds with confirmation (e.g., "Yes", "Approved", "Send it").*
-
-### 3. Output Formatting & Clarity
-- Keep explanations and responses clean, conversational, and direct.
-- When listing files, calendar events, tasks, or emails, format them clearly and cleanly without clutter or excessive decorative symbols. Present names, dates, and details naturally.`;
 
     let responseText = '';
     let responseFunctionCalls: any[] | null = null;
     let rawModelParts: any[] | null = null;
     let lastError: any = null;
 
+    // Failover model pool: Try fastest/cheapest models first; if one hits 429 quota, fallback immediately
     const CANDIDATE_MODELS = [
-      "gemini-3.6-flash",
+      'gemini-2.5-flash',
+      'gemini-3.6-flash',
+      'gemini-2.5-flash-lite',
     ];
 
-    // Method 1: Official @google/genai SDK
-    const ai = new GoogleGenAI({ 
+    const ai = new GoogleGenAI({
       apiKey,
       httpOptions: {
         headers: {
           'User-Agent': 'aistudio-build',
-        }
-      }
+        },
+      },
     });
 
     for (const model of CANDIDATE_MODELS) {
       try {
         const sdkRes: any = await ai.models.generateContent({
           model,
-          contents,
+          contents: sanitizedContents,
           config: {
             systemInstruction: sysInstruct,
             tools: tools ? [{ functionDeclarations: tools }] : undefined,
             temperature: 0.2,
           },
         });
+
         if (sdkRes) {
           const candidate = sdkRes.candidates?.[0];
           const parts = candidate?.content?.parts || [];
@@ -95,31 +149,48 @@ When an action requires confirmation, you must stop execution and output a struc
             responseText = sdkRes.text || '';
           }
           lastError = null;
-          break;
+          break; // Success! Exit loop
         }
       } catch (err: any) {
         lastError = err;
-        console.warn(`SDK model ${model} failed:`, err?.message || err);
+        const isQuota =
+          err?.status === 429 ||
+          err?.message?.includes('429') ||
+          err?.message?.includes('RESOURCE_EXHAUSTED');
+
+        console.warn(`Model ${model} failed (Quota: ${isQuota}):`, err?.message || err);
+
+        // If quota was exhausted on this model, continue loop to fallback model
+        if (isQuota) {
+          await new Promise((r) => setTimeout(r, 400));
+          continue;
+        } else {
+          // If other error, also attempt next model
+          continue;
+        }
       }
     }
 
-    // Method 2: Fallback to REST API with x-goog-api-key header if SDK fails
+    // Method 2: REST fallback if SDK attempt did not succeed
     if (lastError && !responseText && !responseFunctionCalls) {
       for (const model of CANDIDATE_MODELS) {
         try {
-          const apiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': apiKey,
-            },
-            body: JSON.stringify({
-              contents,
-              systemInstruction: { parts: [{ text: sysInstruct }] },
-              tools: tools ? [{ functionDeclarations: tools }] : undefined,
-              generationConfig: { temperature: 0.2 },
-            })
-          });
+          const apiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-goog-api-key': apiKey,
+              },
+              body: JSON.stringify({
+                contents: sanitizedContents,
+                systemInstruction: { parts: [{ text: sysInstruct }] },
+                tools: tools ? [{ functionDeclarations: tools }] : undefined,
+                generationConfig: { temperature: 0.2 },
+              }),
+            }
+          );
 
           const data = await apiRes.json();
           if (!apiRes.ok) {
@@ -128,8 +199,10 @@ When an action requires confirmation, you must stop execution and output a struc
 
           const candidate = data?.candidates?.[0];
           const parts = candidate?.content?.parts || [];
-          const functionCalls = parts.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
-          
+          const functionCalls = parts
+            .filter((p: any) => p.functionCall)
+            .map((p: any) => p.functionCall);
+
           if (functionCalls.length > 0) {
             responseFunctionCalls = functionCalls;
             rawModelParts = parts;
@@ -140,7 +213,6 @@ When an action requires confirmation, you must stop execution and output a struc
           break;
         } catch (err: any) {
           lastError = err;
-          console.warn(`REST x-goog-api-key ${model} failed:`, err?.message || err);
         }
       }
     }
@@ -154,26 +226,19 @@ When an action requires confirmation, you must stop execution and output a struc
     }
 
     return res.json({ text: responseText });
-
   } catch (error: any) {
-    console.error("Vercel Gemini API Error:", error);
-    const errMsg = error?.message || "";
-    
-    if (errMsg.includes("API_KEY_SERVICE_BLOCKED") || errMsg.includes("API keys are not supported")) {
-      return res.status(403).json({
-        error: "Your Google Cloud Project has API key service restrictions blocking the Generative Language API. In Google AI Studio or Google Cloud Console (Console -> APIs & Services -> Credentials), edit your API Key restrictions and set API Restrictions to 'Don't restrict key' or explicitly allow 'Generative Language API'."
-      });
-    }
+    console.error('Gemini API Error:', error);
+    const errMsg = error?.message || '';
 
     const isQuota =
-      errMsg.includes("429") ||
+      errMsg.includes('429') ||
       error?.status === 429 ||
-      errMsg.includes("RESOURCE_EXHAUSTED") ||
-      errMsg.includes("Quota exceeded");
+      errMsg.includes('RESOURCE_EXHAUSTED') ||
+      errMsg.includes('Quota exceeded');
 
     const userMessage = isQuota
-      ? "G-Pilot is experiencing high quota demand. Please wait a moment and try again."
-      : (errMsg || "Failed to connect to Gemini API.");
+      ? "G-Pilot reached current rate limit. Your conversation has been pruned to save tokens. Please retry in a few seconds."
+      : errMsg || 'Failed to connect to Gemini API.';
 
     return res.status(isQuota ? 429 : 500).json({ error: userMessage });
   }

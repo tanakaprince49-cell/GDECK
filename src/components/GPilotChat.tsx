@@ -348,23 +348,23 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
     }
   }, [messages]);
 
-  // Save apiContext safely to localStorage whenever it changes
+  // Save apiContext safely to localStorage whenever it changes (clamped to last 6 turns to conserve tokens)
   useEffect(() => {
     try {
       if (apiContext.length > 0) {
-        const safeContext = apiContext.slice(-30).map((turn) => ({
+        const safeContext = apiContext.slice(-6).map((turn) => ({
           role: turn.role,
           parts: Array.isArray(turn.parts)
             ? turn.parts.map((p: any) => {
-                if (p.text) return { text: p.text };
+                if (p.text) return { text: p.text.slice(0, 1000) };
                 if (p.functionCall) {
                   return { functionCall: { name: p.functionCall.name, args: p.functionCall.args } };
                 }
                 if (p.functionResponse) {
-                  const safeResp =
-                    typeof p.functionResponse.response === 'string'
-                      ? p.functionResponse.response.slice(0, 1500)
-                      : p.functionResponse.response;
+                  let safeResp = p.functionResponse.response;
+                  if (typeof safeResp === 'string') {
+                    safeResp = safeResp.slice(0, 500);
+                  }
                   return {
                     functionResponse: {
                       name: p.functionResponse.name,
@@ -460,12 +460,26 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
     try {
       switch (name) {
         case 'gmail_read':
-          const emails = await listGmailMessages(token, args.maxResults || 5, args.query);
-          return { success: true, count: emails.length, emails: emails.map(e => ({ from: e.from, subject: e.subject, snippet: e.snippet })) };
+          const emails = await listGmailMessages(token, Math.min(args.maxResults || 3, 3), args.query);
+          return {
+            success: true,
+            emails: emails.slice(0, 3).map((e) => ({
+              from: e.from,
+              subject: e.subject,
+              snippet: (e.snippet || '').slice(0, 80),
+            })),
+          };
         
         case 'calendar_read':
-          const events = await listCalendarEvents(token, args.maxResults || 5);
-          return { success: true, count: events.length, events: events.map(e => ({ summary: e.summary, start: e.start, location: e.location })) };
+          const events = await listCalendarEvents(token, Math.min(args.maxResults || 3, 3));
+          return {
+            success: true,
+            events: events.slice(0, 3).map((e) => ({
+              summary: e.summary,
+              start: e.start,
+              location: e.location,
+            })),
+          };
           
         case 'gmail_send':
           await sendGmailMessage(token, args.to, args.subject, args.body);
@@ -486,30 +500,27 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
             });
             return { success: true, message: `Meeting booked: ${args.title || args.summary}`, link: event?.htmlLink };
           } catch (e: any) {
-            return { success: true, message: `Simulated booking of ${args.title || args.summary} (Actual API failed or missing scopes)` };
+            return { success: true, message: `Simulated booking of ${args.title || args.summary}` };
           }
 
         case 'workspace_search':
           const files = await listDriveFiles(token, args.query);
           return {
             success: true,
-            totalFound: files.length,
-            files: files.slice(0, 10).map((f) => ({
-              id: f.id,
+            files: files.slice(0, 4).map((f) => ({
               name: f.name,
               mimeType: f.mimeType,
               modifiedTime: f.modifiedTime,
-              webViewLink: f.webViewLink,
             })),
           };
 
         case 'chat_read':
           if (!args.spaceName) {
             const spaces = await listChatSpaces(token);
-            return { success: true, spaces: spaces.map(s => ({ name: s.name, displayName: s.displayName })) };
+            return { success: true, spaces: spaces.slice(0, 3).map(s => ({ name: s.name, displayName: s.displayName })) };
           }
           const msgs = await listChatMessages(token, args.spaceName);
-          return { success: true, messages: msgs.slice(0, 5) };
+          return { success: true, messages: msgs.slice(0, 3) };
 
         case 'meet_create_link':
           const meet = await createMeetingSpace(token);
@@ -518,17 +529,17 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
         case 'tasks_read':
           if (!args.tasklistId) {
             const lists = await listTaskLists(token);
-            return { success: true, tasklists: lists };
+            return { success: true, tasklists: lists.slice(0, 3) };
           }
           const taskItems = await listTasks(token, args.tasklistId);
-          return { success: true, tasks: taskItems };
+          return { success: true, tasks: taskItems.slice(0, 4).map((t: any) => ({ title: t.title, status: t.status })) };
 
         case 'tasks_add':
           // Fetch first list to add to if none specified
           const lists = await listTaskLists(token);
           if (!lists.length) return { error: "No task lists found" };
           const newTask = await createTask(token, lists[0].id, args.title, args.notes);
-          return { success: true, task: newTask };
+          return { success: true, task: { title: newTask.title } };
 
         case 'keep_create_note':
           const savedStr = localStorage.getItem('workspace_hub_keep_notes');
@@ -546,7 +557,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
 
         case 'forms_search':
           const forms = await searchForms(token);
-          return { success: true, forms: forms.slice(0, 5) };
+          return { success: true, forms: forms.slice(0, 3).map(f => ({ name: f.name })) };
 
         case 'messages_send':
           const threadsStr = localStorage.getItem('google_messages_threads');
@@ -582,18 +593,16 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
             });
           }
           localStorage.setItem('google_messages_threads', JSON.stringify(threads));
-          return { success: true, message: `Text sent to ${args.recipient}: "${args.text}"` };
+          return { success: true, message: `Text sent to ${args.recipient}` };
 
         case 'messages_read':
           const readThreadsStr = localStorage.getItem('google_messages_threads');
           const readThreads = readThreadsStr ? JSON.parse(readThreadsStr) : [];
           return { 
             success: true, 
-            threads: readThreads.map((t: any) => ({
+            threads: readThreads.slice(0, 3).map((t: any) => ({
               contact: t.contactName,
-              phone: t.phoneNumber,
               lastMessage: t.lastMessage,
-              type: t.type
             }))
           };
 
@@ -603,12 +612,12 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           const newEntry = { fact: args.fact, timestamp: new Date().toISOString() };
           memories.push(newEntry);
           saveMemories(memories);
-          return { success: true, message: `Fact saved to long-term memory: "${args.fact}"` };
+          return { success: true, message: `Fact saved to memory: "${args.fact}"` };
 
         case 'memory_read':
           const readMem = localStorage.getItem('gpilot_memory');
           const storedMemories = readMem ? JSON.parse(readMem) : [];
-          return { success: true, memories: storedMemories };
+          return { success: true, memories: storedMemories.slice(-5) };
 
         default:
           return { error: `Unknown function: ${name}` };
@@ -622,11 +631,18 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
   const processResponse = async (context: any[]) => {
     setIsLoading(true);
     try {
+      // Ensure we send only the last 4-6 turns to avoid blowing token quotas
+      let prunedContext = context.slice(-6);
+      while (prunedContext.length > 0 && prunedContext[0].role !== 'user') {
+        prunedContext.shift();
+      }
+      const finalContents = prunedContext.length > 0 ? prunedContext : context.slice(-2);
+
       const res = await fetch('/api/gemini/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: context,
+          contents: finalContents,
           tools: GPILOT_TOOLS,
           userName,
           memories: memoriesList,
@@ -641,10 +657,24 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       }
       
       if (!res.ok || data.error) {
-        let displayError = "G-Pilot is experiencing high demand right now. Please wait a moment and try again.";
-        if (typeof data.error === 'string' && !data.error.includes("Network")) {
+        const isQuota = res.status === 429 || (typeof data.error === 'string' && data.error.includes('rate limit'));
+        let displayError = isQuota
+          ? "G-Pilot was temporarily rate-limited. I've automatically pruned our context to save tokens. Please ask again in a few seconds!"
+          : "G-Pilot is experiencing high demand right now. Please wait a moment and try again.";
+        
+        if (typeof data.error === 'string' && !data.error.includes("Network") && !isQuota) {
            displayError = data.error;
         }
+
+        // On 429, reset apiContext to only the latest turn so token buildup is cleared
+        if (isQuota) {
+          const freshContext = context.slice(-1);
+          setApiContext(freshContext);
+          try {
+            localStorage.setItem('gpilot_api_context_history_v1', JSON.stringify(freshContext));
+          } catch {}
+        }
+
         setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: displayError }]);
         setIsLoading(false);
         return;

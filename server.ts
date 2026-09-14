@@ -1,10 +1,75 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI, Type, FunctionDeclaration } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
+
+// Helper to keep token consumption as low as possible and prevent 429 quota exhaustion
+function pruneAndSanitizeContents(rawContents: any[]) {
+  if (!Array.isArray(rawContents) || rawContents.length === 0) {
+    return [];
+  }
+
+  // Keep at most the last 4-6 conversational turns
+  let trimmed = rawContents.slice(-6);
+
+  // Gemini requires the first turn to have role 'user'
+  while (trimmed.length > 0 && trimmed[0].role !== 'user') {
+    trimmed.shift();
+  }
+
+  if (trimmed.length === 0) {
+    trimmed = rawContents.slice(-2);
+  }
+
+  // Sanitize parts to prevent giant JSON dumps from eating up tokens
+  return trimmed.map((turn: any) => {
+    if (!turn || !Array.isArray(turn.parts)) return turn;
+
+    const cleanParts = turn.parts.map((part: any) => {
+      // If function response has huge data, compact it
+      if (part.functionResponse?.response) {
+        const resp = part.functionResponse.response;
+        try {
+          const serialized = JSON.stringify(resp);
+          if (serialized.length > 1000) {
+            // Trim arrays inside response to 3 items
+            const compact: any = {};
+            for (const [k, v] of Object.entries(resp)) {
+              if (Array.isArray(v)) {
+                compact[k] = v.slice(0, 3);
+              } else if (typeof v === 'string' && v.length > 200) {
+                compact[k] = v.slice(0, 200) + '...';
+              } else {
+                compact[k] = v;
+              }
+            }
+            return {
+              ...part,
+              functionResponse: {
+                ...part.functionResponse,
+                response: compact,
+              },
+            };
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // If user text is huge, clamp
+      if (typeof part.text === 'string' && part.text.length > 2500) {
+        return { ...part, text: part.text.slice(0, 2500) + '...[truncated]' };
+      }
+
+      return part;
+    });
+
+    return { ...turn, parts: cleanParts };
+  });
+}
 
 async function startServer() {
   const app = express();
@@ -15,7 +80,7 @@ async function startServer() {
   // Gemini API Proxy
   app.post("/api/gemini/chat", async (req, res) => {
     try {
-      const { contents, tools, userName, memories } = req.body;
+      const { contents, tools, userName, memories } = req.body || {};
       
       const rawApiKey = process.env.GEMINI_API_KEY;
       if (!rawApiKey) {
@@ -24,47 +89,32 @@ async function startServer() {
 
       const apiKey = rawApiKey.trim().replace(/^["']|["']$/g, '');
 
-      let sysInstruct = `You are G Pilot, an autonomous executive assistant fully integrated into the user's Google Workspace environment. Your role is to read context, organize work, manage schedules, handle communications, and execute tasks across Workspace tools efficiently, securely, and proactively. You have access to a long-term memory store. When the user tells you something about themselves, their preferences, or important facts, use the memory_save tool to remember it. Always review past memories implicitly when making decisions.`;
-      
-      if (userName) {
-        sysInstruct += `\n\nThe user's name is ${userName}. Refer to them by their name and be helpful.`;
-      }
+      // Prune contents to save tokens and avoid quota depletion
+      const sanitizedContents = pruneAndSanitizeContents(contents);
+
+      // Ultra-lean, token-efficient system instruction (< 100 tokens)
+      let sysInstruct = `You are G-Pilot, an autonomous executive assistant for Google Workspace.
+User: ${userName || 'User'}.
+Role: Read context, organize schedules, read emails, manage Drive/Tasks/Meet.
+Rules:
+- Read actions (reading emails, searching Drive, calendar, tasks): Execute automatically.
+- Destructive or external actions (sending emails, posting to chat, booking external meetings): Request confirmation first.
+- Style: Concise, clear, natural conversation. No redundant symbols.
+- Memory: Call memory_save if user asks you to remember a fact.`;
 
       if (Array.isArray(memories) && memories.length > 0) {
-        sysInstruct += `\n\n### Long-Term Memory (Saved Facts About User):\n${memories.map((m: any) => `- ${m.fact || m}`).join('\n')}`;
+        const memorySnippet = memories
+          .slice(-5)
+          .map((m: any) => `- ${m.fact || m}`)
+          .join('\n');
+        sysInstruct += `\nSaved Memories:\n${memorySnippet}`;
       }
 
-      sysInstruct += `\n\n## Safety, Permissions & Governance Protocols
-
-You operate under strict security boundaries to protect data privacy and prevent unauthorized or accidental actions.
-
-### 1. Permissions Matrix (Execution Rules)
-
-| Tier | Action Type | Examples | Execution Behavior |
-| :--- | :--- | :--- | :--- |
-| **Tier 1: Read-Only** | Information gathering | Reading emails, searching drive/context, listing calendar events, viewing tasks/notes | **Execute Automatically** |
-| **Tier 2: Non-Destructive Write** | Internal productivity | Creating Keep notes, adding personal tasks, generating Google Meet links, drafting emails | **Execute Automatically** (Inform user upon completion) |
-| **Tier 3: External & Public Communication** | Sending messages to others | Sending emails, posting to Google Chat spaces, booking/canceling meetings with external guests | **Require Confirmation First** |
-| **Tier 4: Destructive Operations** | Permanently modifying data | Deleting emails, canceling internal/external meetings, removing notes or tasks | **Require Explicit Double-Confirmation** |
-
-### 2. Confirmation Gate Protocol (Tier 3 & Tier 4)
-When an action requires confirmation, you must stop execution and output a structured approval request to the user detailing:
-- **Action Type:** (e.g., Send Email, Book Meeting, Post Chat)
-- **Recipients/Target:** (e.g., Email addresses, Chat room name)
-- **Content Preview:** (Exact subject line, body text, or event details)
-
-*Do NOT call the underlying API function until the user explicitly responds with confirmation (e.g., "Yes", "Approved", "Send it").*
-
-### 3. Data Privacy & Least Privilege Scope
-- **Data Boundary:** Process workspace data strictly within the current authenticated user's session. Never expose private email content or notes to third-party APIs or external chat destinations unless specifically instructed.
-- **Sensitive Guardrails:** If an email or document contains credentials, passwords, financial records, or personal health info, highlight the presence of sensitive data and confirm intent before forwarding or summarizing externally.
-
-### 4. Output Formatting & Clarity
-- Keep explanations and responses clean, conversational, and direct.
-- When listing files, calendar events, tasks, or emails, format them clearly and cleanly without clutter or excessive decorative symbols. Present names, dates, and details naturally.`;
-
+      // Failover model pool: Try multiple models if one hits 429 quota
       const CANDIDATE_MODELS = [
+        "gemini-2.5-flash",
         "gemini-3.6-flash",
+        "gemini-2.5-flash-lite",
       ];
 
       let responseText = '';
@@ -86,7 +136,7 @@ When an action requires confirmation, you must stop execution and output a struc
         try {
           const sdkRes: any = await ai.models.generateContent({
             model,
-            contents,
+            contents: sanitizedContents,
             config: {
               systemInstruction: sysInstruct,
               tools: tools ? [{ functionDeclarations: tools }] : undefined,
@@ -103,11 +153,19 @@ When an action requires confirmation, you must stop execution and output a struc
               responseText = sdkRes.text || '';
             }
             lastError = null;
-            break;
+            break; // Succeeded!
           }
         } catch (err: any) {
           lastError = err;
-          console.warn(`SDK Model ${model} failed:`, err?.message || err);
+          const isQuota =
+            err?.status === 429 ||
+            err?.message?.includes("429") ||
+            err?.message?.includes("RESOURCE_EXHAUSTED");
+          console.warn(`SDK Model ${model} failed (Quota: ${isQuota}):`, err?.message || err);
+          if (isQuota) {
+            await new Promise((r) => setTimeout(r, 400));
+            continue;
+          }
         }
       }
 
@@ -122,7 +180,7 @@ When an action requires confirmation, you must stop execution and output a struc
                 'x-goog-api-key': apiKey,
               },
               body: JSON.stringify({
-                contents,
+                contents: sanitizedContents,
                 systemInstruction: { parts: [{ text: sysInstruct }] },
                 tools: tools ? [{ functionDeclarations: tools }] : undefined,
                 generationConfig: { temperature: 0.2 },
@@ -148,7 +206,6 @@ When an action requires confirmation, you must stop execution and output a struc
             break;
           } catch (err: any) {
             lastError = err;
-            console.warn(`REST x-goog-api-key ${model} failed:`, err?.message || err);
           }
         }
       }
@@ -161,7 +218,7 @@ When an action requires confirmation, you must stop execution and output a struc
         return res.json({ functionCalls: responseFunctionCalls, modelParts: rawModelParts });
       }
 
-      return res.json({ text: responseText || "I'm G-Pilot, your autonomous Workspace assistant. I can help you search emails, view calendar schedules, manage tasks, and organize Google Workspace!" });
+      return res.json({ text: responseText || "I'm G-Pilot! I can help you search emails, view calendar schedules, manage tasks, and organize Google Workspace." });
     } catch (error: any) {
       console.error("Gemini API error (handled gracefully):", error?.message || error);
       const isQuota =
@@ -171,7 +228,7 @@ When an action requires confirmation, you must stop execution and output a struc
         error?.message?.includes("quota");
 
       const userMessage = isQuota
-        ? "G-Pilot is experiencing high demand right now. Please wait a moment and try your request again."
+        ? "G-Pilot reached current rate limit. Your conversation has been pruned to save tokens. Please retry in a few seconds."
         : "G-Pilot could not process this request right now. Please try again in a moment.";
 
       return res.status(isQuota ? 429 : 500).json({ error: userMessage });
