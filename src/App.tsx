@@ -67,6 +67,7 @@ import { NotificationCenter } from './components/NotificationCenter';
 import { NotificationToast } from './components/NotificationToast';
 import { PrivacyPolicyView } from './components/PrivacyPolicyView';
 import { TermsOfServiceView } from './components/TermsOfServiceView';
+import { LandingView } from './components/LandingView';
 import {
   ALL_WORKSPACE_TOOLS,
   CATEGORIES,
@@ -921,67 +922,12 @@ export default function App() {
       {/* Main Content Area */}
       <main className={`flex-1 w-full mx-auto relative flex flex-col ${isFullscreen ? 'p-0 max-w-full' : 'max-w-7xl p-4 sm:p-6 lg:p-8'}`}>
         {needsAuth || !token ? (
-          /* Google Workspace Hero Sign-In Screen */
-          <div className="max-w-4xl mx-auto my-8">
-            <div className="bg-white p-8 sm:p-12 rounded-3xl border border-[#dadce0] shadow-[0_1px_3px_0_rgba(60,64,67,0.12),0_4px_8px_3px_rgba(60,64,67,0.06)] text-center space-y-6">
-              {/* Google Workspace Visual Mark */}
-              <div className="flex flex-col items-center justify-center">
-                <div className="p-4 rounded-3xl bg-[#f8fafd] border border-[#dadce0] shadow-sm flex items-center justify-center hover:scale-105 transition-transform duration-200">
-                  <GDeckLogo size="lg" />
-                </div>
-              </div>
-
-              {/* 24+ Google App Logos Grid */}
-              <div className="pt-2 pb-1">
-                <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 max-w-2xl mx-auto p-4 rounded-2xl bg-[#f8fafd] border border-[#dadce0]">
-                  {ALL_WORKSPACE_TOOLS.map((tool) => {
-                    const Icon = tool.icon;
-                    return (
-                      <div
-                        key={tool.id}
-                        title={tool.name}
-                        onClick={handleSignIn}
-                        className="w-10 h-10 rounded-xl bg-white border border-[#dadce0] hover:border-[#1a73e8] hover:bg-[#e8f0fe] shadow-xs flex items-center justify-center transition-all duration-200 hover:scale-110 cursor-pointer"
-                      >
-                        <Icon className="w-5 h-5 object-contain" />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-2.5 max-w-2xl mx-auto">
-                <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#1f1f1f] leading-tight font-['Google_Sans',Roboto,sans-serif]">
-                  One Unified Deck for Google Workspace.
-                </h1>
-                <p className="text-sm sm:text-base text-[#5f6368] leading-relaxed">
-                  Command Gmail, Drive, Sheets, Docs, Tasks, Meet, and Calendar from a single interface driven by G-Pilot, your personal AI agent.
-                </p>
-              </div>
-
-              {authError && (
-                <div className="max-w-md mx-auto p-4 rounded-2xl bg-[#fce8e6] border border-[#f5c6cb] text-[#d93025] text-xs flex items-center gap-3 text-left">
-                  <AlertCircle className="w-5 h-5 shrink-0" />
-                  <p>{authError}</p>
-                </div>
-              )}
-
-              <div className="pt-2 flex flex-col items-center justify-center gap-4 max-w-md mx-auto">
-                <button
-                  id="sign-in-action-btn"
-                  onClick={handleSignIn}
-                  disabled={isLoggingIn}
-                  className="w-full py-3.5 px-6 rounded-full font-semibold text-sm text-white bg-[#1a73e8] hover:bg-[#1557b0] shadow-[0_1px_3px_0_rgba(60,64,67,0.3),0_4px_8px_3px_rgba(60,64,67,0.15)] hover:shadow-[0_2px_6px_2px_rgba(60,64,67,0.25)] transition-all flex items-center justify-center gap-3 cursor-pointer hover:scale-[1.01]"
-                >
-                  <GoogleLogo className="w-5 h-5" />
-                  <span>{isLoggingIn ? 'Connecting to Google Workspace...' : 'Sign in with Google'}</span>
-                </button>
-                <p className="text-xs text-[#5f6368] flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-[#188038]" /> Safe Google Identity OAuth 2.0 connection
-                </p>
-              </div>
-            </div>
-          </div>
+          /* High-Converting SEO Landing Screen */
+          <LandingView
+            onSignIn={handleSignIn}
+            isLoggingIn={isLoggingIn}
+            authError={authError}
+          />
         ) : (
           /* Active Views */
           <div className="flex flex-col flex-1 h-full">

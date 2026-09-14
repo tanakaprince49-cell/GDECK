@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { GoogleLogo } from './GoogleIcons';
 
 interface GDeckLogoProps {
   className?: string;
@@ -19,6 +20,13 @@ export const GDeckLogo: React.FC<GDeckLogoProps> = ({
     xl: 'w-18 h-18',
   }[size];
 
+  const iconSizes = {
+    sm: 'w-5 h-5',
+    md: 'w-6 h-6',
+    lg: 'w-9 h-9',
+    xl: 'w-12 h-12',
+  }[size];
+
   const handleImageError = () => {
     setImgError(true);
   };
@@ -26,27 +34,9 @@ export const GDeckLogo: React.FC<GDeckLogoProps> = ({
   if (imgError) {
     return (
       <div
-        className={`${sizeClasses} rounded-xl bg-white flex items-center justify-center border border-[#dadce0] shrink-0 relative p-0.5 ${className}`}
+        className={`${sizeClasses} rounded-xl bg-white flex items-center justify-center border border-[#dadce0] shadow-xs shrink-0 relative p-1 ${className}`}
       >
-        <svg
-          viewBox="0 0 48 48"
-          className="w-full h-full"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          {/* Google 4-Color Deck Geometric Icon */}
-          <path
-            d="M24 6L40 15V33L24 42L8 33V15L24 6Z"
-            fill="#F8FAFD"
-            stroke="#DADCE0"
-            strokeWidth="1.5"
-          />
-          {/* 4 Google Quadrants */}
-          <path d="M24 6L40 15L24 24L8 15L24 6Z" fill="#4285F4" />
-          <path d="M40 15V33L24 24L40 15Z" fill="#EA4335" />
-          <path d="M24 42L8 33L24 24L24 42Z" fill="#34A853" />
-          <path d="M40 33L24 42L24 24L40 33Z" fill="#FBBC04" />
-        </svg>
+        <GoogleLogo className={iconSizes} />
       </div>
     );
   }
