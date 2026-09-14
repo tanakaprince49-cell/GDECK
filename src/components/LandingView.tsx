@@ -65,10 +65,10 @@ export const LandingView: React.FC<LandingViewProps> = ({
         {/* Main Value Proposition Title */}
         <div className="max-w-3xl mx-auto space-y-4">
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-[#1f1f1f] leading-[1.15] font-['Google_Sans',Roboto,sans-serif]">
-            Replace 24+ Google Tabs with <span className="text-[#1a73e8]">One AI Workspace Deck</span>
+            Get Your Workday Back.
           </h1>
           <p className="text-base sm:text-lg text-[#5f6368] leading-relaxed max-w-2xl mx-auto">
-            Stop losing focus to tab overload. Unify all 24 Google applications into a single liquid-glass dashboard with built-in Gemini AI intelligence.
+            Work across your emails, files, schedules, and tasks in one high-speed command deck guided by an integrated AI agent that executes tasks so you never lose focus.
           </p>
         </div>
 
