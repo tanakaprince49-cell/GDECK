@@ -112,9 +112,9 @@ Rules:
 
       // Failover model pool: Try multiple models if one hits 429 quota
       const CANDIDATE_MODELS = [
+        "gemini-3.5-flash-lite",
         "gemini-2.5-flash",
         "gemini-3.6-flash",
-        "gemini-2.5-flash-lite",
       ];
 
       let responseText = '';
