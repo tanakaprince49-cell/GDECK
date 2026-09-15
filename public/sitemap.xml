@@ -3,7 +3,6 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"
         xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
-  <!-- gdeck.org Domain Entries -->
   <url>
     <loc>https://gdeck.org/</loc>
     <lastmod>2026-09-15</lastmod>
@@ -73,19 +72,5 @@
     <lastmod>2026-09-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
-  </url>
-
-  <!-- Applet Preview Domain Entries -->
-  <url>
-    <loc>https://ais-pre-hicrgzmxtjmjxq4daexane-9083418461.europe-west2.run.app/</loc>
-    <lastmod>2026-09-15</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>https://ais-pre-hicrgzmxtjmjxq4daexane-9083418461.europe-west2.run.app/sitemap.xml</loc>
-    <lastmod>2026-09-15</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.8</priority>
   </url>
 </urlset>
