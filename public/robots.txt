@@ -1,4 +1,12 @@
 User-agent: *
 Allow: /
+Disallow: /api/
 
-Sitemap: /sitemap.xml
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+Sitemap: https://gdeck.org/sitemap.xml
+Sitemap: https://ais-pre-hicrgzmxtjmjxq4daexane-9083418461.europe-west2.run.app/sitemap.xml

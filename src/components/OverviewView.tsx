@@ -36,16 +36,15 @@ import {
 } from '../services/workspace';
 import {
   GoogleDriveIcon,
+  GoogleDocsIcon,
   GoogleSheetsIcon,
+  GoogleSlidesIcon,
   GmailIcon,
   GoogleCalendarIcon,
   GoogleTasksIcon,
-  GoogleChatIcon,
-  GoogleContactsIcon,
   GoogleMeetIcon,
   GoogleFormsIcon,
   GoogleKeepIcon,
-  GoogleMessagesIcon,
   GoogleLogo,
 } from './GoogleIcons';
 import { ALL_WORKSPACE_TOOLS, CATEGORIES, ToolDefinition, DEFAULT_PINNED_TOOL_IDS } from '../constants/tools';

@@ -1,4 +1,17 @@
-export type NotificationCategory = 'gmail' | 'calendar' | 'drive' | 'tasks' | 'meet' | 'gpilot' | 'system';
+export type NotificationCategory =
+  | 'gmail'
+  | 'calendar'
+  | 'drive'
+  | 'tasks'
+  | 'meet'
+  | 'docs'
+  | 'sheets'
+  | 'slides'
+  | 'forms'
+  | 'chat'
+  | 'keep'
+  | 'gpilot'
+  | 'system';
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
 

@@ -57,13 +57,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
         {/* Subtle decorative glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-96 h-32 bg-blue-50/60 rounded-full blur-3xl pointer-events-none -z-10" />
 
-        {/* Brand Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#e8f0fe] border border-[#d2e3fc] text-[#1a73e8] text-xs font-semibold mb-6 shadow-xs">
-          <span>The Next-Gen Google Workspace Command Deck</span>
-        </div>
-
         {/* Main Value Proposition Title */}
-        <div className="max-w-3xl mx-auto space-y-4">
+        <div className="max-w-3xl mx-auto space-y-4 pt-2">
           <h1 className="text-3xl sm:text-5xl font-black tracking-tight text-[#1f1f1f] leading-[1.15] font-['Google_Sans',Roboto,sans-serif]">
             Get Your Workday Back.
           </h1>
@@ -73,18 +68,19 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
 
         {/* ALL 24 GOOGLE TOOLS HERO GRID */}
-        <div className="my-8 max-w-3xl mx-auto space-y-2">
-          <div className="p-4 sm:p-5 rounded-3xl bg-[#f8fafd] border border-[#dadce0] shadow-inner">
+        <div className="my-8 max-w-4xl mx-auto space-y-2">
+          <div className="p-4 sm:p-6 rounded-3xl bg-[#f8fafd] border border-[#dadce0] shadow-inner">
             <div className="flex items-center justify-between mb-3 px-1">
               <span className="text-xs font-bold text-[#1f1f1f] flex items-center gap-1.5">
-                <Grid className="w-4 h-4 text-[#1a73e8]" /> All 24 Integrated Google Applications
+                <Grid className="w-4 h-4 text-[#1a73e8]" /> All 24 Google Workspace Applications Unified
               </span>
               <span className="text-[11px] font-semibold text-[#1a73e8] bg-[#e8f0fe] px-2.5 py-0.5 rounded-full">
-                {hoveredTool ? `${hoveredTool.name} — ${hoveredTool.category}` : '24 Tools Connected'}
+                {hoveredTool ? `${hoveredTool.name} — ${hoveredTool.category}` : '24 Official Tools Connected'}
               </span>
             </div>
 
-            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-2 sm:gap-2.5">
+            {/* 24 Tools Grid */}
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-2 sm:gap-2.5">
               {ALL_WORKSPACE_TOOLS.map((tool) => {
                 const Icon = tool.icon;
                 const isHovered = hoveredTool?.id === tool.id;
@@ -96,30 +92,39 @@ export const LandingView: React.FC<LandingViewProps> = ({
                     onMouseEnter={() => setHoveredTool(tool)}
                     onMouseLeave={() => setHoveredTool(null)}
                     title={`${tool.name} (${tool.category}): ${tool.desc}`}
-                    className={`aspect-square rounded-2xl bg-white border flex items-center justify-center transition-all duration-200 cursor-pointer relative group ${
+                    className={`aspect-square rounded-2xl bg-white border flex items-center justify-center transition-all duration-200 cursor-pointer relative group p-2 ${
                       isHovered
                         ? 'border-[#1a73e8] bg-[#e8f0fe] scale-110 shadow-md z-10'
                         : 'border-[#dadce0] hover:border-[#1a73e8] hover:bg-[#f1f3f4] shadow-xs'
                     }`}
                   >
-                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 object-contain" />
+                    <Icon className="w-6 h-6 sm:w-7 sm:h-7 object-contain" alt={tool.name} />
                   </button>
                 );
               })}
             </div>
-            
+
             {/* Active tool preview bar */}
-            <div className="mt-3 pt-2.5 border-t border-[#dadce0]/60 flex items-center justify-between text-left text-xs px-1">
-              <div className="min-w-0">
-                <span className="font-bold text-[#1f1f1f]">
-                  {hoveredTool ? hoveredTool.name : 'Hover over any tool'}
-                </span>
-                <span className="text-[#5f6368] ml-2 truncate inline-block max-w-[280px] sm:max-w-md align-bottom">
-                  {hoveredTool ? hoveredTool.desc : 'Click any icon to connect your Google account'}
-                </span>
+            <div className="mt-3.5 pt-3 border-t border-[#dadce0]/60 flex items-center justify-between text-left text-xs px-1">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {hoveredTool && (
+                  <div className="w-6 h-6 rounded-md bg-white border border-[#dadce0] p-0.5 shrink-0 flex items-center justify-center">
+                    <hoveredTool.icon className="w-5 h-5 object-contain" alt={hoveredTool.name} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <span className="font-bold text-[#1f1f1f]">
+                    {hoveredTool ? hoveredTool.name : 'Hover over any of the 24 tools'}
+                  </span>
+                  <span className="text-[#5f6368] ml-2 truncate inline-block max-w-[240px] sm:max-w-lg align-bottom text-[11px]">
+                    {hoveredTool
+                      ? hoveredTool.desc
+                      : 'Click any icon to connect your Google account'}
+                  </span>
+                </div>
               </div>
-              <span className="text-[10px] font-semibold text-[#188038] shrink-0 bg-[#e6f4ea] px-2 py-0.5 rounded-md">
-                {hoveredTool ? hoveredTool.badge : 'All-in-One'}
+              <span className="text-[10px] font-semibold text-[#188038] shrink-0 bg-[#e6f4ea] px-2.5 py-0.5 rounded-md border border-[#ceead6]">
+                {hoveredTool ? hoveredTool.badge : 'All 24 Connected'}
               </span>
             </div>
           </div>

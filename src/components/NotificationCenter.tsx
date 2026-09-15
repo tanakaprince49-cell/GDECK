@@ -18,6 +18,12 @@ import {
   GoogleDriveIcon,
   GoogleTasksIcon,
   GoogleMeetIcon,
+  GoogleDocsIcon,
+  GoogleSheetsIcon,
+  GoogleSlidesIcon,
+  GoogleFormsIcon,
+  GoogleKeepIcon,
+  GoogleChatIcon,
   GoogleLogo,
   GPilotIcon
 } from './GoogleIcons';
@@ -38,8 +44,20 @@ const getCategoryBadge = (category: NotificationCategory) => {
       return { icon: GoogleTasksIcon, label: 'Tasks', bg: 'bg-white', text: 'text-[#137333]', border: 'border-[#dadce0]' };
     case 'meet':
       return { icon: GoogleMeetIcon, label: 'Meet', bg: 'bg-white', text: 'text-[#00832d]', border: 'border-[#dadce0]' };
+    case 'docs':
+      return { icon: GoogleDocsIcon, label: 'Docs', bg: 'bg-white', text: 'text-[#1a73e8]', border: 'border-[#dadce0]' };
+    case 'sheets':
+      return { icon: GoogleSheetsIcon, label: 'Sheets', bg: 'bg-white', text: 'text-[#0f9d58]', border: 'border-[#dadce0]' };
+    case 'slides':
+      return { icon: GoogleSlidesIcon, label: 'Slides', bg: 'bg-white', text: 'text-[#f4b400]', border: 'border-[#dadce0]' };
+    case 'forms':
+      return { icon: GoogleFormsIcon, label: 'Forms', bg: 'bg-white', text: 'text-[#7248b9]', border: 'border-[#dadce0]' };
+    case 'keep':
+      return { icon: GoogleKeepIcon, label: 'Keep', bg: 'bg-white', text: 'text-[#f29900]', border: 'border-[#dadce0]' };
+    case 'chat':
+      return { icon: GoogleChatIcon, label: 'Chat', bg: 'bg-white', text: 'text-[#00832d]', border: 'border-[#dadce0]' };
     case 'gpilot':
-      return { icon: GPilotIcon, label: 'G-Pilot', bg: 'bg-white', text: 'text-[#1a73e8]', border: 'border-[#dadce0]' };
+      return { icon: GPilotIcon, label: 'G-Pilot', bg: 'bg-[#0b0f17]', text: 'text-[#fbe618]', border: 'border-[#222]' };
     default:
       return { icon: GoogleLogo, label: 'System', bg: 'bg-white', text: 'text-[#5f6368]', border: 'border-[#dadce0]' };
   }
@@ -195,8 +213,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
                     }`}
                   >
                     {/* Category Icon */}
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${badge.bg} border ${badge.border}`}>
-                      <CategoryIcon className={`w-6 h-6 ${badge.text}`} />
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${badge.bg} border ${badge.border} p-1.5 shadow-2xs`}>
+                      <CategoryIcon className="w-6 h-6 object-contain" alt={badge.label} />
                     </div>
 
                     <div className="flex-1 min-w-0">

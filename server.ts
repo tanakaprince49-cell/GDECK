@@ -139,6 +139,19 @@ async function startServer() {
 
   app.use(express.json({ limit: "50mb" }));
 
+  // SEO & Google Search Console routes
+  app.get("/sitemap.xml", (req, res) => {
+    const sitemapPath = path.join(process.cwd(), "public", "sitemap.xml");
+    res.header("Content-Type", "application/xml");
+    res.sendFile(sitemapPath);
+  });
+
+  app.get("/robots.txt", (req, res) => {
+    const robotsPath = path.join(process.cwd(), "public", "robots.txt");
+    res.header("Content-Type", "text/plain");
+    res.sendFile(robotsPath);
+  });
+
   // Gemini API Proxy
   app.post("/api/gemini/chat", async (req, res) => {
     try {
@@ -154,15 +167,27 @@ async function startServer() {
       // Prune contents to save tokens and avoid quota depletion
       const sanitizedContents = pruneAndSanitizeContents(contents);
 
-      // Ultra-lean, token-efficient system instruction (< 100 tokens)
-      let sysInstruct = `You are G-Pilot, an autonomous executive assistant for Google Workspace.
+      // Focused, dedicated assistant system instruction with strict scope definition
+      let sysInstruct = `You are G-Pilot, an AI executive assistant dedicated to Gmail, Google Calendar, and Google Meet.
 User: ${userName || 'User'}.
-Role: Read context, organize schedules, read emails, manage Drive/Tasks/Meet.
-Rules:
-- Read actions (reading emails, searching Drive, calendar, tasks): Execute automatically.
-- Destructive or external actions (sending emails, posting to chat, booking external meetings): Request confirmation first.
-- Style: Concise, clear, natural conversation. No redundant symbols.
-- Memory: Call memory_save if user asks you to remember a fact.`;
+
+YOUR CAPABILITIES (WHAT YOU CAN DO):
+1. Read emails from Gmail inbox (using gmail_read).
+2. Send emails to recipients via Gmail (using gmail_send).
+3. Read calendar events and schedule/book meetings on Google Calendar (using calendar_read, calendar_book).
+4. Create Google Meet video conference links (using meet_create_link).
+5. Remember user preferences (using memory_save, memory_read).
+
+WHAT YOU CANNOT DO:
+- You DO NOT have access to Google Drive files, Google Docs, Sheets, Slides, or Drive search.
+- You DO NOT manage Google Tasks, Keep notes, Google Forms, Chat spaces, or Messages/SMS.
+- If asked to search Drive, edit files, manage tasks, or access other parts of the workspace, state clearly and politely that your scope is focused exclusively on Gmail (reading/sending emails), Google Calendar (reading/scheduling meetings), and Google Meet (creating meeting links).
+
+EXECUTION RULES:
+- Read actions (reading emails, checking calendar): Execute immediately with relevant tools.
+- Actions with external impact (sending emails, booking meetings): Prompt for approval or confirm parameters clearly.
+- Style: Concise, direct, helpful, natural. Never invent information or claim you performed an action without calling the corresponding tool.
+- DO NOT mention tokens, token limits, pruning, or backend constraints under any circumstance.`;
 
       if (Array.isArray(memories) && memories.length > 0) {
         const memorySnippet = memories

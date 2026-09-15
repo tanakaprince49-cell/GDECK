@@ -130,6 +130,12 @@
 }
 
 /* Google Inputs & Search Bars */
+input[type="checkbox"] {
+  accent-color: #1a73e8 !important;
+  cursor: pointer;
+  background-color: transparent !important;
+}
+
 input[type="text"], 
 input[type="email"], 
 input[type="search"], 

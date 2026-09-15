@@ -36,27 +36,17 @@ import { SheetsView } from './components/SheetsView';
 import { GmailView } from './components/GmailView';
 import { CalendarView } from './components/CalendarView';
 import { TasksView } from './components/TasksView';
-import { ChatView } from './components/ChatView';
 import { ContactsView } from './components/ContactsView';
 import { MeetView } from './components/MeetView';
 import { FormsView } from './components/FormsView';
 import { KeepView } from './components/KeepView';
-import { MessagesView } from './components/MessagesView';
 
-// Newly added Google Tools
+// Top 10 Core Google Workspace Tools
 import { DocsView } from './components/DocsView';
 import { SlidesView } from './components/SlidesView';
-import { DrawingsView } from './components/DrawingsView';
-import { SitesView } from './components/SitesView';
-import { PhotosView } from './components/PhotosView';
-import { YouTubeStudioView } from './components/YouTubeStudioView';
-import { AnalyticsView } from './components/AnalyticsView';
-import { SearchConsoleView } from './components/SearchConsoleView';
-import { TrendsView } from './components/TrendsView';
-import { FinanceView } from './components/FinanceView';
-import { MapsView } from './components/MapsView';
-import { TranslateView } from './components/TranslateView';
-import { ClassroomView } from './components/ClassroomView';
+import { ChatView } from './components/ChatView';
+import { MessagesView } from './components/MessagesView';
+import { WorkspaceAppView } from './components/WorkspaceAppView';
 
 import GPilotChat from './components/GPilotChat';
 import { OnboardingModal, OnboardingPreferences } from './components/OnboardingModal';
@@ -306,24 +296,27 @@ export default function App() {
       )}
 
       {/* Google Workspace Top App Bar */}
-      {!isFullscreen && (
-        <header className="sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-sm">
-          <div className="w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-xs">
+        <div className="w-full mx-auto px-2.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           {/* Brand Identity - Google Workspace Deck */}
           <div className="flex items-center gap-1 shrink-0">
             {user && (
-              <button className="p-3 mr-1 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors hidden sm:block">
-                <Menu className="w-6 h-6" />
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 -ml-1 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors sm:hidden"
+                aria-label="Toggle navigation menu"
+              >
+                <Menu className="w-5 h-5 text-[#1f1f1f]" />
               </button>
             )}
             <button
               onClick={() => setActiveTab('overview')}
-              className="flex items-center gap-2 p-1.5 pr-3 rounded-lg hover:bg-[#f1f3f4] transition-colors cursor-pointer group"
+              className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 sm:pr-3 rounded-lg hover:bg-[#f1f3f4] transition-colors cursor-pointer group"
               title="Google Workspace Deck Dashboard"
             >
               <GDeckLogo size="sm" />
               <div className="flex flex-col text-left">
-                <span className="text-xl font-medium tracking-tight text-[#5f6368] font-['Google_Sans',Roboto,sans-serif]">
+                <span className="text-lg sm:text-xl font-medium tracking-tight text-[#5f6368] font-['Google_Sans',Roboto,sans-serif]">
                   G-Deck
                 </span>
               </div>
@@ -407,12 +400,12 @@ export default function App() {
           )}
 
           {/* Right Header: Google 9-dot Waffle + Account Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             {!needsAuth && token && (
               <NotificationCenter onNavigateTab={(tab) => setActiveTab(tab)} />
             )}
             {user ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Direct Desktop Sign Out button */}
                 <button
                   id="direct-header-signout-btn"
@@ -425,7 +418,7 @@ export default function App() {
                 </button>
 
                 {/* 9-dot Google App Launcher (Waffle Menu) */}
-                <div ref={waffleRef} className="relative">
+                <div ref={waffleRef} className="relative hidden xs:block">
                   <button
                     id="waffle-menu-btn"
                     onClick={() => setShowWaffleMenu(!showWaffleMenu)}
@@ -487,7 +480,7 @@ export default function App() {
                   <button
                     id="profile-menu-btn"
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
-                    className="p-1 rounded-full hover:ring-4 hover:ring-[#e8f0fe] transition-all cursor-pointer flex items-center gap-2"
+                    className="p-0.5 sm:p-1 rounded-full hover:ring-4 hover:ring-[#e8f0fe] transition-all cursor-pointer flex items-center gap-2"
                     title="Google Account"
                   >
                     {user.photoURL ? (
@@ -495,10 +488,10 @@ export default function App() {
                         src={user.photoURL}
                         alt={user.displayName || 'Google Account'}
                         referrerPolicy="no-referrer"
-                        className="w-8 h-8 rounded-full object-cover border border-[#dadce0]"
+                        className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-[#dadce0]"
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-[#1a73e8] text-white flex items-center justify-center text-xs font-bold">
+                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#1a73e8] text-white flex items-center justify-center text-xs font-bold">
                         {user.displayName ? user.displayName[0].toUpperCase() : 'G'}
                       </div>
                     )}
@@ -506,7 +499,7 @@ export default function App() {
 
                   {/* Profile Details Dropdown */}
                   {showProfileMenu && (
-                    <div className="fixed sm:absolute top-16 sm:top-auto left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 w-auto sm:w-72 max-w-sm ml-auto rounded-3xl bg-white border border-[#dadce0] shadow-[0_4px_24px_rgba(60,64,67,0.2)] p-4 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="fixed sm:absolute top-14 sm:top-auto left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 w-auto sm:w-72 max-w-sm ml-auto rounded-3xl bg-white border border-[#dadce0] shadow-[0_4px_24px_rgba(60,64,67,0.2)] p-4 z-50 animate-in fade-in slide-in-from-top-2">
                       <div className="flex flex-col items-center text-center pb-4 border-b border-[#f1f3f4]">
                         {user.photoURL ? (
                           <img
@@ -542,28 +535,6 @@ export default function App() {
                           <Settings className="w-4 h-4 text-[#5f6368]" />
                           <span>Customize Preferences</span>
                         </button>
-                        <button
-                          id="profile-dropdown-signout-btn"
-                          onClick={() => {
-                            setShowLogoutConfirm(true);
-                            setShowProfileMenu(false);
-                          }}
-                          className="w-full px-3 py-2 text-xs font-semibold text-[#5f6368] hover:bg-[#f1f3f4] rounded-xl text-left flex items-center gap-2 cursor-pointer transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          <span>Sign Out</span>
-                        </button>
-                        <button
-                          id="profile-dropdown-delete-account-btn"
-                          onClick={() => {
-                            setShowDeleteAccountModal(true);
-                            setShowProfileMenu(false);
-                          }}
-                          className="w-full px-3 py-2 text-xs font-semibold text-[#d93025] hover:bg-[#fce8e6] rounded-xl text-left flex items-center gap-2 cursor-pointer transition-colors border-t border-[#f1f3f4] pt-2.5 mt-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span>Delete Account Permanently</span>
-                        </button>
                       </div>
                     </div>
                   )}
@@ -574,7 +545,7 @@ export default function App() {
                 id="header-sign-in-btn"
                 onClick={handleSignIn}
                 disabled={isLoggingIn}
-                className="px-5 py-2 text-xs font-semibold text-white bg-[#1a73e8] hover:bg-[#1557b0] rounded-full shadow-[0_1px_3px_0_rgba(60,64,67,0.3)] flex items-center gap-2 cursor-pointer transition-all hover:shadow-[0_2px_6px_2px_rgba(60,64,67,0.15)]"
+                className="px-4 sm:px-5 py-1.5 sm:py-2 text-xs font-semibold text-white bg-[#1a73e8] hover:bg-[#1557b0] rounded-full shadow-[0_1px_3px_0_rgba(60,64,67,0.3)] flex items-center gap-1.5 sm:gap-2 cursor-pointer transition-all hover:shadow-[0_2px_6px_2px_rgba(60,64,67,0.15)]"
               >
                 <GoogleLogo className="w-4 h-4" />
                 <span>{isLoggingIn ? 'Connecting...' : 'Sign In'}</span>
@@ -586,10 +557,10 @@ export default function App() {
               <button
                 id="mobile-menu-toggle-btn"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
+                className="lg:hidden p-1.5 sm:p-2 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
                 aria-label="Toggle mobile menu"
               >
-                {mobileMenuOpen ? <X className="w-6 h-6 text-[#1f1f1f]" /> : <Menu className="w-6 h-6 text-[#1f1f1f]" />}
+                {mobileMenuOpen ? <X className="w-5 h-5 text-[#1f1f1f]" /> : <Menu className="w-5 h-5 text-[#1f1f1f]" />}
               </button>
             )}
           </div>
@@ -717,7 +688,7 @@ export default function App() {
                 className="px-3 py-1.5 rounded-full text-xs font-medium text-[#444746] hover:bg-[#f0f4f9] hover:text-[#1f1f1f] flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <LayoutGrid className="w-3.5 h-3.5 text-[#1a73e8]" />
-                <span>All 24+ Google Tools</span>
+                <span>Top 10 Google Suite</span>
               </button>
             </div>
           </div>
@@ -917,10 +888,9 @@ export default function App() {
           </div>
         )}
       </header>
-      )}
 
       {/* Main Content Area */}
-      <main className={`flex-1 w-full mx-auto relative flex flex-col ${isFullscreen ? 'p-0 max-w-full' : 'max-w-7xl p-4 sm:p-6 lg:p-8'}`}>
+      <main className="flex-1 w-full mx-auto relative flex flex-col max-w-7xl p-2 sm:p-4 md:p-6 lg:p-8">
         {needsAuth || !token ? (
           /* High-Converting SEO Landing Screen */
           <LandingView
@@ -932,11 +902,11 @@ export default function App() {
           /* Active Views */
           <div className="flex flex-col flex-1 h-full">
             {/* Breadcrumb Bar */}
-            {activeTab !== 'overview' && !isFullscreen && (
-              <div className="mb-5 flex items-center justify-between bg-white px-4 py-2.5 rounded-2xl border border-[#dadce0] shadow-xs">
+            {activeTab !== 'overview' && (
+              <div className="mb-3 sm:mb-5 flex items-center justify-between bg-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl border border-[#dadce0] shadow-2xs">
                 <nav
                   aria-label="Breadcrumb"
-                  className="text-xs text-[#5f6368] flex items-center gap-2 font-medium"
+                  className="text-xs text-[#5f6368] flex items-center gap-1.5 sm:gap-2 font-medium"
                 >
                   <button
                     onClick={() => setActiveTab('overview')}
@@ -945,29 +915,10 @@ export default function App() {
                     Google Workspace
                   </button>
                   <span>/</span>
-                  <span className="capitalize text-[#1a73e8] font-semibold px-2.5 py-0.5 rounded-full bg-[#e8f0fe] border border-[#d2e3fc]">
+                  <span className="capitalize text-[#1a73e8] font-semibold px-2 sm:px-2.5 py-0.5 rounded-full bg-[#e8f0fe] border border-[#d2e3fc]">
                     {activeTab}
                   </span>
                 </nav>
-                <button
-                  onClick={() => setIsFullscreen(true)}
-                  className="p-1.5 text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#f0f4f9] rounded-lg transition-colors cursor-pointer"
-                  title="Enter Fullscreen"
-                >
-                  <Maximize className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-
-            {isFullscreen && activeTab !== 'overview' && (
-              <div className="fixed top-4 right-6 z-50 pointer-events-auto">
-                <button
-                  onClick={() => setIsFullscreen(false)}
-                  className="p-2.5 bg-white/90 backdrop-blur-md border border-[#dadce0] shadow-lg text-[#5f6368] hover:text-[#d93025] hover:bg-[#fce8e6] rounded-full transition-all cursor-pointer flex items-center justify-center group"
-                  title="Exit Fullscreen"
-                >
-                  <Minimize className="w-5 h-5 group-hover:scale-95 transition-transform" />
-                </button>
               </div>
             )}
 
@@ -984,42 +935,74 @@ export default function App() {
                 onTogglePin={togglePin}
               />
             )}
+            {/* 1. Gmail */}
+            {activeTab === 'gmail' && (
+              <GmailView
+                token={token}
+                onBackToOverview={() => setActiveTab('overview')}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
+            )}
+            {/* 2. Google Drive */}
             {activeTab === 'drive' && (
-              <DriveView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <DriveView
+                token={token}
+                onBackToOverview={() => setActiveTab('overview')}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
             )}
+            {/* 3. Google Docs */}
             {activeTab === 'docs' && (
-              <DocsView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <DocsView
+                token={token}
+                onBackToOverview={() => setActiveTab('overview')}
+                userName={user?.displayName || 'Tanaka Prince'}
+                userEmail={user?.email || 'tanakaprince49@gmail.com'}
+                userPhoto={user?.photoURL || undefined}
+              />
             )}
+            {/* 4. Google Sheets */}
             {activeTab === 'sheets' && (
               <SheetsView token={token} onBackToOverview={() => setActiveTab('overview')} />
             )}
-            {activeTab === 'slides' && (
-              <SlidesView token={token} onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'drawings' && (
-              <DrawingsView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'sites' && (
-              <SitesView token={token} onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'gmail' && (
-              <GmailView token={token} onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'messages' && (
-              <MessagesView token={token} onBackToOverview={() => setActiveTab('overview')} />
-            )}
+            {/* 5. Google Calendar */}
             {activeTab === 'calendar' && (
               <CalendarView token={token} onBackToOverview={() => setActiveTab('overview')} />
             )}
+            {/* 6. Google Meet */}
+            {activeTab === 'meet' && (
+              <MeetView token={token} onBackToOverview={() => setActiveTab('overview')} />
+            )}
+            {/* 7. Google Slides */}
+            {activeTab === 'slides' && (
+              <SlidesView
+                token={token}
+                onBackToOverview={() => setActiveTab('overview')}
+                userName={user?.displayName || 'Tanaka Prince'}
+                userEmail={user?.email || 'tanakaprince49@gmail.com'}
+                userPhoto={user?.photoURL || undefined}
+              />
+            )}
+            {/* 8. Google Forms */}
+            {activeTab === 'forms' && (
+              <FormsView
+                token={token}
+                onBackToOverview={() => setActiveTab('overview')}
+                userName={user?.displayName || 'Tanaka Prince'}
+                userEmail={user?.email || 'tanakaprince49@gmail.com'}
+                userPhoto={user?.photoURL || undefined}
+              />
+            )}
+            {/* 9. Google Keep */}
+            {activeTab === 'keep' && (
+              <KeepView onBackToOverview={() => setActiveTab('overview')} />
+            )}
+            {/* 10. Google Tasks */}
             {activeTab === 'tasks' && (
               <TasksView token={token} onBackToOverview={() => setActiveTab('overview')} />
             )}
-            {activeTab === 'classroom' && (
-              <ClassroomView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'chat' && (
-              <ChatView token={token} onBackToOverview={() => setActiveTab('overview')} />
-            )}
+
+            {/* Supplementary Utilities */}
             {activeTab === 'contacts' && (
               <ContactsView
                 token={token}
@@ -1029,39 +1012,46 @@ export default function App() {
                 onBackToOverview={() => setActiveTab('overview')}
               />
             )}
-            {activeTab === 'meet' && (
-              <MeetView token={token} onBackToOverview={() => setActiveTab('overview')} />
+            {activeTab === 'chat' && (
+              <ChatView token={token} onBackToOverview={() => setActiveTab('overview')} />
             )}
-            {activeTab === 'forms' && (
-              <FormsView token={token} onBackToOverview={() => setActiveTab('overview')} />
+            {activeTab === 'messages' && (
+              <MessagesView token={token} onBackToOverview={() => setActiveTab('overview')} />
             )}
-            {activeTab === 'keep' && (
-              <KeepView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'photos' && (
-              <PhotosView token={token} onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'youtube' && (
-              <YouTubeStudioView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'maps' && (
-              <MapsView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'translate' && (
-              <TranslateView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'analytics' && (
-              <AnalyticsView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'searchconsole' && (
-              <SearchConsoleView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'trends' && (
-              <TrendsView onBackToOverview={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'finance' && (
-              <FinanceView onBackToOverview={() => setActiveTab('overview')} />
-            )}
+            {/* Any of the 24 Workspace Tools */}
+            {(() => {
+              const builtInTabs = [
+                'overview',
+                'gmail',
+                'drive',
+                'docs',
+                'sheets',
+                'calendar',
+                'meet',
+                'slides',
+                'forms',
+                'keep',
+                'tasks',
+                'contacts',
+                'chat',
+                'messages',
+                'privacy',
+                'terms',
+              ];
+              if (!builtInTabs.includes(activeTab)) {
+                const matchedTool = ALL_WORKSPACE_TOOLS.find((t) => t.id === activeTab);
+                if (matchedTool) {
+                  return (
+                    <WorkspaceAppView
+                      tool={matchedTool}
+                      userEmail={user?.email}
+                      onBackToOverview={() => setActiveTab('overview')}
+                    />
+                  );
+                }
+              }
+              return null;
+            })()}
             {activeTab === 'privacy' && (
               <PrivacyPolicyView onBack={() => setActiveTab('overview')} />
             )}

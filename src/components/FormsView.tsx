@@ -1,407 +1,322 @@
 import React, { useState, useEffect } from 'react';
+import { DriveFile } from '../types/workspace';
+import { searchForms, createDriveFile } from '../services/workspace';
 import {
-  FileText,
-  Search,
-  RefreshCw,
-  ExternalLink,
-  HelpCircle,
-  BarChart3,
-  CheckCircle2,
-  Calendar,
-  ArrowLeft,
-} from 'lucide-react';
-import { DriveFile, FormDetails, FormResponse } from '../types/workspace';
-import { searchForms, getFormDetails, getFormResponses, createDriveFile } from '../services/workspace';
-import { Plus, X, FileText as FormIcon } from 'lucide-react';
-import { GoogleFormsIcon } from './GoogleIcons';
+  FormQuestion,
+  INITIAL_FORM_QUESTIONS,
+  FormResponseItem,
+  INITIAL_FORM_RESPONSES,
+} from './forms/formsData';
+import { FormsHeader } from './forms/FormsHeader';
+import { FormsFloatingBar } from './forms/FormsFloatingBar';
+import { FormsQuestionCard } from './forms/FormsQuestionCard';
+import { FormsResponsesTab } from './forms/FormsResponsesTab';
+import { FormsSettingsTab } from './forms/FormsSettingsTab';
+import { FormsThemePanel } from './forms/FormsThemePanel';
+import { FormsPreviewModal } from './forms/FormsPreviewModal';
+import { FormsSendModal } from './forms/FormsSendModal';
+import { DocsPickerModal } from './docs/DocsModals';
 
 interface FormsViewProps {
   token: string;
   onBackToOverview?: () => void;
+  userName?: string;
+  userEmail?: string;
+  userPhoto?: string;
 }
 
-export const FormsView: React.FC<FormsViewProps> = ({ token, onBackToOverview }) => {
-  const [forms, setForms] = useState<DriveFile[]>([]);
-  const [loadingList, setLoadingList] = useState<boolean>(true);
-  const [selectedFormId, setSelectedFormId] = useState<string>('');
-  const [customIdInput, setCustomIdInput] = useState<string>('');
-
-  const [formDetails, setFormDetails] = useState<FormDetails | null>(null);
-  const [responses, setResponses] = useState<FormResponse[]>([]);
-  const [loadingDetails, setLoadingDetails] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
-  const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
-  // New Form modal state
-  const [showCreateFormModal, setShowCreateFormModal] = useState<boolean>(false);
-  const [newFormTitle, setNewFormTitle] = useState<string>('');
-  const [isCreatingForm, setIsCreatingForm] = useState<boolean>(false);
-
-  const handleCreateForm = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newFormTitle.trim()) return;
-    setIsCreatingForm(true);
-    setError(null);
+export const FormsView: React.FC<FormsViewProps> = ({
+  token,
+  onBackToOverview,
+  userName,
+  userEmail,
+  userPhoto,
+}) => {
+  const [activeTab, setActiveTab] = useState<'questions' | 'responses' | 'settings'>('questions');
+  const [formTitle, setFormTitle] = useState<string>('Untitled form');
+  const [formDescription, setFormDescription] = useState<string>('Form description');
+  const [questions, setQuestions] = useState<FormQuestion[]>(() => {
     try {
-      const created = await createDriveFile(
-        token,
-        newFormTitle.trim(),
-        'application/vnd.google-apps.form'
-      );
-      setForms([created, ...forms]);
-      setSelectedFormId(created.id);
-      setSuccessMsg(`Form "${newFormTitle}" created!`);
-      setShowCreateFormModal(false);
-      setNewFormTitle('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create form');
-    } finally {
-      setIsCreatingForm(false);
-    }
-  };
+      const saved = localStorage.getItem('google_forms_questions_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_FORM_QUESTIONS;
+  });
 
-  const loadForms = async () => {
-    setLoadingList(true);
-    setError(null);
+  const [responses, setResponses] = useState<FormResponseItem[]>(() => {
     try {
-      const data = await searchForms(token);
-      setForms(data);
-      if (data.length > 0 && !selectedFormId) {
-        setSelectedFormId(data[0].id);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to list Google Forms');
-    } finally {
-      setLoadingList(false);
-    }
-  };
+      const saved = localStorage.getItem('google_forms_responses_v2');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return INITIAL_FORM_RESPONSES;
+  });
+
+  const [activeQuestionId, setActiveQuestionId] = useState<string>(
+    questions[0]?.id || 'q1'
+  );
+
+  // Theme configuration
+  const [primaryColor, setPrimaryColor] = useState<string>('#673ab7'); // Classic Google Forms purple
+  const [bgColor, setBgColor] = useState<string>('#f0ebf8');
+  const [fontFamily, setFontFamily] = useState<string>("'Google Sans', Roboto, sans-serif");
+  const [confirmationMessage, setConfirmationMessage] = useState<string>(
+    'Your response has been recorded.'
+  );
+
+  // Status and Modals
+  const [isSaved, setIsSaved] = useState<boolean>(true);
+  const [isStarred, setIsStarred] = useState<boolean>(false);
+  const [showThemePanel, setShowThemePanel] = useState<boolean>(false);
+  const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
+  const [showSendModal, setShowSendModal] = useState<boolean>(false);
+  const [showDrivePicker, setShowDrivePicker] = useState<boolean>(false);
+  const [accessLevel, setAccessLevel] = useState<'restricted' | 'anyone'>('restricted');
+  const [selectedFile, setSelectedFile] = useState<DriveFile | null>(null);
+
+  // Drive integration
+  const [driveForms, setDriveForms] = useState<DriveFile[]>([]);
 
   useEffect(() => {
-    loadForms();
+    try {
+      localStorage.setItem('google_forms_questions_v2', JSON.stringify(questions));
+    } catch {}
+  }, [questions]);
+
+  useEffect(() => {
+    if (token) {
+      searchForms(token)
+        .then((res) => setDriveForms(res))
+        .catch(() => {});
+    }
   }, [token]);
 
-  useEffect(() => {
-    if (!selectedFormId) return;
+  // Update question
+  const handleUpdateQuestion = (qId: string, updated: Partial<FormQuestion>) => {
+    setIsSaved(false);
+    setQuestions((prev) =>
+      prev.map((q) => (q.id === qId ? { ...q, ...updated } : q))
+    );
+    setTimeout(() => setIsSaved(true), 800);
+  };
 
-    const fetchForm = async () => {
-      setLoadingDetails(true);
-      setError(null);
-      try {
-        const [details, respList] = await Promise.all([
-          getFormDetails(token, selectedFormId),
-          getFormResponses(token, selectedFormId).catch(() => []),
-        ]);
-        setFormDetails(details);
-        setResponses(respList);
-      } catch (err: any) {
-        setError(err.message || 'Failed to fetch form structure and responses');
-        setFormDetails(null);
-        setResponses([]);
-      } finally {
-        setLoadingDetails(false);
-      }
+  // Add question
+  const handleAddQuestion = () => {
+    const newQ: FormQuestion = {
+      id: `q-${Date.now()}`,
+      title: 'Untitled Question',
+      type: 'MULTIPLE_CHOICE',
+      options: [
+        { id: `opt-1-${Date.now()}`, text: 'Option 1' },
+      ],
+      required: false,
     };
-
-    fetchForm();
-  }, [selectedFormId, token]);
-
-  const handleCustomSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    let id = customIdInput.trim();
-    const match = id.match(/\/forms\/d\/([a-zA-Z0-9-_]+)/);
-    if (match) {
-      id = match[1];
+    const activeIdx = questions.findIndex((q) => q.id === activeQuestionId);
+    const updated = [...questions];
+    if (activeIdx >= 0) {
+      updated.splice(activeIdx + 1, 0, newQ);
+    } else {
+      updated.push(newQ);
     }
-    if (id) {
-      setSelectedFormId(id);
-    }
+    setQuestions(updated);
+    setActiveQuestionId(newQ.id);
+  };
+
+  // Duplicate question
+  const handleDuplicateQuestion = (qId: string) => {
+    const source = questions.find((q) => q.id === qId);
+    if (!source) return;
+    const dup: FormQuestion = {
+      ...source,
+      id: `q-${Date.now()}`,
+      title: `${source.title} (Copy)`,
+      options: source.options.map((o) => ({ ...o, id: `opt-${Date.now()}-${Math.random()}` })),
+    };
+    const activeIdx = questions.findIndex((q) => q.id === qId);
+    const updated = [...questions];
+    updated.splice(activeIdx + 1, 0, dup);
+    setQuestions(updated);
+    setActiveQuestionId(dup.id);
+  };
+
+  // Delete question
+  const handleDeleteQuestion = (qId: string) => {
+    if (questions.length <= 1) return;
+    const filtered = questions.filter((q) => q.id !== qId);
+    setQuestions(filtered);
+    setActiveQuestionId(filtered[0]?.id || '');
   };
 
   return (
-    <div id="forms-view" className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/75 backdrop-blur-2xl p-5 sm:p-6 rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)]">
-        <div className="flex items-center gap-3">
-          {onBackToOverview && (
-            <button
-              id="forms-back-to-overview-btn"
-              onClick={onBackToOverview}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-purple-600 bg-white/80 hover:bg-white border border-white/90 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
-              title="Return to Workspace Overview"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Overview</span>
-              <span className="sm:hidden">Back</span>
-            </button>
-          )}
-          <div className="p-2 bg-purple-500/10 border border-purple-200/60 rounded-2xl shrink-0 shadow-2xs flex items-center justify-center">
-            <GoogleFormsIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Google Forms</h2>
-            <p className="text-sm text-slate-500">Inspect survey forms, question items, and user submissions</p>
-          </div>
-        </div>
+    <div
+      id="google-forms-app"
+      className="flex flex-col h-[calc(100vh-5.5rem)] rounded-2xl overflow-hidden border border-[#dadce0] shadow-sm relative select-text"
+      style={{ backgroundColor: bgColor, fontFamily }}
+    >
+      {/* 1. AUTHENTIC GOOGLE FORMS HEADER (Logo, Title, Tabs, Palette, Preview, Undo, Send) */}
+      <FormsHeader
+        title={formTitle}
+        onTitleChange={(t) => {
+          setFormTitle(t);
+          setIsSaved(false);
+          setTimeout(() => setIsSaved(true), 800);
+        }}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        responseCount={responses.length}
+        isStarred={isStarred}
+        onToggleStar={() => setIsStarred(!isStarred)}
+        isSaved={isSaved}
+        onOpenThemePanel={() => setShowThemePanel(!showThemePanel)}
+        onOpenPreview={() => setShowPreviewModal(true)}
+        onOpenSendModal={() => setShowSendModal(true)}
+        onBackToOverview={onBackToOverview}
+        primaryColor={primaryColor}
+        onOpenPicker={() => setShowDrivePicker(true)}
+        accessLevel={accessLevel}
+        userName={userName}
+        userEmail={userEmail}
+        userPhoto={userPhoto}
+      />
 
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={() => setShowCreateFormModal(true)}
-            className="px-4 py-2 bg-[#7248b9] hover:bg-[#5c379a] text-white text-xs font-bold rounded-full shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Form</span>
-          </button>
-          {selectedFormId && (
-            <a
-              href={`https://docs.google.com/forms/d/${selectedFormId}/edit`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2.5 text-slate-600 hover:text-purple-600 bg-white/70 hover:bg-white rounded-xl border border-white/90 transition-colors shadow-2xs cursor-pointer"
-              title="Open Form in Google Forms"
-            >
-              <ExternalLink className="w-4 h-4" />
-            </a>
-          )}
-          <button
-            onClick={loadForms}
-            disabled={loadingList}
-            className="p-2.5 text-slate-600 hover:text-slate-900 bg-white/70 hover:bg-white rounded-xl border border-white/90 transition-colors shadow-2xs cursor-pointer"
-            title="Refresh forms"
-          >
-            <RefreshCw className={`w-4 h-4 ${loadingList ? 'animate-spin text-purple-600' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="p-4 bg-red-50/80 backdrop-blur-md border border-red-200/80 text-red-700 rounded-2xl text-sm flex items-center justify-between shadow-xs">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-xs underline font-medium">
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Form selector */}
-      <div className="bg-white/75 backdrop-blur-2xl p-5 sm:p-6 rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)] space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-              Select from your Drive forms:
-            </label>
-            <select
-              id="form-select"
-              value={selectedFormId}
-              onChange={(e) => setSelectedFormId(e.target.value)}
-              className="w-full text-sm bg-white/70 backdrop-blur-md border border-white/90 rounded-xl px-3.5 py-2.5 text-slate-800 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-purple-500/20"
-            >
-              {forms.length === 0 ? (
-                <option value="">No forms found in Drive</option>
-              ) : (
-                forms.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.name}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-
-          <div className="sm:w-72">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-              Or paste Form ID or URL:
-            </label>
-            <form onSubmit={handleCustomSubmit} className="flex gap-2">
-              <input
-                id="custom-form-id-input"
-                type="text"
-                placeholder="ID or forms URL..."
-                value={customIdInput}
-                onChange={(e) => setCustomIdInput(e.target.value)}
-                className="flex-1 text-sm bg-white/70 backdrop-blur-md border border-white/90 rounded-xl px-3.5 py-2.5 text-slate-800 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-purple-500/20"
-              />
-              <button
-                type="submit"
-                className="px-4 py-2.5 text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-xs transition-colors cursor-pointer"
-              >
-                Load
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
-      {/* Form Content Display */}
-      {loadingDetails ? (
-        <div className="bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)] p-12 text-center text-slate-400">
-          <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-purple-600" />
-          <p className="text-sm font-medium">Loading form questions and responses...</p>
-        </div>
-      ) : formDetails ? (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Questions column */}
-          <div className="lg:col-span-7 space-y-4">
-            <div className="bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)] p-6 sm:p-7">
-              <div className="border-b border-slate-200/60 pb-4 mb-4">
-                <h3 className="text-xl font-bold text-slate-900">{formDetails.info.title}</h3>
-                {formDetails.info.description && (
-                  <p className="text-sm text-slate-600 mt-1.5">{formDetails.info.description}</p>
-                )}
-                {formDetails.responderUri && (
-                  <div className="mt-3">
-                    <a
-                      href={formDetails.responderUri}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs font-semibold text-purple-600 hover:text-purple-700 inline-flex items-center gap-1"
-                    >
-                      Fill Out Form Link <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                )}
+      {/* 2. MAIN WORKSPACE CONTAINER */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8 flex items-start justify-center relative">
+        <div className="flex items-start gap-4 w-full max-w-[770px] relative">
+          {/* TAB 1: QUESTIONS EDITOR */}
+          {activeTab === 'questions' && (
+            <div className="flex-1 space-y-4">
+              {/* TOP HEADER CARD WITH THICK COLOR ACCENT */}
+              <div className="bg-white rounded-xl border border-[#dadce0] shadow-2xs overflow-hidden">
+                <div
+                  className="h-2.5 w-full transition-colors"
+                  style={{ backgroundColor: primaryColor }}
+                />
+                <div className="p-6 space-y-3">
+                  <input
+                    type="text"
+                    value={formTitle}
+                    onChange={(e) => {
+                      setFormTitle(e.target.value);
+                      setIsSaved(false);
+                      setTimeout(() => setIsSaved(true), 800);
+                    }}
+                    placeholder="Form title"
+                    className="w-full text-3xl font-bold text-[#1f1f1f] bg-transparent outline-none border-b border-transparent focus:border-[#1a73e8] pb-1 transition-colors"
+                  />
+                  <textarea
+                    value={formDescription}
+                    onChange={(e) => {
+                      setFormDescription(e.target.value);
+                      setIsSaved(false);
+                      setTimeout(() => setIsSaved(true), 800);
+                    }}
+                    placeholder="Form description"
+                    rows={2}
+                    className="w-full text-sm text-[#444746] bg-transparent outline-none border-b border-transparent focus:border-[#1a73e8] py-1 resize-none transition-colors leading-relaxed"
+                  />
+                </div>
               </div>
 
-              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                Questions ({formDetails.items?.length || 0})
-              </h4>
-
-              <div className="space-y-3">
-                {formDetails.items?.map((item, index) => (
-                  <div
-                    key={item.itemId}
-                    className="p-4 rounded-2xl border border-white/80 bg-white/60 shadow-2xs space-y-1"
-                  >
-                    <div className="flex items-start gap-2">
-                      <span className="text-xs font-mono font-bold text-purple-600 px-2 py-0.5 bg-purple-50 rounded-lg border border-purple-200/60">
-                        Q{index + 1}
-                      </span>
-                      <p className="text-sm font-medium text-slate-800">
-                        {item.title || '(Untitled Question)'}
-                      </p>
-                    </div>
-                    {item.description && (
-                      <p className="text-xs text-slate-500 pl-7">{item.description}</p>
-                    )}
-                  </div>
+              {/* QUESTIONS CARDS LIST */}
+              <div className="space-y-4">
+                {questions.map((q) => (
+                  <FormsQuestionCard
+                    key={q.id}
+                    question={q}
+                    isActive={q.id === activeQuestionId}
+                    onActivate={() => setActiveQuestionId(q.id)}
+                    onUpdate={(updated) => handleUpdateQuestion(q.id, updated)}
+                    onDuplicate={() => handleDuplicateQuestion(q.id)}
+                    onDelete={() => handleDeleteQuestion(q.id)}
+                    primaryColor={primaryColor}
+                  />
                 ))}
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Submissions column */}
-          <div className="lg:col-span-5 space-y-4">
-            <div className="bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)] p-6 sm:p-7">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-200/60 mb-4">
-                <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                  <BarChart3 className="w-4 h-4 text-purple-600" /> Responses ({responses.length})
-                </h4>
-              </div>
+          {/* TAB 2: RESPONSES DASHBOARD */}
+          {activeTab === 'responses' && (
+            <FormsResponsesTab
+              questions={questions}
+              primaryColor={primaryColor}
+              responses={responses}
+            />
+          )}
 
-              {responses.length === 0 ? (
-                <div className="p-8 text-center text-slate-400">
-                  <HelpCircle className="w-10 h-10 stroke-1 mx-auto mb-2 text-slate-300" />
-                  <p className="text-xs font-medium text-slate-600">No responses recorded yet</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">
-                    Share your form link to collect responses
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3 max-h-[480px] overflow-y-auto">
-                  {responses.map((resp, idx) => (
-                    <div
-                      key={resp.responseId}
-                      className="p-3.5 rounded-2xl border border-white/80 bg-white/60 shadow-2xs space-y-2 text-xs"
-                    >
-                      <div className="flex items-center justify-between font-medium text-slate-700">
-                        <span className="font-bold text-purple-700">Submission #{idx + 1}</span>
-                        <span className="text-[10px] text-slate-400">
-                          {new Date(resp.lastSubmittedTime).toLocaleString()}
-                        </span>
-                      </div>
+          {/* TAB 3: SETTINGS DASHBOARD */}
+          {activeTab === 'settings' && (
+            <FormsSettingsTab
+              confirmationMessage={confirmationMessage}
+              onConfirmationMessageChange={setConfirmationMessage}
+              primaryColor={primaryColor}
+            />
+          )}
 
-                      {resp.answers && (
-                        <div className="space-y-1.5 pt-1 border-t border-slate-200/60">
-                          {Object.entries(resp.answers).map(([qId, ans]: [string, any]) => (
-                            <div key={qId} className="bg-white/80 p-2.5 rounded-xl border border-white/90">
-                              <span className="text-[10px] text-slate-400 block font-mono">
-                                Question ID: {qId}
-                              </span>
-                              <p className="text-slate-800 font-medium">
-                                {ans.textAnswers?.answers?.map((a: { value: string }) => a.value).join(', ') || '—'}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+          {/* THE SIGNATURE FLOATING RIGHT ACTION BAR (When on Questions Tab) */}
+          {activeTab === 'questions' && (
+            <FormsFloatingBar
+              onAddQuestion={handleAddQuestion}
+              onAddTitle={() => {
+                setFormDescription((prev) => prev + '\n\nSection Title');
+              }}
+              onAddImage={() => {
+                alert('Add image to form from Google Drive');
+              }}
+            />
+          )}
         </div>
-      ) : (
-        <div className="bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)] p-12 text-center text-slate-400">
-          <FileText className="w-12 h-12 stroke-1 mx-auto mb-3 text-slate-300" />
-          <p className="text-sm font-medium text-slate-600">No Google Form selected</p>
-          <p className="text-xs text-slate-400 mt-1">
-            Choose a form from your Drive list or paste a Form ID above
-          </p>
-        </div>
-      )}
-      {/* New Form Creation Modal */}
-      {showCreateFormModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <form
-            onSubmit={handleCreateForm}
-            className="w-full max-w-sm bg-white rounded-3xl shadow-[0_4px_24px_rgba(60,64,67,0.25)] border border-[#dadce0] p-6 space-y-4"
-          >
-            <div className="flex items-center justify-between border-b border-[#f1f3f4] pb-3">
-              <h3 className="text-sm font-bold text-[#1f1f1f] flex items-center gap-2">
-                <FormIcon className="w-4 h-4 text-[#7248b9]" /> Create New Google Form
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowCreateFormModal(false)}
-                className="text-[#5f6368] hover:text-[#1f1f1f] p-1 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#444746] mb-1">
-                Form Title
-              </label>
-              <input
-                type="text"
-                placeholder="Untitled Form"
-                value={newFormTitle}
-                onChange={(e) => setNewFormTitle(e.target.value)}
-                autoFocus
-                className="w-full px-4 py-2 text-xs bg-[#f0f4f9] border border-transparent focus:border-[#7248b9] rounded-full focus:bg-white outline-none"
-              />
-            </div>
+        {/* Right Slide-out Theme Options Panel */}
+        {showThemePanel && (
+          <FormsThemePanel
+            currentColor={primaryColor}
+            onColorChange={(p, b) => {
+              setPrimaryColor(p);
+              setBgColor(b);
+            }}
+            fontFamily={fontFamily}
+            onFontChange={setFontFamily}
+            onClose={() => setShowThemePanel(false)}
+          />
+        )}
+      </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowCreateFormModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-[#5f6368] hover:bg-slate-100 rounded-full"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!newFormTitle.trim() || isCreatingForm}
-                className="px-5 py-2 text-xs font-bold text-white bg-[#7248b9] hover:bg-[#5c379a] rounded-full disabled:opacity-50"
-              >
-                {isCreatingForm ? 'Creating...' : 'Create Form'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      {/* 3. MODALS */}
+      <FormsPreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        title={formTitle}
+        description={formDescription}
+        questions={questions}
+        primaryColor={primaryColor}
+        bgColor={bgColor}
+        fontFamily={fontFamily}
+        confirmationMessage={confirmationMessage}
+      />
+
+      <FormsSendModal
+        isOpen={showSendModal}
+        onClose={() => setShowSendModal(false)}
+        formTitle={formTitle}
+        primaryColor={primaryColor}
+        accessLevel={accessLevel}
+        onAccessLevelChange={setAccessLevel}
+      />
+
+      <DocsPickerModal
+        isOpen={showDrivePicker}
+        onClose={() => setShowDrivePicker(false)}
+        docs={driveForms}
+        onSelectDoc={(file) => {
+          setSelectedFile(file);
+          setFormTitle(file.name);
+        }}
+        onNewDoc={() => {
+          setFormTitle('Untitled form');
+          setQuestions(INITIAL_FORM_QUESTIONS);
+        }}
+        appType="forms"
+      />
     </div>
   );
 };

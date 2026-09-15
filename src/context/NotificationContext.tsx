@@ -195,10 +195,23 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
 
       // Browser Desktop Push Notification
       if (settings.enableDesktopPush && 'Notification' in window && Notification.permission === 'granted') {
+        const logoMap: Record<string, string> = {
+          gmail: '/logos/gmail.svg',
+          calendar: '/logos/calendar.svg',
+          drive: '/logos/drive.svg',
+          tasks: '/logos/tasks.svg',
+          meet: '/logos/meet.svg',
+          docs: '/logos/docs.svg',
+          sheets: '/logos/sheets.svg',
+          slides: '/logos/slides.svg',
+          forms: '/logos/forms.svg',
+          chat: '/logos/chat.svg',
+          keep: '/logos/keep.svg',
+        };
         try {
           new Notification(newNotif.title, {
             body: newNotif.message,
-            icon: '/favicon.ico',
+            icon: logoMap[newNotif.category] || '/favicon.ico',
           });
         } catch {}
       }

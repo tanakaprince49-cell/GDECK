@@ -12,8 +12,30 @@ export interface DriveFile {
   modifiedTime?: string;
   size?: string;
   webViewLink?: string;
+  webContentLink?: string;
   iconLink?: string;
   thumbnailLink?: string;
+  starred?: boolean;
+  trashed?: boolean;
+  shared?: boolean;
+  owners?: { displayName?: string; emailAddress?: string; photoLink?: string; me?: boolean }[];
+  parents?: string[];
+}
+
+export interface DriveStorageQuota {
+  limit?: string;
+  usage?: string;
+  usageInDrive?: string;
+  usageInDriveTrash?: string;
+  user?: { displayName?: string; emailAddress?: string; photoLink?: string };
+}
+
+export interface GmailAttachment {
+  attachmentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  data?: string;
 }
 
 export interface GmailMessageItem {
@@ -27,6 +49,10 @@ export interface GmailMessageItem {
   body?: string;
   htmlBody?: string;
   isStarred?: boolean;
+  isUnread?: boolean;
+  labelIds?: string[];
+  attachments?: GmailAttachment[];
+  hasAttachments?: boolean;
 }
 
 export interface CalendarEvent {
@@ -38,6 +64,8 @@ export interface CalendarEvent {
   end?: { dateTime?: string; date?: string };
   htmlLink?: string;
   status?: string;
+  colorId?: string;
+  hangoutLink?: string;
 }
 
 export interface TaskList {
@@ -53,6 +81,7 @@ export interface TaskItem {
   status: 'needsAction' | 'completed';
   due?: string;
   completed?: string;
+  updated?: string;
 }
 
 export interface ChatSpace {

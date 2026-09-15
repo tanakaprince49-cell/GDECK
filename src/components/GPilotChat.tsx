@@ -1,21 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2, Brain, Plus, Sparkles } from 'lucide-react';
+import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2, Brain, Plus, Sparkles, Mail, Calendar, Video, ArrowRight } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { GPilotIcon } from './GoogleIcons';
+import { GPilotIcon, GmailIcon, GoogleCalendarIcon, GoogleMeetIcon } from './GoogleIcons';
 import { 
   listGmailMessages, 
   sendGmailMessage, 
   listCalendarEvents, 
   createCalendarEvent,
-  listTaskLists,
-  listTasks,
-  createTask,
-  listChatSpaces,
-  listChatMessages,
-  sendChatMessage,
-  listDriveFiles,
   createMeetingSpace,
-  searchForms
 } from '../services/workspace';
 
 type GPilotChatProps = {
@@ -114,22 +106,22 @@ const ActionApprovalBox: React.FC<{
   );
 };
 
-// Map of available functions with their JSON Schema descriptions
+// Map of available functions with strict schemas limited to Gmail, Calendar, and Meet
 const GPILOT_TOOLS = [
   {
     name: "gmail_read",
-    description: "Read the latest emails from the user's inbox based on a query.",
+    description: "Read the latest emails from the user's Gmail inbox based on a search query or unread filter.",
     parameters: {
       type: "OBJECT",
       properties: {
-        query: { type: "STRING", description: "Search query for Gmail (e.g. 'from:Sarah', 'is:unread')" },
-        maxResults: { type: "INTEGER", description: "Maximum number of emails to retrieve (default 5)" }
+        query: { type: "STRING", description: "Search query for Gmail (e.g. 'from:Sarah', 'is:unread', 'meeting')" },
+        maxResults: { type: "INTEGER", description: "Maximum number of emails to retrieve (default 3)" }
       }
     }
   },
   {
     name: "gmail_send",
-    description: "Send an email to a recipient.",
+    description: "Send an email to a recipient via Gmail.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -141,22 +133,8 @@ const GPILOT_TOOLS = [
     }
   },
   {
-    name: "calendar_book",
-    description: "Book a new meeting on the user's calendar.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        title: { type: "STRING", description: "Event title" },
-        start: { type: "STRING", description: "ISO 8601 string for start time" },
-        end: { type: "STRING", description: "ISO 8601 string for end time" },
-        attendees: { type: "ARRAY", items: { type: "STRING" }, description: "List of attendee emails" }
-      },
-      required: ["title", "start", "end"]
-    }
-  },
-  {
     name: "calendar_read",
-    description: "List upcoming events from the user's calendar.",
+    description: "Read upcoming events and schedule from the user's Google Calendar.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -165,35 +143,19 @@ const GPILOT_TOOLS = [
     }
   },
   {
-    name: "chat_post_space",
-    description: "Post a message to a Google Chat space.",
+    name: "calendar_book",
+    description: "Schedule or set a new meeting on the user's Google Calendar.",
     parameters: {
       type: "OBJECT",
       properties: {
-        spaceName: { type: "STRING", description: "Name of the space (e.g. 'spaces/AAAA')" },
-        text: { type: "STRING", description: "Message text" }
+        title: { type: "STRING", description: "Event title / meeting subject" },
+        start: { type: "STRING", description: "ISO 8601 string for start time" },
+        end: { type: "STRING", description: "ISO 8601 string for end time" },
+        attendees: { type: "ARRAY", items: { type: "STRING" }, description: "List of attendee email addresses" },
+        description: { type: "STRING", description: "Meeting description or agenda" },
+        location: { type: "STRING", description: "Meeting location or conference info" }
       },
-      required: ["spaceName", "text"]
-    }
-  },
-  {
-    name: "workspace_search",
-    description: "Search Google Drive for files and documents.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        query: { type: "STRING", description: "Search query for Drive files" }
-      }
-    }
-  },
-  {
-    name: "chat_read",
-    description: "Read recent messages from a Google Chat space.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        spaceName: { type: "STRING", description: "Name of the space. If empty, lists available spaces." }
-      }
+      required: ["title", "start", "end"]
     }
   },
   {
@@ -205,81 +167,19 @@ const GPILOT_TOOLS = [
     }
   },
   {
-    name: "tasks_read",
-    description: "Read tasks from Google Tasks.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        tasklistId: { type: "STRING", description: "ID of the task list. If empty, lists available task lists." }
-      }
-    }
-  },
-  {
-    name: "tasks_add",
-    description: "Add a new task to Google Tasks.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        title: { type: "STRING", description: "Title of the task" },
-        notes: { type: "STRING", description: "Notes for the task" }
-      },
-      required: ["title"]
-    }
-  },
-  {
-    name: "keep_create_note",
-    description: "Create a note in Google Keep.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        title: { type: "STRING", description: "Title of the note" },
-        content: { type: "STRING", description: "Content of the note" }
-      },
-      required: ["title", "content"]
-    }
-  },
-  {
-    name: "forms_search",
-    description: "Search for Google Forms in the workspace.",
-    parameters: {
-      type: "OBJECT",
-      properties: {}
-    }
-  },
-  {
-    name: "messages_send",
-    description: "Send a text or RCS message via Google Messages.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        recipient: { type: "STRING", description: "Name or phone number of the recipient" },
-        text: { type: "STRING", description: "The message text to send" }
-      },
-      required: ["recipient", "text"]
-    }
-  },
-  {
-    name: "messages_read",
-    description: "Read recent conversation threads from Google Messages.",
-    parameters: {
-      type: "OBJECT",
-      properties: {}
-    }
-  },
-  {
     name: "memory_save",
-    description: "Save a fact about the user or their preferences to long-term memory.",
+    description: "Save a user preference or fact to long-term memory.",
     parameters: {
       type: "OBJECT",
       properties: {
-        fact: { type: "STRING", description: "The fact to remember (e.g. 'User prefers morning meetings')" }
+        fact: { type: "STRING", description: "The fact to remember (e.g. 'User prefers 30-minute meetings')" }
       },
       required: ["fact"]
     }
   },
   {
     name: "memory_read",
-    description: "Read all saved facts from the user's long-term memory.",
+    description: "Read saved facts from the user's long-term memory.",
     parameters: {
       type: "OBJECT",
       properties: {}
@@ -325,7 +225,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch {}
-    return [{ role: 'model', parts: [{ text: "Hi, I'm G-Pilot, your autonomous Workspace assistant." }] }];
+    return [{ role: 'model', parts: [{ text: "Hi, I'm G-Pilot, your assistant for Gmail, Google Calendar, and Google Meet." }] }];
   });
 
   // Save messages safely to localStorage whenever they change
@@ -348,7 +248,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
     }
   }, [messages]);
 
-  // Save apiContext safely to localStorage whenever it changes (clamped to last 6 turns to conserve tokens)
+  // Save apiContext safely to localStorage whenever it changes
   useEffect(() => {
     try {
       if (apiContext.length > 0) {
@@ -406,22 +306,21 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
 
   useEffect(() => {
     if (messages.length === 0) {
-      let initialGreeting = "Hi, I'm G-Pilot, your autonomous Workspace assistant.";
-      if (userName) {
-        initialGreeting = `Hi ${userName}, I'm G-Pilot, your autonomous Workspace assistant.`;
-      }
+      const initialGreeting = userName
+        ? `Hi ${userName}, I'm G-Pilot, your assistant for Gmail, Calendar, and Google Meet.`
+        : "Hi, I'm G-Pilot, your assistant for Gmail, Calendar, and Google Meet.";
 
       const sysMsg: Message = {
         id: '1',
         role: 'system',
-        content: `${initialGreeting} I can read emails, check your calendar, send messages, and more. How can I help?`,
+        content: `${initialGreeting}\n\n**What I can do:**\n- 📧 **Read & Send Emails** via Gmail\n- 📅 **Read & Schedule Meetings** on Google Calendar\n- 📹 **Create Google Meet Links**\n\n**What I cannot do:**\n- I do not read or search Google Drive files, Google Docs, Sheets, Tasks, or other Workspace tools.\n\nHow can I help you today?`,
       };
 
       setMessages([sysMsg]);
 
-      let contextStr = initialGreeting;
+      let contextStr = `${initialGreeting} I can read emails, send emails, read your calendar schedule, schedule meetings, and create Google Meet links. I do not read or search Drive files, Docs, or Tasks.`;
       if (memoriesList.length > 0) {
-        contextStr += `\n\nHere are some things I remember about you:\n${memoriesList.map((m) => `- ${m.fact}`).join('\n')}`;
+        contextStr += `\n\nSaved user preferences:\n${memoriesList.map((m) => `- ${m.fact}`).join('\n')}`;
       }
 
       setApiContext([{ role: 'model', parts: [{ text: contextStr }] }]);
@@ -434,13 +333,13 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       localStorage.removeItem('gpilot_api_context_history_v1');
     } catch {}
     const initialGreeting = userName
-      ? `Hi ${userName}, I'm G-Pilot, your autonomous Workspace assistant.`
-      : "Hi, I'm G-Pilot, your autonomous Workspace assistant.";
+      ? `Hi ${userName}, I'm G-Pilot, your assistant for Gmail, Calendar, and Google Meet.`
+      : "Hi, I'm G-Pilot, your assistant for Gmail, Calendar, and Google Meet.";
     setMessages([
       {
         id: Date.now().toString(),
         role: 'system',
-        content: `${initialGreeting} Conversation cleared. How can I help you?`,
+        content: `${initialGreeting} Conversation cleared.\n\n**What I can do:**\n- 📧 Read & send emails in Gmail\n- 📅 Read calendar & schedule meetings\n- 📹 Create Google Meet links\n\n**What I cannot do:**\n- I do not access Drive files, Docs, Tasks, or other tools.`,
       },
     ]);
     setApiContext([{ role: 'model', parts: [{ text: initialGreeting }] }]);
@@ -470,11 +369,15 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
             })),
           };
         
+        case 'gmail_send':
+          await sendGmailMessage(token, args.to, args.subject, args.body);
+          return { success: true, message: `Email sent to ${args.to}` };
+
         case 'calendar_read':
-          const events = await listCalendarEvents(token, Math.min(args?.maxResults || 15, 25));
+          const events = await listCalendarEvents(token, Math.min(args?.maxResults || 10, 15));
           return {
             success: true,
-            events: events.slice(0, 15).map((e) => ({
+            events: events.slice(0, 10).map((e) => ({
               summary: e.summary || '(No title)',
               start: typeof e.start === 'object' ? (e.start?.dateTime || e.start?.date) : e.start,
               end: typeof e.end === 'object' ? (e.end?.dateTime || e.end?.date) : e.end,
@@ -482,14 +385,6 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               description: e.description ? e.description.slice(0, 120) : '',
             })),
           };
-          
-        case 'gmail_send':
-          await sendGmailMessage(token, args.to, args.subject, args.body);
-          return { success: true, message: `Email sent to ${args.to}` };
-          
-        case 'chat_post_space':
-          await sendChatMessage(token, args.spaceName, args.text);
-          return { success: true, message: `Message posted to space` };
           
         case 'calendar_book':
           try {
@@ -505,108 +400,9 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
             return { success: true, message: `Simulated booking of ${args.title || args.summary}` };
           }
 
-        case 'workspace_search':
-          const files = await listDriveFiles(token, args.query);
-          return {
-            success: true,
-            files: files.slice(0, 4).map((f) => ({
-              name: f.name,
-              mimeType: f.mimeType,
-              modifiedTime: f.modifiedTime,
-            })),
-          };
-
-        case 'chat_read':
-          if (!args.spaceName) {
-            const spaces = await listChatSpaces(token);
-            return { success: true, spaces: spaces.slice(0, 3).map(s => ({ name: s.name, displayName: s.displayName })) };
-          }
-          const msgs = await listChatMessages(token, args.spaceName);
-          return { success: true, messages: msgs.slice(0, 3) };
-
         case 'meet_create_link':
           const meet = await createMeetingSpace(token);
           return { success: true, link: meet.meetingUri };
-
-        case 'tasks_read':
-          if (!args.tasklistId) {
-            const lists = await listTaskLists(token);
-            return { success: true, tasklists: lists.slice(0, 3) };
-          }
-          const taskItems = await listTasks(token, args.tasklistId);
-          return { success: true, tasks: taskItems.slice(0, 4).map((t: any) => ({ title: t.title, status: t.status })) };
-
-        case 'tasks_add':
-          // Fetch first list to add to if none specified
-          const lists = await listTaskLists(token);
-          if (!lists.length) return { error: "No task lists found" };
-          const newTask = await createTask(token, lists[0].id, args.title, args.notes);
-          return { success: true, task: { title: newTask.title } };
-
-        case 'keep_create_note':
-          const savedStr = localStorage.getItem('workspace_hub_keep_notes');
-          const notes = savedStr ? JSON.parse(savedStr) : [];
-          notes.unshift({
-            id: Date.now().toString(),
-            title: args.title,
-            content: args.content,
-            isPinned: false,
-            color: 'bg-white',
-            updatedAt: new Date().toISOString()
-          });
-          localStorage.setItem('workspace_hub_keep_notes', JSON.stringify(notes));
-          return { success: true, message: "Note saved to Keep" };
-
-        case 'forms_search':
-          const forms = await searchForms(token);
-          return { success: true, forms: forms.slice(0, 3).map(f => ({ name: f.name })) };
-
-        case 'messages_send':
-          const threadsStr = localStorage.getItem('google_messages_threads');
-          const threads = threadsStr ? JSON.parse(threadsStr) : [];
-          const newMsg = {
-            id: `msg-${Date.now()}`,
-            sender: 'Me',
-            senderName: 'Me',
-            text: args.text,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isMe: true,
-            type: 'rcs',
-            status: 'sent'
-          };
-          const existing = threads.find((t: any) => 
-            t.contactName.toLowerCase().includes(args.recipient.toLowerCase()) || 
-            t.phoneNumber.includes(args.recipient)
-          );
-          if (existing) {
-            existing.messages.push(newMsg);
-            existing.lastMessage = args.text;
-            existing.lastTimestamp = newMsg.timestamp;
-          } else {
-            threads.unshift({
-              id: `thread-${Date.now()}`,
-              contactName: args.recipient,
-              phoneNumber: args.recipient,
-              unreadCount: 0,
-              lastMessage: args.text,
-              lastTimestamp: newMsg.timestamp,
-              type: 'rcs',
-              messages: [newMsg]
-            });
-          }
-          localStorage.setItem('google_messages_threads', JSON.stringify(threads));
-          return { success: true, message: `Text sent to ${args.recipient}` };
-
-        case 'messages_read':
-          const readThreadsStr = localStorage.getItem('google_messages_threads');
-          const readThreads = readThreadsStr ? JSON.parse(readThreadsStr) : [];
-          return { 
-            success: true, 
-            threads: readThreads.slice(0, 3).map((t: any) => ({
-              contact: t.contactName,
-              lastMessage: t.lastMessage,
-            }))
-          };
 
         case 'memory_save':
           const savedMem = localStorage.getItem('gpilot_memory');
@@ -614,7 +410,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           const newEntry = { fact: args.fact, timestamp: new Date().toISOString() };
           memories.push(newEntry);
           saveMemories(memories);
-          return { success: true, message: `Fact saved to memory: "${args.fact}"` };
+          return { success: true, message: `Saved to memory: "${args.fact}"` };
 
         case 'memory_read':
           const readMem = localStorage.getItem('gpilot_memory');
@@ -622,7 +418,9 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           return { success: true, memories: storedMemories.slice(-5) };
 
         default:
-          return { error: `Unknown function: ${name}` };
+          return { 
+            error: "G-Pilot is specialized only in Gmail (reading/sending emails), Google Calendar (reading/scheduling meetings), and Google Meet (creating meeting links)." 
+          };
       }
     } catch (e: any) {
       console.error(`Error executing ${name}:`, e);
@@ -654,14 +452,13 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       if (!res.ok || data.error) {
         const isQuota = res.status === 429 || (typeof data.error === 'string' && data.error.includes('rate limit'));
         let displayError = isQuota
-          ? "G-Pilot was temporarily rate-limited. I've automatically pruned our context to save tokens. Please ask again in a few seconds!"
+          ? "G-Pilot is temporarily busy. Please try asking again in a few moments."
           : "G-Pilot is experiencing high demand right now. Please wait a moment and try again.";
         
         if (typeof data.error === 'string' && !data.error.includes("Network") && !isQuota) {
            displayError = data.error;
         }
 
-        // On 429, reset apiContext to only the latest turn so token buildup is cleared
         if (isQuota) {
           const freshContext = context.slice(-1);
           setApiContext(freshContext);
@@ -678,15 +475,15 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       if (data.functionCalls) {
         let currentContext = [...context];
         
-        // We will collect all function responses in one array to match the model's parts
+        // Collect function responses
         const functionResponses = [];
         let hasPendingApproval = false;
         
         for (const call of data.functionCalls) {
           const { name, args } = call;
           
-          // Check Tier 3/4 Approval Rules
-          const requiresApproval = ['gmail_send', 'calendar_book', 'chat_post_space', 'calendar_delete'].includes(name);
+          // Approval for sending email or booking calendar
+          const requiresApproval = ['gmail_send', 'calendar_book'].includes(name);
           
           if (requiresApproval) {
             setMessages(prev => [...prev, {
@@ -695,15 +492,14 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               content: `Approval Required: ${name}`,
               isApprovalRequest: true,
               pendingAction: call,
-              pendingModelParts: data.modelParts // Save for handleApproval
+              pendingModelParts: data.modelParts
             }]);
             
-            // Stop processing here, wait for user
             hasPendingApproval = true;
             break;
           }
           
-          // Execute automatically (Tier 1 & 2)
+          // Execute read actions automatically
           const result = await executeFunction(name, args);
           functionResponses.push({ functionResponse: { name, response: result } });
         }
@@ -713,20 +509,17 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           return;
         }
 
-        // Push model turn (raw parts if available to preserve thought_signature)
         currentContext.push({
           role: 'model',
           parts: data.modelParts || data.functionCalls.map((c: any) => ({ functionCall: c }))
         });
         
-        // Push user turn with all responses
         currentContext.push({
           role: 'user',
           parts: functionResponses
         });
         
         setApiContext(currentContext);
-        // After executing functions, get the model's textual response
         await processResponse(currentContext);
         
       } else if (data.text) {
@@ -736,28 +529,27 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       
     } catch (error: any) {
       console.error('GPilotChat handled error:', error);
-      const friendlyMsg = "I'm G-Pilot! I can help you read emails, view calendar schedules, manage tasks, and organize your Google Workspace.";
+      const friendlyMsg = "I'm G-Pilot! I can help you read and send emails in Gmail, view and schedule meetings on your Google Calendar, and generate Google Meet video links.";
       setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: friendlyMsg }]);
     }
     setIsLoading(false);
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || !token) return;
+  const handleSend = async (customPrompt?: string) => {
+    const textToSend = (customPrompt || input).trim();
+    if (!textToSend || !token) return;
     
-    const userMsg = input.trim();
     setInput('');
     
-    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: userMsg }]);
+    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: textToSend }]);
     
-    const newContext = [...apiContext, { role: 'user', parts: [{ text: userMsg }] }];
+    const newContext = [...apiContext, { role: 'user', parts: [{ text: textToSend }] }];
     setApiContext(newContext);
     
     await processResponse(newContext);
   };
 
   const handleApproval = async (action: any, approved: boolean, msgId: string, modelParts?: any[]) => {
-    // Remove the approval message
     setMessages(prev => prev.filter(m => m.id !== msgId));
     
     if (approved) {
@@ -800,7 +592,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       {isOpen && (
         <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:right-6 sm:bottom-6 w-auto sm:w-[420px] h-[80vh] sm:h-[620px] max-h-[85vh] bg-white/95 backdrop-blur-3xl border border-[#dadce0] rounded-3xl shadow-[0_20px_60px_rgba(60,64,67,0.15)] flex flex-col overflow-hidden z-50 animate-in slide-in-from-bottom-10 fade-in duration-200">
           {/* Header */}
-          <div className="px-5 py-4 border-b border-[#f1f3f4] flex items-center justify-between bg-[#f8fafd]">
+          <div className="px-5 py-3.5 border-b border-[#f1f3f4] flex items-center justify-between bg-[#f8fafd]">
             <div className="flex items-center gap-3">
               <div className="rounded-[12px] bg-[#0B0F17] shadow-2xs overflow-hidden w-9 h-9 flex items-center justify-center">
                 <GPilotIcon className="w-9 h-9" />
@@ -810,7 +602,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                   <h3 className="text-sm font-bold text-[#1f1f1f] font-['Google_Sans',Roboto,sans-serif]">G-Pilot</h3>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fbe618] text-[#0B0F17] border border-[#fbbc04]">AI</span>
                 </div>
-                <p className="text-[10px] text-[#5f6368] font-medium tracking-wider uppercase">WORKSPACE ASSISTANT</p>
+                <p className="text-[10px] text-[#5f6368] font-semibold tracking-wider uppercase">GMAIL • CALENDAR • MEET ASSISTANT</p>
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -852,9 +644,6 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                 <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
                   <Brain className="w-3.5 h-3.5 text-amber-600" />
                   <span>Long-Term AI Memory</span>
-                  <span className="text-[10px] text-amber-700 font-normal">
-                    (Retained across browser refreshes)
-                  </span>
                 </div>
                 <button
                   onClick={() => setShowMemories(false)}
@@ -866,10 +655,10 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
 
               {memoriesList.length === 0 ? (
                 <p className="text-[11px] text-amber-800/80 italic py-1">
-                  No memories saved yet. Tell G-Pilot facts (e.g. "Remember that my name is Tanaka" or "Remember I prefer short emails"), or add below.
+                  No memories saved yet. Tell G-Pilot preferences (e.g. "Remember I prefer morning meetings"), or add below.
                 </p>
               ) : (
-                <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1 mb-2">
+                <div className="max-h-32 overflow-y-auto space-y-1.5 pr-1 mb-2">
                   {memoriesList.map((m, idx) => (
                     <div
                       key={idx}
@@ -893,7 +682,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               <form onSubmit={handleAddMemory} className="flex gap-1.5 mt-2">
                 <input
                   type="text"
-                  placeholder="Add a new fact to remember..."
+                  placeholder="Add a preference to remember..."
                   value={newMemoryInput}
                   onChange={(e) => setNewMemoryInput(e.target.value)}
                   className="flex-1 px-2.5 py-1 text-xs bg-white border border-amber-300 rounded-lg focus:outline-hidden focus:ring-1 focus:ring-amber-500 text-slate-800 placeholder:text-amber-800/50"
@@ -940,29 +729,49 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               <div className="flex justify-start">
                 <div className="bg-[#f0f4f9] border border-[#e1e3e1] rounded-3xl px-5 py-3 flex items-center gap-2 text-[#5f6368] shadow-2xs">
                   <Loader2 className="w-4 h-4 animate-spin text-[#1a73e8]" />
-                  <span className="text-xs font-medium">G-Pilot is thinking...</span>
+                  <span className="text-xs font-medium">G-Pilot is working on your request...</span>
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Quick Action Suggestion Chips for Allowed Capabilities */}
+          <div className="px-4 py-2 bg-[#f8fafd] border-t border-[#f1f3f4] overflow-x-auto scrollbar-none flex items-center gap-1.5 shrink-0">
+            {[
+              { label: 'Read unread emails', prompt: 'Read my latest unread emails', icon: <GmailIcon className="w-4 h-4 shrink-0" /> },
+              { label: 'Check calendar today', prompt: 'What events and meetings do I have on my calendar today?', icon: <GoogleCalendarIcon className="w-4 h-4 shrink-0" /> },
+              { label: 'Create Meet link', prompt: 'Create a new Google Meet link for me', icon: <GoogleMeetIcon className="w-4 h-4 shrink-0" /> },
+              { label: 'Schedule meeting', prompt: 'I want to schedule a meeting on my calendar', icon: <GoogleCalendarIcon className="w-4 h-4 shrink-0" /> },
+            ].map((chip, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSend(chip.prompt)}
+                disabled={isLoading}
+                className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-[#e8f0fe] border border-[#dadce0] rounded-full text-[11px] font-medium text-[#444746] hover:text-[#1a73e8] hover:border-[#1a73e8]/40 whitespace-nowrap transition-all shadow-2xs cursor-pointer disabled:opacity-50"
+              >
+                {chip.icon}
+                <span>{chip.label}</span>
+              </button>
+            ))}
+          </div>
+
           {/* Input Area */}
-          <div className="p-4 border-t border-slate-100 bg-slate-50/80">
+          <div className="p-3.5 border-t border-slate-100 bg-white">
             <div className="relative flex items-center">
               <input
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask G-Pilot to manage your workspace..."
-                className="w-full bg-white border border-slate-200 rounded-full pl-4 pr-12 py-2.5 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-hidden focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all shadow-xs"
+                placeholder="Ask G-Pilot for Gmail, Calendar, or Meet..."
+                className="w-full bg-[#f0f4f9] border border-[#dadce0] rounded-full pl-4 pr-12 py-2.5 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-hidden focus:bg-white focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] transition-all shadow-xs"
                 disabled={isLoading}
               />
               <button
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={!input.trim() || isLoading}
-                className="absolute right-2 p-1.5 rounded-full bg-[#fbe618] hover:bg-[#ffe600] text-[#0B0F17] disabled:opacity-40 disabled:hover:bg-[#fbe618] transition-all cursor-pointer shadow-xs"
+                className="absolute right-1.5 p-2 rounded-full bg-[#fbe618] hover:bg-[#ffe600] text-[#0B0F17] disabled:opacity-40 disabled:hover:bg-[#fbe618] transition-all cursor-pointer shadow-xs"
                 title="Send message"
               >
                 <Send className="w-4 h-4" />

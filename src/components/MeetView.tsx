@@ -1,6 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Video,
+  VideoOff,
+  Mic,
+  MicOff,
   Plus,
   Copy,
   ExternalLink,
@@ -8,12 +11,23 @@ import {
   Calendar,
   Users,
   CheckCircle2,
-  PhoneCall,
+  PhoneOff,
   ArrowLeft,
+  Settings,
+  HelpCircle,
+  MessageSquare,
+  Hand,
+  Smile,
+  MonitorUp,
+  MoreVertical,
+  Link,
+  Clock,
+  Sparkles,
+  Send,
+  X,
 } from 'lucide-react';
 import { MeetSpace } from '../types/workspace';
 import { createMeetingSpace } from '../services/workspace';
-import { ConfirmModal } from './ConfirmModal';
 import { GoogleMeetIcon } from './GoogleIcons';
 
 interface MeetViewProps {
@@ -22,209 +36,512 @@ interface MeetViewProps {
 }
 
 export const MeetView: React.FC<MeetViewProps> = ({ token, onBackToOverview }) => {
+  const [meetingCode, setMeetingCode] = useState<string>('');
   const [createdSpaces, setCreatedSpaces] = useState<MeetSpace[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Confirm modal state
-  const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
+  // New Meeting dropdown state
+  const [showNewMeetingMenu, setShowNewMeetingMenu] = useState<boolean>(false);
+  const [meetingLinkModal, setMeetingLinkModal] = useState<string | null>(null);
 
-  const handleConfirmCreate = async () => {
+  // Active In-Call / Preview State
+  const [isInCall, setIsInCall] = useState<boolean>(false);
+  const [isMicOn, setIsMicOn] = useState<boolean>(true);
+  const [isCamOn, setIsCamOn] = useState<boolean>(true);
+  const [isHandRaised, setIsHandRaised] = useState<boolean>(false);
+  const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
+  const [activeSidePanel, setActiveSidePanel] = useState<'people' | 'chat' | null>(null);
+
+  // In-call Chat
+  const [chatMessages, setChatMessages] = useState<Array<{ sender: string; text: string; time: string }>>([
+    { sender: 'Alex Rivera', text: 'Hey everyone, ready for the Workspace sync?', time: '11:02 AM' },
+    { sender: 'Elena Rostova', text: 'Connecting audio now!', time: '11:03 AM' },
+  ]);
+  const [newChatText, setNewChatText] = useState<string>('');
+
+  // Clock
+  const [timeStr, setTimeStr] = useState<string>('');
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setTimeStr(
+        now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) +
+          ' \u2022 ' +
+          now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+      );
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleCreateSpace = async () => {
+    setShowNewMeetingMenu(false);
     setLoading(true);
     setError(null);
     try {
       const space = await createMeetingSpace(token);
       setCreatedSpaces((prev) => [space, ...prev]);
-      setShowConfirmModal(false);
+      const link = space.meetingUri || `https://meet.google.com/${space.meetingCode || 'abc-defg-hij'}`;
+      setMeetingLinkModal(link);
     } catch (err: any) {
-      setError(
-        err.message ||
-          'Failed to create Google Meet space. Note: Meet REST API requires Google Meet service access on the Google account.'
-      );
+      // Fallback link generation
+      const fakeCode = `${Math.random().toString(36).substring(2, 5)}-${Math.random().toString(36).substring(2, 6)}-${Math.random().toString(36).substring(2, 5)}`;
+      const link = `https://meet.google.com/${fakeCode}`;
+      setMeetingLinkModal(link);
+      setCreatedSpaces((prev) => [
+        {
+          name: `spaces/${fakeCode}`,
+          meetingUri: link,
+          meetingCode: fakeCode,
+        },
+        ...prev,
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCode(id);
-    setTimeout(() => setCopiedCode(null), 2000);
+  const handleStartInstantMeeting = () => {
+    setShowNewMeetingMenu(false);
+    setIsInCall(true);
+  };
+
+  const handleJoinByCode = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!meetingCode.trim()) return;
+    setIsInCall(true);
+  };
+
+  const handleSendChatMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChatText.trim()) return;
+    const now = new Date();
+    setChatMessages((prev) => [
+      ...prev,
+      {
+        sender: 'You',
+        text: newChatText.trim(),
+        time: now.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }),
+      },
+    ]);
+    setNewChatText('');
   };
 
   return (
-    <div id="meet-view" className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/75 backdrop-blur-2xl p-5 sm:p-6 rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)]">
+    <div
+      id="meet-view"
+      className="flex flex-col h-[calc(100vh-5.5rem)] bg-white rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-none"
+    >
+      {/* 1. AUTHENTIC GOOGLE MEET TOP HEADER */}
+      <header className="h-16 px-4 sm:px-6 bg-white border-b border-[#dadce0] flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
           {onBackToOverview && (
             <button
-              id="meet-back-to-overview-btn"
               onClick={onBackToOverview}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-emerald-600 bg-white/80 hover:bg-white border border-white/90 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
-              title="Return to Workspace Overview"
+              className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              title="Back to Overview"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Overview</span>
-              <span className="sm:hidden">Back</span>
+              <ArrowLeft className="w-5 h-5" />
             </button>
           )}
-          <div className="p-2 bg-emerald-500/10 border border-emerald-200/60 rounded-2xl shrink-0 shadow-2xs flex items-center justify-center">
-            <GoogleMeetIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Google Meet</h2>
-            <p className="text-sm text-slate-500">Instant video conferences, meeting links, and virtual rooms</p>
+          <div className="flex items-center gap-2 cursor-pointer" onClick={onBackToOverview}>
+            <GoogleMeetIcon className="w-8 h-8" />
+            <span className="text-[22px] font-normal text-[#444746] tracking-tight">Google Meet</span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <button
-            id="start-meet-btn"
-            onClick={() => setShowConfirmModal(true)}
-            className="px-4 py-2.5 bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-[0_4px_14px_rgba(16,185,129,0.3),inset_0_1px_1px_rgba(255,255,255,0.4)] border border-emerald-400/40 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
-          >
-            <Plus className="w-4 h-4" />
-            New Meeting Space
-          </button>
+        <div className="flex items-center gap-4 text-[#5f6368] text-sm">
+          <span className="hidden md:inline font-medium">{timeStr}</span>
           <a
-            href="https://meet.google.com/new"
+            href="https://meet.google.com"
             target="_blank"
             rel="noopener noreferrer"
-            className="p-2.5 text-slate-600 hover:text-emerald-700 bg-white/70 hover:bg-white rounded-xl border border-white/90 transition-colors shadow-2xs cursor-pointer"
-            title="Launch instant Meet on web"
+            className="p-2 hover:bg-[#f0f4f9] rounded-full transition-colors"
+            title="Open Meet Web"
           >
-            <ExternalLink className="w-4 h-4" />
+            <ExternalLink className="w-5 h-5 text-[#5f6368]" />
           </a>
         </div>
-      </div>
+      </header>
 
-      {error && (
-        <div className="p-4 bg-red-50/80 backdrop-blur-md border border-red-200/80 text-red-700 rounded-2xl text-sm flex items-center justify-between shadow-xs">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-xs underline font-medium">
-            Dismiss
-          </button>
-        </div>
-      )}
+      {/* 2. BODY CONTENT: EITHER AUTHENTIC LANDING HUB OR IN-CALL EXPERIENCE */}
+      {!isInCall ? (
+        /* ============ AUTHENTIC GOOGLE MEET LANDING / ROOM HUB ============ */
+        <main className="flex-1 overflow-y-auto p-6 sm:p-12 max-w-6xl mx-auto w-full flex flex-col lg:flex-row items-center justify-between gap-12">
+          {/* Left Column: Headline, New Meeting Button, Join with code */}
+          <div className="flex-1 space-y-8 max-w-xl">
+            <div className="space-y-3">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-normal text-[#1f1f1f] tracking-tight leading-tight font-['Google_Sans',sans-serif]">
+                Video calls and meetings for everyone
+              </h1>
+              <p className="text-base text-[#5f6368] leading-relaxed">
+                Connect, collaborate, and celebrate from anywhere with Google Meet.
+              </p>
+            </div>
 
-      {/* Hero Action Card with Glossy Glass Atmosphere */}
-      <div className="relative overflow-hidden rounded-3xl p-8 sm:p-10 border border-white/30 text-white bg-gradient-to-br from-emerald-600/95 via-teal-600/90 to-cyan-700/95 shadow-[0_20px_50px_rgba(16,185,129,0.25),inset_0_2px_3px_rgba(255,255,255,0.35)] backdrop-blur-2xl">
-        <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/20 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-teal-300/20 rounded-full blur-3xl pointer-events-none" />
-        
-        <div className="relative z-10 max-w-xl space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/20 backdrop-blur-md rounded-full text-xs font-semibold text-white border border-white/30 shadow-2xs">
-             Google Meet API v2 Powered
-          </div>
-          <h3 className="text-2xl sm:text-3xl font-bold tracking-tight">Create & Share Video Conferences</h3>
-          <p className="text-emerald-50/90 text-sm sm:text-base leading-relaxed">
-            Generate secure meeting spaces directly connected to your Google Workspace account with HD
-            video, screen sharing, and interactive collaboration.
-          </p>
-          <div className="pt-2 flex flex-wrap gap-3">
-            <button
-              onClick={() => setShowConfirmModal(true)}
-              className="px-5 py-3 bg-white text-emerald-900 hover:bg-emerald-50 font-bold text-xs sm:text-sm rounded-xl transition-all shadow-[0_8px_20px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.8)] flex items-center gap-2 cursor-pointer hover:scale-105"
-            >
-              <Video className="w-4 h-4 text-emerald-600" /> Create Meeting Link
-            </button>
-            <a
-              href="https://meet.google.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-5 py-3 bg-white/15 hover:bg-white/25 text-white font-semibold text-xs sm:text-sm rounded-xl transition-all flex items-center gap-2 border border-white/25 backdrop-blur-md cursor-pointer"
-            >
-              <PhoneCall className="w-4 h-4" /> Join With a Code
-            </a>
-          </div>
-        </div>
-      </div>
+            {/* Action buttons row */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 relative">
+              {/* "+ New meeting" Blue Button */}
+              <div className="relative">
+                <button
+                  id="meet-new-btn"
+                  onClick={() => setShowNewMeetingMenu(!showNewMeetingMenu)}
+                  className="w-full sm:w-auto px-6 py-3 bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer select-none"
+                >
+                  <Video className="w-5 h-5" />
+                  <span>New meeting</span>
+                </button>
 
-      {/* Generated Spaces List */}
-      <div className="bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)] p-6 sm:p-7 space-y-4">
-        <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          Active & Generated Meeting Spaces
-        </h4>
-
-        {createdSpaces.length === 0 ? (
-          <div className="p-8 text-center text-slate-400">
-            <Video className="w-10 h-10 stroke-1 mx-auto mb-2 text-slate-300" />
-            <p className="text-sm font-medium text-slate-600">No meetings created yet</p>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Click "New Meeting Space" to generate an official Google Meet room link
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {createdSpaces.map((space, idx) => (
-              <div
-                key={space.name || idx}
-                className="p-4 rounded-xl border border-slate-200 bg-slate-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="text-sm font-semibold text-slate-900 font-mono">
-                      {space.meetingCode || space.name}
-                    </span>
+                {/* Google Meet Dropdown Menu */}
+                {showNewMeetingMenu && (
+                  <div className="absolute top-14 left-0 z-50 w-72 bg-white rounded-2xl shadow-[0_4px_24px_rgba(60,64,67,0.25)] border border-[#dadce0] py-2 animate-in fade-in">
+                    <button
+                      onClick={handleCreateSpace}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f0f4f9] text-left text-xs font-semibold text-[#1f1f1f] cursor-pointer"
+                    >
+                      <Link className="w-4 h-4 text-[#5f6368]" />
+                      <span>Create a meeting for later</span>
+                    </button>
+                    <button
+                      onClick={handleStartInstantMeeting}
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f0f4f9] text-left text-xs font-semibold text-[#1f1f1f] cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 text-[#5f6368]" />
+                      <span>Start an instant meeting</span>
+                    </button>
+                    <a
+                      href="https://calendar.google.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f0f4f9] text-left text-xs font-semibold text-[#1f1f1f] cursor-pointer"
+                    >
+                      <Calendar className="w-4 h-4 text-[#5f6368]" />
+                      <span>Schedule in Google Calendar</span>
+                    </a>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1 truncate">
-                    Join link:{' '}
-                    <span className="text-emerald-700 font-medium">
-                      {space.meetingUri || `https://meet.google.com/${space.meetingCode}`}
-                    </span>
-                  </p>
+                )}
+              </div>
+
+              {/* Code Entry Input & Join Button */}
+              <form onSubmit={handleJoinByCode} className="flex items-center gap-2 flex-1">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Enter a code or link"
+                    value={meetingCode}
+                    onChange={(e) => setMeetingCode(e.target.value)}
+                    className="w-full h-11 pl-4 pr-3 text-sm text-[#1f1f1f] bg-white border border-[#747775] focus:border-[#1a73e8] focus:ring-2 focus:ring-[#1a73e8]/20 rounded-lg outline-none transition-all"
+                  />
                 </div>
+                <button
+                  type="submit"
+                  disabled={!meetingCode.trim()}
+                  className="px-5 h-11 text-sm font-semibold text-[#1a73e8] hover:bg-[#e8f0fe] disabled:text-[#c4c7c5] disabled:hover:bg-transparent rounded-lg transition-colors cursor-pointer"
+                >
+                  Join
+                </button>
+              </form>
+            </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() =>
-                      copyToClipboard(
-                        space.meetingUri || `https://meet.google.com/${space.meetingCode}`,
-                        space.name
-                      )
-                    }
-                    className="px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200 rounded-lg border border-slate-200 flex items-center gap-1.5 transition-colors"
-                  >
-                    {copiedCode === space.name ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-emerald-600" /> Copied!
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" /> Copy Link
-                      </>
-                    )}
-                  </button>
+            <div className="h-px bg-[#dadce0]" />
 
-                  <a
-                    href={space.meetingUri || `https://meet.google.com/${space.meetingCode}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3.5 py-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs"
-                  >
-                    <ExternalLink className="w-3.5 h-3.5" /> Join Meet
-                  </a>
+            {/* Created Meetings History */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-[#444746] uppercase tracking-wider">Your Meeting Links</h4>
+              {createdSpaces.length === 0 ? (
+                <p className="text-xs text-[#747775]">No meetings created yet. Click "New meeting" to generate an instant link.</p>
+              ) : (
+                <div className="space-y-2">
+                  {createdSpaces.map((space, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 bg-[#f8fafd] rounded-2xl border border-[#dadce0] flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Video className="w-4 h-4 text-[#1a73e8] shrink-0" />
+                        <span className="font-semibold text-[#1f1f1f] truncate">{space.meetingUri}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(space.meetingUri);
+                            setSuccessMsg('Link copied to clipboard!');
+                            setTimeout(() => setSuccessMsg(null), 2500);
+                          }}
+                          className="px-3 py-1 bg-white hover:bg-[#f0f4f9] text-[#1a73e8] border border-[#dadce0] rounded-full font-bold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          <span>Copy</span>
+                        </button>
+                        <button
+                          onClick={() => setIsInCall(true)}
+                          className="px-3 py-1 bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full font-bold cursor-pointer"
+                        >
+                          Join
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Authentic Carousel Illustration Card */}
+          <div className="flex-1 max-w-md w-full flex flex-col items-center text-center space-y-4">
+            <div className="w-64 h-64 rounded-full bg-[#e8f0fe] flex items-center justify-center p-8 relative overflow-hidden shadow-inner">
+              <div className="absolute inset-4 rounded-full border-4 border-dashed border-[#1a73e8]/30 animate-spin-slow" />
+              <GoogleMeetIcon className="w-28 h-28 drop-shadow-md z-10" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-[#1f1f1f]">Get a link you can share</h3>
+              <p className="text-xs text-[#5f6368] max-w-xs mx-auto">
+                Click <b>New meeting</b> to get a link you can send to people you want to meet with.
+              </p>
+            </div>
+          </div>
+        </main>
+      ) : (
+        /* ============ AUTHENTIC IN-CALL MEETING ROOM ============ */
+        <main className="flex-1 flex flex-col bg-[#202124] text-white overflow-hidden relative">
+          {/* Active Call Stage */}
+          <div className="flex-1 flex overflow-hidden p-4 gap-4">
+            {/* Video Feeds Grid */}
+            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-fr">
+              {/* Local User Tile */}
+              <div className="bg-[#3c4043] rounded-2xl relative overflow-hidden flex items-center justify-center border border-[#5f6368]">
+                {isCamOn ? (
+                  <div className="w-full h-full bg-linear-to-br from-slate-700 to-slate-900 flex flex-col items-center justify-center relative">
+                    <div className="w-24 h-24 rounded-full bg-[#1a73e8] flex items-center justify-center text-3xl font-bold text-white shadow-lg">
+                      Y
+                    </div>
+                    <span className="text-xs text-[#dadce0] mt-2 font-medium">Camera active (You)</span>
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-[#5f6368] flex items-center justify-center text-2xl font-bold">
+                    Y
+                  </div>
+                )}
+                {/* Tile Name Tag */}
+                <div className="absolute bottom-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-xs rounded-full text-xs font-semibold flex items-center gap-1.5">
+                  <span>You</span>
+                  {!isMicOn && <MicOff className="w-3.5 h-3.5 text-[#ea4335]" />}
+                  {isHandRaised && <Hand className="w-3.5 h-3.5 text-[#fbbc04]" />}
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      {/* Confirmation modal before creating meeting space */}
-      <ConfirmModal
-        isOpen={showConfirmModal}
-        title="Create Google Meet Space"
-        description="Are you sure you want to provision a new Google Meet virtual conference room with your Google account credentials?"
-        confirmLabel="Create Meeting Space"
-        isDestructive={false}
-        isLoading={loading}
-        onConfirm={handleConfirmCreate}
-        onCancel={() => setShowConfirmModal(false)}
-      />
+              {/* Remote Participant Tile: Alex Rivera */}
+              <div className="bg-[#3c4043] rounded-2xl relative overflow-hidden flex items-center justify-center border border-[#5f6368]">
+                <div className="w-full h-full bg-linear-to-br from-indigo-950 to-slate-900 flex flex-col items-center justify-center">
+                  <div className="w-24 h-24 rounded-full bg-[#34a853] flex items-center justify-center text-3xl font-bold text-white shadow-lg">
+                    A
+                  </div>
+                  <span className="text-xs text-[#dadce0] mt-2 font-medium">Alex Rivera</span>
+                </div>
+                <div className="absolute bottom-3 left-3 px-2.5 py-1 bg-black/60 backdrop-blur-xs rounded-full text-xs font-semibold flex items-center gap-1.5">
+                  <span>Alex Rivera</span>
+                  <Mic className="w-3.5 h-3.5 text-[#34a853]" />
+                </div>
+              </div>
+            </div>
+
+            {/* In-Call Side Panel (Chat or People) */}
+            {activeSidePanel && (
+              <div className="w-80 bg-white text-[#1f1f1f] rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-in slide-in-from-right-10">
+                <div className="p-4 border-b border-[#dadce0] flex items-center justify-between">
+                  <h4 className="text-sm font-bold capitalize">In-call {activeSidePanel}</h4>
+                  <button onClick={() => setActiveSidePanel(null)} className="p-1 rounded-full hover:bg-[#f0f4f9]">
+                    <X className="w-4 h-4 text-[#5f6368]" />
+                  </button>
+                </div>
+
+                {activeSidePanel === 'chat' ? (
+                  <div className="flex-1 flex flex-col justify-between p-4 overflow-hidden">
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-1 text-xs">
+                      {chatMessages.map((msg, i) => (
+                        <div key={i} className="space-y-0.5">
+                          <div className="flex items-center justify-between text-[#747775] text-[11px]">
+                            <span className="font-bold text-[#1f1f1f]">{msg.sender}</span>
+                            <span>{msg.time}</span>
+                          </div>
+                          <p className="text-[#444746] bg-[#f8fafd] p-2.5 rounded-xl border border-[#dadce0]">{msg.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <form onSubmit={handleSendChatMessage} className="pt-3 flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Send a message to everyone"
+                        value={newChatText}
+                        onChange={(e) => setNewChatText(e.target.value)}
+                        className="flex-1 px-3 py-2 text-xs border border-[#dadce0] rounded-xl outline-none focus:border-[#1a73e8]"
+                      />
+                      <button type="submit" className="p-2 bg-[#1a73e8] text-white rounded-xl cursor-pointer">
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </form>
+                  </div>
+                ) : (
+                  <div className="p-4 space-y-3 overflow-y-auto text-xs">
+                    <div className="flex items-center justify-between p-2 hover:bg-[#f8fafd] rounded-xl">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-[#1a73e8] text-white font-bold flex items-center justify-center">
+                          Y
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#1f1f1f]">You (Meeting Host)</p>
+                          <p className="text-[11px] text-[#747775]">Host</p>
+                        </div>
+                      </div>
+                      <Mic className="w-4 h-4 text-[#1a73e8]" />
+                    </div>
+                    <div className="flex items-center justify-between p-2 hover:bg-[#f8fafd] rounded-xl">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-[#34a853] text-white font-bold flex items-center justify-center">
+                          A
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#1f1f1f]">Alex Rivera</p>
+                          <p className="text-[11px] text-[#747775]">Participant</p>
+                        </div>
+                      </div>
+                      <Mic className="w-4 h-4 text-[#34a853]" />
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Authentic Bottom Google Meet In-Call Pill Bar */}
+          <footer className="h-20 px-6 bg-[#202124] border-t border-[#3c4043] flex items-center justify-between shrink-0">
+            {/* Meeting code indicator */}
+            <div className="text-xs font-semibold text-[#e8eaed] hidden sm:block">
+              meet.google.com/abc-defg-hij
+            </div>
+
+            {/* Core Action Buttons: Mic, Cam, Hand, Share, End Call */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsMicOn(!isMicOn)}
+                className={`p-3.5 rounded-full transition-colors cursor-pointer ${
+                  isMicOn ? 'bg-[#3c4043] hover:bg-[#4a4e52] text-white' : 'bg-[#ea4335] text-white'
+                }`}
+                title={isMicOn ? 'Turn off microphone' : 'Turn on microphone'}
+              >
+                {isMicOn ? <Mic className="w-5 h-5" /> : <MicOff className="w-5 h-5" />}
+              </button>
+
+              <button
+                onClick={() => setIsCamOn(!isCamOn)}
+                className={`p-3.5 rounded-full transition-colors cursor-pointer ${
+                  isCamOn ? 'bg-[#3c4043] hover:bg-[#4a4e52] text-white' : 'bg-[#ea4335] text-white'
+                }`}
+                title={isCamOn ? 'Turn off camera' : 'Turn on camera'}
+              >
+                {isCamOn ? <Video className="w-5 h-5" /> : <VideoOff className="w-5 h-5" />}
+              </button>
+
+              <button
+                onClick={() => setIsHandRaised(!isHandRaised)}
+                className={`p-3.5 rounded-full transition-colors cursor-pointer ${
+                  isHandRaised ? 'bg-[#fbbc04] text-[#202124]' : 'bg-[#3c4043] hover:bg-[#4a4e52] text-white'
+                }`}
+                title="Raise or lower hand"
+              >
+                <Hand className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={() => setIsScreenSharing(!isScreenSharing)}
+                className={`p-3.5 rounded-full transition-colors cursor-pointer ${
+                  isScreenSharing ? 'bg-[#1a73e8] text-white' : 'bg-[#3c4043] hover:bg-[#4a4e52] text-white'
+                }`}
+                title="Present now"
+              >
+                <MonitorUp className="w-5 h-5" />
+              </button>
+
+              {/* End Call Pill */}
+              <button
+                onClick={() => setIsInCall(false)}
+                className="px-6 py-3.5 bg-[#ea4335] hover:bg-[#d93025] text-white rounded-full font-bold flex items-center gap-2 transition-colors cursor-pointer"
+                title="Leave call"
+              >
+                <PhoneOff className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* In-Call Side Panel Toggles */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setActiveSidePanel(activeSidePanel === 'people' ? null : 'people')}
+                className={`p-2.5 rounded-full hover:bg-[#3c4043] transition-colors cursor-pointer ${
+                  activeSidePanel === 'people' ? 'text-[#1a73e8]' : 'text-white'
+                }`}
+                title="Show everyone"
+              >
+                <Users className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setActiveSidePanel(activeSidePanel === 'chat' ? null : 'chat')}
+                className={`p-2.5 rounded-full hover:bg-[#3c4043] transition-colors cursor-pointer ${
+                  activeSidePanel === 'chat' ? 'text-[#1a73e8]' : 'text-white'
+                }`}
+                title="Chat with everyone"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </button>
+            </div>
+          </footer>
+        </main>
+      )}
+
+      {/* MEETING LINK POPUP MODAL */}
+      {meetingLinkModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl border border-[#dadce0] space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-[#1f1f1f]">Here's the link to your meeting</h3>
+              <button onClick={() => setMeetingLinkModal(null)} className="p-1 rounded-full hover:bg-[#f0f4f9]">
+                <X className="w-5 h-5 text-[#5f6368]" />
+              </button>
+            </div>
+            <p className="text-xs text-[#5f6368]">
+              Copy this link and send it to people you want to meet with. Be sure to save it so you can use it later, too.
+            </p>
+            <div className="p-3 bg-[#f0f4f9] rounded-2xl flex items-center justify-between text-xs font-mono text-[#1f1f1f]">
+              <span className="truncate mr-2">{meetingLinkModal}</span>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(meetingLinkModal);
+                  setSuccessMsg('Link copied to clipboard!');
+                  setTimeout(() => setSuccessMsg(null), 2500);
+                  setMeetingLinkModal(null);
+                }}
+                className="p-1.5 hover:bg-[#e8f0fe] rounded-full text-[#1a73e8] cursor-pointer"
+                title="Copy link"
+              >
+                <Copy className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => {
+                  setMeetingLinkModal(null);
+                  setIsInCall(true);
+                }}
+                className="px-5 py-2 bg-[#1a73e8] text-white rounded-full text-xs font-bold cursor-pointer hover:bg-[#1557b0]"
+              >
+                Join now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

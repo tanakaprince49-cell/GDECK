@@ -1,6 +1,7 @@
 {
   "name": "GDECK",
-  "description": "GDECK — The all-in-one liquid glass command center for Google Workspace. Unify Gmail, Google Drive, Calendar, Sheets, Docs, Slides, Tasks, Contacts, Keep, Meet & Forms with AI-powered productivity.",
+  "description": "GDECK — The all-in-one command center for the top 10 Google Workspace tools: Gmail, Google Drive, Docs, Sheets, Calendar, Meet, Slides, Forms, Keep & Tasks with AI-powered productivity.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
+

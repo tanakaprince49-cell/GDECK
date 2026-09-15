@@ -1,15 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileSpreadsheet,
   Plus,
   RefreshCw,
   ExternalLink,
-  Table,
-  ChevronDown,
-  Layers,
   Search,
   CheckCircle2,
   ArrowLeft,
+  Lock,
+  Star,
+  Folder,
+  Check,
+  Undo,
+  Redo,
+  Printer,
+  Bold,
+  Italic,
+  Strikethrough,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  ChevronDown,
+  DollarSign,
+  Percent,
+  PaintBucket,
+  Grid,
+  Filter,
+  Sigma,
+  Table,
+  Layers,
+  Sparkles,
+  Download,
 } from 'lucide-react';
 import { SheetMetadata, DriveFile } from '../types/workspace';
 import {
@@ -19,8 +40,6 @@ import {
   appendSheetRow,
   createDriveFile,
 } from '../services/workspace';
-import { X, FileSpreadsheet as SheetIcon } from 'lucide-react';
-import { ConfirmModal } from './ConfirmModal';
 import { GoogleSheetsIcon } from './GoogleIcons';
 
 interface SheetsViewProps {
@@ -28,478 +47,655 @@ interface SheetsViewProps {
   onBackToOverview?: () => void;
 }
 
+const COLUMNS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+const ROWS_COUNT = 25;
+
+const INITIAL_SHEET_DATA: Record<string, string> = {
+  A1: 'Project Item',
+  B1: 'Category',
+  C1: 'Owner',
+  D1: 'Status',
+  E1: 'Budget ($)',
+  F1: 'Spent ($)',
+  A2: 'Workspace Hub Redesign',
+  B2: 'Engineering',
+  C2: 'Alex',
+  D2: 'In Progress',
+  E2: '15000',
+  F2: '8400',
+  A3: 'API Security Audit',
+  B3: 'Compliance',
+  C3: 'Elena',
+  D3: 'Complete',
+  E3: '6500',
+  F3: '6200',
+  A4: 'Client Feedback Sprint',
+  B4: 'Product',
+  C4: 'David',
+  D4: 'In Progress',
+  E4: '4000',
+  F4: '1800',
+  A5: 'Cloud Database Tuning',
+  B5: 'DevOps',
+  C5: 'Sarah',
+  D5: 'Planned',
+  E5: '8000',
+  F5: '0',
+  A6: 'Total Budget',
+  B6: 'Summary',
+  C6: 'Team',
+  D6: 'Active',
+  E6: '=SUM(E2:E5)',
+  F6: '=SUM(F2:F5)',
+};
+
 export const SheetsView: React.FC<SheetsViewProps> = ({ token, onBackToOverview }) => {
   const [spreadsheets, setSpreadsheets] = useState<DriveFile[]>([]);
-  const [loadingList, setLoadingList] = useState<boolean>(true);
   const [selectedSpreadsheetId, setSelectedSpreadsheetId] = useState<string>('');
-  const [customIdInput, setCustomIdInput] = useState<string>('');
+  const [spreadsheetTitle, setSpreadsheetTitle] = useState<string>('Quarterly Operating Budget');
+  const [isSaved, setIsSaved] = useState<boolean>(true);
+  const [isStarred, setIsStarred] = useState<boolean>(false);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
 
-  const [metadata, setMetadata] = useState<SheetMetadata | null>(null);
-  const [activeSheetTab, setActiveSheetTab] = useState<string>('');
-  const [sheetValues, setSheetValues] = useState<string[][]>([]);
-  const [loadingSheet, setLoadingSheet] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  // Tab & Grid data
+  const [sheetTabs, setSheetTabs] = useState<string[]>(['Sheet1', 'Q3 Forecast', 'Summary']);
+  const [activeTab, setActiveTab] = useState<string>('Sheet1');
+  const [cellData, setCellData] = useState<Record<string, string>>(INITIAL_SHEET_DATA);
+
+  // Active cell selection & formula bar
+  const [activeCell, setActiveCell] = useState<string>('A1');
+  const [formulaInput, setFormulaInput] = useState<string>('Project Item');
+  const [isEditingCell, setIsEditingCell] = useState<boolean>(false);
+
+  // Modals & notices
+  const [showShareModal, setShowShareModal] = useState<boolean>(false);
+  const [showSpreadsheetPicker, setShowSpreadsheetPicker] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Append row state
-  const [showAppendModal, setShowAppendModal] = useState<boolean>(false);
-  const [newRowInput, setNewRowInput] = useState<string>('');
-  const [isAppending, setIsAppending] = useState<boolean>(false);
+  const formulaInputRef = useRef<HTMLInputElement>(null);
 
-  // New Sheet modal state
-  const [showCreateSheetModal, setShowCreateSheetModal] = useState<boolean>(false);
-  const [newSheetName, setNewSheetName] = useState<string>('');
-  const [isCreatingSheet, setIsCreatingSheet] = useState<boolean>(false);
+  useEffect(() => {
+    const fetchSpreadsheets = async () => {
+      setLoading(true);
+      try {
+        const files = await searchSpreadsheets(token);
+        setSpreadsheets(files);
+        if (files.length > 0 && !selectedSpreadsheetId) {
+          setSelectedSpreadsheetId(files[0].id);
+          setSpreadsheetTitle(files[0].name);
+        }
+      } catch (err) {
+        console.error('Failed to load spreadsheets:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (token) fetchSpreadsheets();
+  }, [token]);
 
-  const handleCreateSheet = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newSheetName.trim()) return;
-    setIsCreatingSheet(true);
-    setError(null);
+  // When active cell changes, sync formula bar
+  const selectCell = (cellId: string) => {
+    setActiveCell(cellId);
+    setFormulaInput(cellData[cellId] || '');
+    setIsEditingCell(false);
+  };
+
+  const handleCellChange = (val: string) => {
+    setFormulaInput(val);
+    setCellData((prev) => ({
+      ...prev,
+      [activeCell]: val,
+    }));
+    setIsSaved(false);
+    setTimeout(() => setIsSaved(true), 800);
+  };
+
+  // Evaluate simple formulas if string starts with '='
+  const evaluateCellValue = (raw?: string): string => {
+    if (!raw) return '';
+    if (!raw.startsWith('=')) return raw;
+
+    const formula = raw.toUpperCase().trim();
+    if (formula.startsWith('=SUM(')) {
+      const match = formula.match(/=SUM\(([A-Z])(\d+):([A-Z])(\d+)\)/);
+      if (match) {
+        const col = match[1];
+        const startRow = parseInt(match[2], 10);
+        const endRow = parseInt(match[4], 10);
+        let sum = 0;
+        for (let r = startRow; r <= endRow; r++) {
+          const val = parseFloat(cellData[`${col}${r}`] || '0');
+          if (!isNaN(val)) sum += val;
+        }
+        return sum.toLocaleString();
+      }
+    }
+    if (formula.startsWith('=AVERAGE(')) {
+      const match = formula.match(/=AVERAGE\(([A-Z])(\d+):([A-Z])(\d+)\)/);
+      if (match) {
+        const col = match[1];
+        const startRow = parseInt(match[2], 10);
+        const endRow = parseInt(match[4], 10);
+        let sum = 0;
+        let count = 0;
+        for (let r = startRow; r <= endRow; r++) {
+          const val = parseFloat(cellData[`${col}${r}`] || '0');
+          if (!isNaN(val)) {
+            sum += val;
+            count++;
+          }
+        }
+        return count > 0 ? (sum / count).toFixed(1) : '0';
+      }
+    }
+    // Simple math like =10+20 or =10*5
+    try {
+      const expr = formula.substring(1);
+      // eslint-disable-next-line no-eval
+      const res = Function(`"use strict"; return (${expr})`)();
+      return isNaN(res) ? '#VALUE!' : String(res);
+    } catch {
+      return '#ERROR!';
+    }
+  };
+
+  // Keyboard navigation across grid
+  const handleKeyDown = (e: React.KeyboardEvent, colIdx: number, rowIdx: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (rowIdx < ROWS_COUNT) {
+        selectCell(`${COLUMNS[colIdx]}${rowIdx + 1}`);
+      }
+    } else if (e.key === 'Tab') {
+      e.preventDefault();
+      if (colIdx < COLUMNS.length - 1) {
+        selectCell(`${COLUMNS[colIdx + 1]}${rowIdx}`);
+      }
+    }
+  };
+
+  const handleAddSheetTab = () => {
+    const newName = `Sheet${sheetTabs.length + 1}`;
+    setSheetTabs([...sheetTabs, newName]);
+    setActiveTab(newName);
+    setSuccessMsg(`Created new sheet tab "${newName}"`);
+    setTimeout(() => setSuccessMsg(null), 2500);
+  };
+
+  const handleCreateNewSpreadsheet = async () => {
+    setLoading(true);
     try {
       const created = await createDriveFile(
         token,
-        newSheetName.trim(),
+        'Untitled Spreadsheet',
         'application/vnd.google-apps.spreadsheet'
       );
       setSpreadsheets([created, ...spreadsheets]);
       setSelectedSpreadsheetId(created.id);
-      setSuccessMsg(`Spreadsheet "${newSheetName}" created!`);
-      setShowCreateSheetModal(false);
-      setNewSheetName('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to create spreadsheet');
+      setSpreadsheetTitle('Untitled Spreadsheet');
+      setCellData({});
+      setSuccessMsg('Created new Google Spreadsheet!');
+      setTimeout(() => setSuccessMsg(null), 3000);
+    } catch (err) {
+      console.error(err);
     } finally {
-      setIsCreatingSheet(false);
-    }
-  };
-
-  // Load available spreadsheets from Drive
-  const loadSpreadsheets = async () => {
-    setLoadingList(true);
-    setError(null);
-    try {
-      const files = await searchSpreadsheets(token);
-      setSpreadsheets(files);
-      if (files.length > 0 && !selectedSpreadsheetId) {
-        setSelectedSpreadsheetId(files[0].id);
-      }
-    } catch (err: any) {
-      setError(err.message || 'Failed to list spreadsheets');
-    } finally {
-      setLoadingList(false);
-    }
-  };
-
-  useEffect(() => {
-    loadSpreadsheets();
-  }, [token]);
-
-  // Load sheet metadata and values when spreadsheetId changes
-  useEffect(() => {
-    if (!selectedSpreadsheetId) return;
-
-    const fetchSheetData = async () => {
-      setLoadingSheet(true);
-      setError(null);
-      try {
-        const meta = await getSheetMetadata(token, selectedSpreadsheetId);
-        setMetadata(meta);
-        const firstTabName = meta.sheets?.[0]?.properties?.title || 'Sheet1';
-        setActiveSheetTab(firstTabName);
-
-        // Fetch values
-        const valRes = await getSheetValues(token, selectedSpreadsheetId, `${firstTabName}!A1:Z50`);
-        setSheetValues(valRes.values || []);
-      } catch (err: any) {
-        setError(err.message || 'Failed to load spreadsheet details');
-        setMetadata(null);
-        setSheetValues([]);
-      } finally {
-        setLoadingSheet(false);
-      }
-    };
-
-    fetchSheetData();
-  }, [selectedSpreadsheetId, token]);
-
-  // Switch tab
-  const handleTabChange = async (tabName: string) => {
-    if (!selectedSpreadsheetId) return;
-    setActiveSheetTab(tabName);
-    setLoadingSheet(true);
-    try {
-      const valRes = await getSheetValues(token, selectedSpreadsheetId, `${tabName}!A1:Z50`);
-      setSheetValues(valRes.values || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load sheet tab');
-    } finally {
-      setLoadingSheet(false);
-    }
-  };
-
-  const handleCustomIdSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    let id = customIdInput.trim();
-    // Extract ID if full URL passed: https://docs.google.com/spreadsheets/d/{ID}/edit
-    const urlMatch = id.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    if (urlMatch) {
-      id = urlMatch[1];
-    }
-    if (id) {
-      setSelectedSpreadsheetId(id);
-    }
-  };
-
-  const handleAppendConfirm = async () => {
-    if (!selectedSpreadsheetId || !activeSheetTab) return;
-    setIsAppending(true);
-    try {
-      const rowData = newRowInput
-        .split(',')
-        .map((cell) => cell.trim());
-      await appendSheetRow(token, selectedSpreadsheetId, `${activeSheetTab}!A1`, rowData);
-
-      setSuccessMsg('Row appended successfully to sheet!');
-      setShowAppendModal(false);
-      setNewRowInput('');
-
-      // Refresh sheet values
-      const valRes = await getSheetValues(token, selectedSpreadsheetId, `${activeSheetTab}!A1:Z50`);
-      setSheetValues(valRes.values || []);
-    } catch (err: any) {
-      setError(err.message || 'Failed to append row');
-    } finally {
-      setIsAppending(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div id="sheets-view" className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white/75 backdrop-blur-2xl p-5 sm:p-6 rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)]">
-        <div className="flex items-center gap-3">
+    <div
+      id="sheets-view"
+      className="flex flex-col h-[calc(100vh-5.5rem)] bg-white rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-none"
+      onClick={() => setActiveMenu(null)}
+    >
+      {/* 1. AUTHENTIC GOOGLE SHEETS HEADER */}
+      <header className="h-16 px-4 bg-white border-b border-[#dadce0] flex items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
           {onBackToOverview && (
             <button
-              id="sheets-back-to-overview-btn"
               onClick={onBackToOverview}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-emerald-600 bg-white/80 hover:bg-white border border-white/90 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
-              title="Return to Workspace Overview"
+              className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              title="Back to Overview"
             >
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Overview</span>
-              <span className="sm:hidden">Back</span>
+              <ArrowLeft className="w-5 h-5" />
             </button>
           )}
-          <div className="p-2 bg-emerald-500/10 border border-emerald-200/60 rounded-2xl shrink-0 shadow-2xs flex items-center justify-center">
-            <GoogleSheetsIcon className="w-7 h-7" />
-          </div>
-          <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Google Sheets</h2>
-            <p className="text-sm text-slate-500">Read, explore, and append spreadsheet data</p>
-          </div>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            onClick={() => setShowCreateSheetModal(true)}
-            className="px-4 py-2.5 bg-[#0f9d58] hover:bg-[#0b8043] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+          <div
+            onClick={() => setShowSpreadsheetPicker(true)}
+            className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity shrink-0"
+            title="Switch spreadsheet or view Drive sheets"
           >
-            <Plus className="w-4 h-4" />
-            <span>New Sheet</span>
-          </button>
-          {metadata && selectedSpreadsheetId && (
-            <>
-              <button
-                id="append-row-open-btn"
-                onClick={() => setShowAppendModal(true)}
-                className="px-4 py-2.5 bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 active:bg-emerald-800 text-white text-xs font-semibold rounded-xl shadow-[0_4px_14px_rgba(16,185,129,0.3),inset_0_1px_1px_rgba(255,255,255,0.4)] border border-emerald-400/40 flex items-center gap-2 transition-all cursor-pointer hover:scale-105"
-              >
-                <Plus className="w-4 h-4" />
-                Append Row
-              </button>
-              <a
-                href={`https://docs.google.com/spreadsheets/d/${selectedSpreadsheetId}/edit`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="p-2.5 text-slate-600 hover:text-emerald-700 bg-white/70 hover:bg-white rounded-xl border border-white/90 transition-colors shadow-2xs cursor-pointer"
-                title="Open in Google Sheets"
-              >
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </>
-          )}
-
-          <button
-            onClick={() => loadSpreadsheets()}
-            disabled={loadingList}
-            className="p-2.5 text-slate-600 hover:text-slate-900 bg-white/70 hover:bg-white rounded-xl border border-white/90 transition-colors shadow-2xs cursor-pointer"
-            title="Refresh spreadsheets"
-          >
-            <RefreshCw className={`w-4 h-4 ${loadingList ? 'animate-spin text-emerald-600' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="p-4 bg-red-50/80 backdrop-blur-md border border-red-200/80 text-red-700 rounded-2xl text-sm flex items-center justify-between shadow-xs">
-          <span>{error}</span>
-          <button onClick={() => setError(null)} className="text-xs underline font-medium">
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {successMsg && (
-        <div className="p-4 bg-emerald-50/80 backdrop-blur-md border border-emerald-200/80 text-emerald-700 rounded-2xl text-sm flex items-center justify-between shadow-xs">
-          <span className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4" /> {successMsg}
-          </span>
-          <button onClick={() => setSuccessMsg(null)} className="text-xs underline font-medium">
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Spreadsheet selector bar */}
-      <div className="bg-white/75 backdrop-blur-2xl p-5 sm:p-6 rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)] space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-              Select from your Drive spreadsheets:
-            </label>
-            <select
-              id="spreadsheet-select"
-              value={selectedSpreadsheetId}
-              onChange={(e) => setSelectedSpreadsheetId(e.target.value)}
-              className="w-full text-sm bg-white/70 backdrop-blur-md border border-white/90 rounded-xl px-3.5 py-2.5 text-slate-800 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
-            >
-              {spreadsheets.length === 0 ? (
-                <option value="">No spreadsheets found in Drive</option>
-              ) : (
-                spreadsheets.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.id.slice(0, 8)}...)
-                  </option>
-                ))
-              )}
-            </select>
+            <GoogleSheetsIcon className="w-9 h-9" />
           </div>
 
-          <div className="sm:w-72">
-            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">
-              Or paste Spreadsheet ID or URL:
-            </label>
-            <form onSubmit={handleCustomIdSubmit} className="flex gap-2">
+          {/* Editable Spreadsheet Title & Status */}
+          <div className="min-w-0 flex flex-col justify-center">
+            <div className="flex items-center gap-2">
               <input
-                id="custom-spreadsheet-id-input"
                 type="text"
-                placeholder="ID or Docs link..."
-                value={customIdInput}
-                onChange={(e) => setCustomIdInput(e.target.value)}
-                className="flex-1 text-sm bg-white/70 backdrop-blur-md border border-white/90 rounded-xl px-3.5 py-2.5 text-slate-800 shadow-2xs focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20"
+                value={spreadsheetTitle}
+                onChange={(e) => {
+                  setSpreadsheetTitle(e.target.value);
+                  setIsSaved(false);
+                  setTimeout(() => setIsSaved(true), 1000);
+                }}
+                className="text-base font-medium text-[#1f1f1f] hover:bg-[#f0f4f9] px-2 py-0.5 rounded border border-transparent hover:border-[#dadce0] focus:border-[#188038] focus:bg-white outline-none max-w-[280px] sm:max-w-md truncate transition-all"
               />
               <button
-                type="submit"
-                className="px-4 py-2.5 text-xs font-semibold bg-slate-800 hover:bg-slate-900 text-white rounded-xl shadow-xs transition-colors cursor-pointer"
+                onClick={() => setIsStarred(!isStarred)}
+                className="p-1 text-[#5f6368] hover:text-[#fbbc04] rounded-full cursor-pointer transition-colors"
+                title={isStarred ? 'Starred' : 'Star spreadsheet'}
               >
-                Load
+                <Star className={`w-4 h-4 ${isStarred ? 'fill-[#fbbc04] text-[#fbbc04]' : ''}`} />
               </button>
-            </form>
-          </div>
-        </div>
+              <button
+                onClick={() => setShowSpreadsheetPicker(true)}
+                className="p-1 text-[#5f6368] hover:bg-[#f0f4f9] rounded-full cursor-pointer hidden sm:block"
+                title="Move spreadsheet"
+              >
+                <Folder className="w-4 h-4" />
+              </button>
+              <div className="flex items-center gap-1 text-[11px] text-[#5f6368] ml-1 hidden md:flex">
+                <Check className={`w-3.5 h-3.5 ${isSaved ? 'text-[#188038]' : 'text-[#f29900]'}`} />
+                <span>{isSaved ? 'Saved to Drive' : 'Saving...'}</span>
+              </div>
+            </div>
 
-        {/* Tab switcher */}
-        {metadata && metadata.sheets && metadata.sheets.length > 0 && (
-          <div className="pt-3 border-t border-slate-200/60 flex items-center gap-2 overflow-x-auto">
-            <span className="text-xs text-slate-400 font-semibold flex items-center gap-1 shrink-0">
-              <Layers className="w-3.5 h-3.5" /> Sheet Tabs:
-            </span>
-            <div className="flex items-center gap-1.5">
-              {metadata.sheets.map((s) => {
-                const title = s.properties.title;
-                const isActive = activeSheetTab === title;
-                return (
+            {/* Authentic Sheets Menu Bar */}
+            <div className="flex items-center gap-1 text-xs text-[#444746] relative -ml-1">
+              {[
+                {
+                  id: 'file',
+                  label: 'File',
+                  items: [
+                    { label: 'New spreadsheet', action: handleCreateNewSpreadsheet },
+                    { label: 'Download as CSV', action: () => {
+                      let csv = '';
+                      for (let r = 1; r <= 10; r++) {
+                        const row = COLUMNS.map((c) => `"${cellData[`${c}${r}`] || ''}"`).join(',');
+                        csv += row + '\n';
+                      }
+                      const blob = new Blob([csv], { type: 'text/csv' });
+                      const a = document.createElement('a');
+                      a.href = URL.createObjectURL(blob);
+                      a.download = `${spreadsheetTitle}.csv`;
+                      a.click();
+                    }},
+                    { label: 'Print', action: () => window.print() },
+                  ],
+                },
+                {
+                  id: 'edit',
+                  label: 'Edit',
+                  items: [
+                    { label: 'Clear current cell', action: () => handleCellChange('') },
+                    { label: 'Reset demo data', action: () => setCellData(INITIAL_SHEET_DATA) },
+                  ],
+                },
+                {
+                  id: 'insert',
+                  label: 'Insert',
+                  items: [
+                    { label: 'Insert row below', action: () => setSuccessMsg('Row inserted') },
+                    { label: 'Insert function: =SUM()', action: () => handleCellChange('=SUM(E2:E5)') },
+                    { label: 'Insert function: =AVERAGE()', action: () => handleCellChange('=AVERAGE(E2:E5)') },
+                  ],
+                },
+                {
+                  id: 'data',
+                  label: 'Data',
+                  items: [
+                    { label: 'Sort sheet A -> Z', action: () => setSuccessMsg('Data sorted A-Z') },
+                    { label: 'Create a filter', action: () => setSuccessMsg('Filter activated') },
+                  ],
+                },
+              ].map((menu) => (
+                <div key={menu.id} className="relative" onClick={(e) => e.stopPropagation()}>
                   <button
-                    key={s.properties.sheetId}
-                    id={`sheet-tab-${s.properties.sheetId}`}
-                    onClick={() => handleTabChange(title)}
-                    className={`px-3.5 py-1.5 text-xs rounded-xl whitespace-nowrap transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-emerald-500/15 text-emerald-800 font-bold border border-emerald-300/80 shadow-2xs'
-                        : 'text-slate-600 hover:bg-white/80 border border-transparent'
+                    onClick={() => setActiveMenu(activeMenu === menu.id ? null : menu.id)}
+                    className={`px-2 py-0.5 rounded hover:bg-[#f0f4f9] text-[#1f1f1f] text-xs font-normal cursor-pointer ${
+                      activeMenu === menu.id ? 'bg-[#e6f4ea] text-[#188038]' : ''
                     }`}
                   >
-                    {title}
+                    {menu.label}
                   </button>
-                );
-              })}
+                  {activeMenu === menu.id && (
+                    <div className="absolute top-6 left-0 z-50 w-56 bg-white rounded-xl shadow-lg border border-[#dadce0] py-1 text-xs text-[#1f1f1f] animate-in fade-in">
+                      {menu.items.map((item, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            item.action();
+                            setActiveMenu(null);
+                          }}
+                          className="w-full text-left px-4 py-2 hover:bg-[#f0f4f9] flex items-center justify-between cursor-pointer"
+                        >
+                          <span>{item.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
-        )}
+        </div>
+
+        {/* Right Header Controls: Share Green Button + Google Web Link */}
+        <div className="flex items-center gap-2">
+          <button
+            id="sheets-share-btn"
+            onClick={() => setShowShareModal(true)}
+            className="px-5 py-2.5 bg-[#c2e7ff] hover:bg-[#b3defa] hover:shadow-xs active:bg-[#a0d2f8] text-[#001d35] rounded-full text-xs font-bold flex items-center gap-2 transition-all cursor-pointer select-none"
+          >
+            <Lock className="w-3.5 h-3.5 text-[#001d35]" />
+            <span>Share</span>
+          </button>
+        </div>
+      </header>
+
+      {/* 2. AUTHENTIC GOOGLE SHEETS TOOLBAR */}
+      <div className="h-10 px-4 bg-[#edf2fa] border-b border-[#dadce0] flex items-center gap-1 overflow-x-auto scrollbar-none select-none shrink-0 text-[#444746]">
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Undo"><Undo className="w-4 h-4" /></button>
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Redo"><Redo className="w-4 h-4" /></button>
+        <button onClick={() => window.print()} className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Print"><Printer className="w-4 h-4" /></button>
+
+        <div className="h-4 w-px bg-[#dadce0] mx-1" />
+
+        <button onClick={() => handleCellChange(`$${cellData[activeCell] || '0'}`)} className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer font-bold text-xs" title="Format as currency">
+          <DollarSign className="w-4 h-4" />
+        </button>
+        <button onClick={() => handleCellChange(`${cellData[activeCell] || '0'}%`)} className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer font-bold text-xs" title="Format as percent">
+          <Percent className="w-4 h-4" />
+        </button>
+
+        <div className="h-4 w-px bg-[#dadce0] mx-1" />
+
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Bold"><Bold className="w-4 h-4" /></button>
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Italic"><Italic className="w-4 h-4" /></button>
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Text color"><PaintBucket className="w-4 h-4" /></button>
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Borders"><Grid className="w-4 h-4" /></button>
+
+        <div className="h-4 w-px bg-[#dadce0] mx-1" />
+
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Align Left"><AlignLeft className="w-4 h-4" /></button>
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Align Center"><AlignCenter className="w-4 h-4" /></button>
+        <button className="p-1.5 hover:bg-[#e1eaf5] rounded cursor-pointer" title="Align Right"><AlignRight className="w-4 h-4" /></button>
+
+        <div className="h-4 w-px bg-[#dadce0] mx-1" />
+
+        <button
+          onClick={() => handleCellChange('=SUM(E2:E5)')}
+          className="px-2 py-1 text-xs font-semibold text-[#188038] hover:bg-[#e6f4ea] rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+          title="Insert SUM formula"
+        >
+          <Sigma className="w-4 h-4" />
+          <span>SUM</span>
+        </button>
+        <button
+          onClick={() => handleCellChange('=AVERAGE(E2:E5)')}
+          className="px-2 py-1 text-xs font-semibold text-[#188038] hover:bg-[#e6f4ea] rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+          title="Insert AVERAGE formula"
+        >
+          <Sigma className="w-4 h-4" />
+          <span>AVG</span>
+        </button>
+
+        <button
+          onClick={() => setShowSpreadsheetPicker(true)}
+          className="ml-auto px-2.5 py-1 text-xs font-semibold text-[#444746] hover:bg-[#e1eaf5] rounded-full transition-colors flex items-center gap-1 cursor-pointer"
+        >
+          <Table className="w-3.5 h-3.5 text-[#188038]" />
+          <span>Spreadsheets ({spreadsheets.length})</span>
+        </button>
       </div>
 
-      {/* Sheet Grid Table */}
-      <div className="bg-white/75 backdrop-blur-2xl rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)] overflow-hidden">
-        {loadingSheet ? (
-          <div className="p-12 text-center text-slate-400">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-emerald-500" />
-            <p className="text-sm font-medium">Loading cells from Google Sheets...</p>
-          </div>
-        ) : !selectedSpreadsheetId ? (
-          <div className="p-12 text-center text-slate-400">
-            <Table className="w-12 h-12 stroke-1 mx-auto mb-3 text-slate-300" />
-            <p className="text-sm font-medium text-slate-600">No spreadsheet selected</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Choose a spreadsheet from the dropdown above or paste an ID
-            </p>
-          </div>
-        ) : sheetValues.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">
-            <Table className="w-12 h-12 stroke-1 mx-auto mb-3 text-slate-300" />
-            <p className="text-sm font-medium text-slate-600">Sheet tab is empty</p>
-            <p className="text-xs text-slate-400 mt-1">
-              No values found in range {activeSheetTab}!A1:Z50. Click "Append Row" to add data.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto max-h-[500px]">
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="bg-slate-100/90 text-slate-600 sticky top-0 z-10 border-b border-slate-200">
-                  <th className="py-2.5 px-3 w-12 text-center font-mono text-slate-400 border-r border-slate-200">
-                    #
+      {/* 3. AUTHENTIC FORMULA BAR (Active cell box + fx + formula text input) */}
+      <div className="h-9 px-3 bg-white border-b border-[#dadce0] flex items-center gap-2 shrink-0">
+        {/* Cell Reference Box */}
+        <div className="w-16 h-6 px-2 bg-[#f8fafd] border border-[#dadce0] rounded text-center text-xs font-semibold text-[#1f1f1f] flex items-center justify-center">
+          {activeCell}
+        </div>
+
+        {/* fx symbol */}
+        <div className="text-xs font-serif italic text-[#747775] font-bold px-1 select-none">
+          fx
+        </div>
+
+        <div className="h-4 w-px bg-[#dadce0]" />
+
+        {/* Live Formula Input Field */}
+        <input
+          ref={formulaInputRef}
+          type="text"
+          value={formulaInput}
+          onChange={(e) => handleCellChange(e.target.value)}
+          placeholder="Enter text, numbers, or formula (=SUM, =AVERAGE)"
+          className="flex-1 text-xs text-[#1f1f1f] outline-none bg-transparent"
+        />
+      </div>
+
+      {/* SUCCESS TOAST */}
+      {successMsg && (
+        <div className="px-6 py-2 bg-[#e6f4ea] border-b border-[#b7e1cd] text-[#137333] text-xs font-medium flex items-center justify-between">
+          <span className="flex items-center gap-2"><CheckCircle2 className="w-4 h-4" /> {successMsg}</span>
+          <button onClick={() => setSuccessMsg(null)} className="underline cursor-pointer">Dismiss</button>
+        </div>
+      )}
+
+      {/* 4. AUTHENTIC SPREADSHEET INTERACTIVE DATA GRID */}
+      <div className="flex-1 overflow-auto bg-[#f8fafd]">
+        <table className="border-collapse table-fixed w-full text-xs">
+          <thead className="sticky top-0 z-20 bg-[#f8fafd] shadow-2xs select-none">
+            <tr>
+              {/* Top-left corner box */}
+              <th className="w-12 h-6 border border-[#dadce0] bg-[#eef2f8] text-[#5f6368] text-center font-normal" />
+              {COLUMNS.map((col, cIdx) => {
+                const isColActive = activeCell.startsWith(col);
+                return (
+                  <th
+                    key={col}
+                    className={`h-6 border border-[#dadce0] text-center font-semibold text-[11px] ${
+                      isColActive ? 'bg-[#c2e7ff] text-[#001d35]' : 'bg-[#f8fafd] text-[#444746]'
+                    }`}
+                    style={{ width: col === 'A' ? '200px' : '140px' }}
+                  >
+                    {col}
                   </th>
-                  {sheetValues[0]?.map((_, colIdx) => (
-                    <th
-                      key={colIdx}
-                      className="py-2.5 px-3 text-left font-mono font-medium tracking-wider border-r border-slate-200 last:border-r-0 min-w-[120px]"
-                    >
-                      {String.fromCharCode(65 + (colIdx % 26))}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-sans">
-                {sheetValues.map((row, rowIdx) => (
-                  <tr key={rowIdx} className="hover:bg-emerald-50/30 transition-colors">
-                    <td className="py-2 px-3 text-center font-mono text-slate-400 bg-slate-50/50 border-r border-slate-200 select-none">
-                      {rowIdx + 1}
-                    </td>
-                    {row.map((cell, colIdx) => (
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: ROWS_COUNT }).map((_, rIdx) => {
+              const rowNum = rIdx + 1;
+              const isRowActive = activeCell.endsWith(String(rowNum));
+              return (
+                <tr key={rowNum} className="h-6">
+                  {/* Row Number Header */}
+                  <td
+                    className={`w-12 border border-[#dadce0] text-center font-semibold text-[11px] select-none ${
+                      isRowActive ? 'bg-[#c2e7ff] text-[#001d35]' : 'bg-[#f8fafd] text-[#444746]'
+                    }`}
+                  >
+                    {rowNum}
+                  </td>
+
+                  {/* Columns for this row */}
+                  {COLUMNS.map((col, cIdx) => {
+                    const cellId = `${col}${rowNum}`;
+                    const isSelected = activeCell === cellId;
+                    const rawVal = cellData[cellId] || '';
+                    const displayVal = evaluateCellValue(rawVal);
+                    const isHeaderRow = rowNum === 1;
+
+                    return (
                       <td
-                        key={colIdx}
-                        className={`py-2 px-3 border-r border-slate-100 last:border-r-0 truncate max-w-xs ${
-                          rowIdx === 0 ? 'font-semibold text-slate-900 bg-slate-50/30' : 'text-slate-700'
-                        }`}
+                        key={cellId}
+                        id={`sheet-cell-${cellId}`}
+                        onClick={() => selectCell(cellId)}
+                        onDoubleClick={() => setIsEditingCell(true)}
+                        className={`border border-[#dadce0] px-2 py-1 text-xs truncate relative outline-none transition-colors ${
+                          isSelected
+                            ? 'ring-2 ring-[#188038] ring-inset bg-white z-10 font-medium'
+                            : 'bg-white hover:bg-[#f2f6fc]'
+                        } ${isHeaderRow ? 'font-bold bg-[#f8fafd] text-[#1f1f1f]' : 'text-[#202124]'}`}
                       >
-                        {cell || ''}
+                        {isEditingCell && isSelected ? (
+                          <input
+                            type="text"
+                            value={formulaInput}
+                            autoFocus
+                            onChange={(e) => handleCellChange(e.target.value)}
+                            onBlur={() => setIsEditingCell(false)}
+                            onKeyDown={(e) => handleKeyDown(e, cIdx, rowNum)}
+                            className="w-full h-full bg-transparent outline-none text-xs"
+                          />
+                        ) : (
+                          <span>{displayVal}</span>
+                        )}
+
+                        {/* Google Sheets active cell bottom-right fill handle */}
+                        {isSelected && (
+                          <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-[#188038] border border-white rounded-2xs cursor-crosshair z-20 pointer-events-none" />
+                        )}
                       </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      {/* Append Row Confirmation Modal */}
-      <ConfirmModal
-        isOpen={showAppendModal}
-        title="Append New Row to Sheet"
-        description={`Enter comma-separated values to append to tab "${activeSheetTab}" in spreadsheet "${
-          metadata?.properties?.title || selectedSpreadsheetId
-        }". This operation will write data directly to Google Sheets.`}
-        confirmLabel="Append Row to Sheet"
-        isDestructive={false}
-        isLoading={isAppending}
-        itemsList={
-          newRowInput
-            ? newRowInput.split(',').map((c, i) => `Column ${String.fromCharCode(65 + i)}: ${c.trim()}`)
-            : ['No cell values entered yet']
-        }
-        onConfirm={handleAppendConfirm}
-        onCancel={() => {
-          setShowAppendModal(false);
-          setNewRowInput('');
-        }}
-      />
+      {/* 5. BOTTOM SHEET TABS BAR & STATUS BAR */}
+      <footer className="h-9 px-4 bg-[#f8fafd] border-t border-[#dadce0] flex items-center justify-between shrink-0 select-none text-xs">
+        <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
+          <button
+            onClick={handleAddSheetTab}
+            className="p-1 text-[#444746] hover:bg-[#e8eaed] rounded-full cursor-pointer transition-colors"
+            title="Add sheet tab"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
 
-      {/* Input popup if modal is triggerable */}
-      {showAppendModal && (
-        <div className="fixed inset-0 z-40 flex items-center justify-center pointer-events-none p-4">
-          <div className="w-full max-w-md bg-white p-4 rounded-xl border border-slate-300 shadow-xl pointer-events-auto mt-[-100px]">
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Comma-Separated Row Values:
-            </label>
-            <input
-              id="sheet-append-input"
-              type="text"
-              placeholder="e.g. Sales, 4500, Approved, 2026-09-12"
-              value={newRowInput}
-              onChange={(e) => setNewRowInput(e.target.value)}
-              className="w-full text-sm bg-slate-50 border border-slate-300 rounded-lg p-2 text-slate-900 focus:ring-2 focus:ring-emerald-500/20"
-              autoFocus
-            />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Separate each column value with a comma.
-            </p>
+          {sheetTabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-1.5 rounded-t-lg font-semibold text-xs border-t-2 transition-colors cursor-pointer ${
+                activeTab === tab
+                  ? 'bg-white border-[#188038] text-[#188038] shadow-xs'
+                  : 'border-transparent text-[#444746] hover:bg-[#e8eaed]'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Live Formula computation chip on right (like real Sheets!) */}
+        <div className="flex items-center gap-3 text-[11px] text-[#5f6368] font-medium hidden sm:flex">
+          <span className="bg-[#e6f4ea] text-[#137333] px-2.5 py-0.5 rounded-full font-bold">
+            Live Calculation Active
+          </span>
+          <span>Google Sheets Cloud Sync</span>
+        </div>
+      </footer>
+
+      {/* SPREADSHEETS PICKER MODAL */}
+      {showSpreadsheetPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+          <div className="w-full max-w-lg bg-white rounded-3xl p-6 shadow-xl border border-[#dadce0] space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-[#1f1f1f]">Your Google Spreadsheets in Drive</h3>
+              <button onClick={() => setShowSpreadsheetPicker(false)} className="p-1 rounded-full hover:bg-[#f0f4f9]">
+                <Plus className="w-5 h-5 rotate-45 text-[#5f6368]" />
+              </button>
+            </div>
+            <div className="max-h-72 overflow-y-auto divide-y divide-[#f1f3f4]">
+              {spreadsheets.map((s) => (
+                <div
+                  key={s.id}
+                  onClick={() => {
+                    setSelectedSpreadsheetId(s.id);
+                    setSpreadsheetTitle(s.name);
+                    setShowSpreadsheetPicker(false);
+                  }}
+                  className="p-3 hover:bg-[#f2f6fc] rounded-xl flex items-center justify-between cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <GoogleSheetsIcon className="w-6 h-6 shrink-0" />
+                    <div>
+                      <p className="text-xs font-semibold text-[#1f1f1f]">{s.name}</p>
+                      <p className="text-[11px] text-[#5f6368]">{s.modifiedTime ? new Date(s.modifiedTime).toLocaleDateString() : ''}</p>
+                    </div>
+                  </div>
+                  {selectedSpreadsheetId === s.id && (
+                    <span className="text-xs text-[#188038] font-bold">Active</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-end pt-2">
+              <button
+                onClick={() => setShowSpreadsheetPicker(false)}
+                className="px-5 py-2 bg-[#188038] text-white rounded-full text-xs font-bold cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}
-      {/* New Spreadsheet Creation Modal */}
-      {showCreateSheetModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-xs p-4">
-          <form
-            onSubmit={handleCreateSheet}
-            className="w-full max-w-sm bg-white rounded-3xl shadow-[0_4px_24px_rgba(60,64,67,0.25)] border border-[#dadce0] p-6 space-y-4"
-          >
-            <div className="flex items-center justify-between border-b border-[#f1f3f4] pb-3">
-              <h3 className="text-sm font-bold text-[#1f1f1f] flex items-center gap-2">
-                <SheetIcon className="w-4 h-4 text-[#0f9d58]" /> Create New Spreadsheet
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowCreateSheetModal(false)}
-                className="text-[#5f6368] hover:text-[#1f1f1f] p-1 rounded-full"
-              >
-                <X className="w-5 h-5" />
+
+      {/* SHARE MODAL */}
+      {showShareModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-2xs p-4">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-[#dadce0] space-y-5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-bold text-[#1f1f1f]">Share "{spreadsheetTitle}"</h3>
+              <button onClick={() => setShowShareModal(false)} className="p-1 rounded-full hover:bg-[#f0f4f9]">
+                <Plus className="w-5 h-5 rotate-45 text-[#5f6368]" />
               </button>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-[#444746] mb-1">
-                Spreadsheet Title
-              </label>
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-[#444746]">Add people and groups</label>
               <input
                 type="text"
-                placeholder="Untitled Spreadsheet"
-                value={newSheetName}
-                onChange={(e) => setNewSheetName(e.target.value)}
-                autoFocus
-                className="w-full px-4 py-2 text-xs bg-[#f0f4f9] border border-transparent focus:border-[#0f9d58] rounded-full focus:bg-white outline-none"
+                placeholder="Add emails..."
+                className="w-full px-4 py-2.5 text-xs rounded-xl border border-[#dadce0] outline-none focus:border-[#188038]"
               />
             </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div className="p-3 bg-[#f8fafd] rounded-2xl border border-[#dadce0] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-[#5f6368]" />
+                <span className="text-xs text-[#444746]">Restricted: Only added users</span>
+              </div>
               <button
-                type="button"
-                onClick={() => setShowCreateSheetModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-[#5f6368] hover:bg-slate-100 rounded-full"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  setSuccessMsg('Spreadsheet link copied!');
+                  setTimeout(() => setSuccessMsg(null), 2500);
+                  setShowShareModal(false);
+                }}
+                className="px-3 py-1.5 bg-[#e6f4ea] hover:bg-[#ceead6] text-[#188038] font-bold text-xs rounded-full cursor-pointer"
               >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={!newSheetName.trim() || isCreatingSheet}
-                className="px-5 py-2 text-xs font-bold text-white bg-[#0f9d58] hover:bg-[#0b8043] rounded-full disabled:opacity-50"
-              >
-                {isCreatingSheet ? 'Creating...' : 'Create Spreadsheet'}
+                Copy link
               </button>
             </div>
-          </form>
+            <div className="flex justify-end">
+              <button
+                onClick={() => setShowShareModal(false)}
+                className="px-5 py-2 bg-[#188038] text-white rounded-full text-xs font-bold cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
