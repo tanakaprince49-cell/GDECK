@@ -89,6 +89,14 @@ export interface ChatSpace {
   displayName?: string;
   type?: string;
   spaceType?: string;
+  description?: string;
+  memberCount?: number;
+  unreadCount?: number;
+  lastMessageSnippet?: string;
+  lastMessageTime?: string;
+  isDirectMessage?: boolean;
+  userAvatar?: string;
+  status?: 'active' | 'away' | 'offline';
 }
 
 export interface ChatMessage {
@@ -100,6 +108,11 @@ export interface ChatMessage {
     displayName?: string;
     avatarUrl?: string;
   };
+  reactions?: Record<string, number>;
+  userReactions?: string[];
+  meetingUri?: string;
+  attachmentName?: string;
+  isPinned?: boolean;
 }
 
 export interface ContactPerson {

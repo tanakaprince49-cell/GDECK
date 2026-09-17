@@ -1229,6 +1229,21 @@ export async function sendChatMessage(
   });
 }
 
+export async function createChatSpace(
+  token: string,
+  displayName: string,
+  spaceType: 'SPACE' | 'GROUP_CHAT' = 'SPACE'
+): Promise<ChatSpace> {
+  return googleFetch('https://chat.googleapis.com/v1/spaces', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      spaceType,
+      displayName,
+    }),
+  });
+}
+
 // ---------------- Google Contacts (People API) ----------------
 export async function listContacts(token: string, pageSize = 30): Promise<ContactPerson[]> {
   const data = await googleFetch(
