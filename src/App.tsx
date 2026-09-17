@@ -410,11 +410,22 @@ export default function App() {
                 <button
                   id="direct-header-signout-btn"
                   onClick={() => setShowLogoutConfirm(true)}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#5f6368] hover:text-[#d93025] hover:bg-[#fce8e6] bg-[#f0f4f9] rounded-full border border-[#dadce0] transition-colors cursor-pointer"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#e8eaed] bg-[#f0f4f9] rounded-full border border-[#dadce0] transition-colors cursor-pointer"
                   title="Sign out of Google Workspace"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>Sign Out</span>
+                </button>
+
+                {/* Direct Desktop Delete Account button */}
+                <button
+                  id="direct-header-delete-btn"
+                  onClick={() => setShowDeleteAccountModal(true)}
+                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#d93025] hover:bg-[#fce8e6] bg-[#fdf2f2] rounded-full border border-[#f5c6cb] transition-colors cursor-pointer"
+                  title="Permanently delete account and revoke all permissions"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-[#d93025]" />
+                  <span>Delete Account</span>
                 </button>
 
                 {/* 9-dot Google App Launcher (Waffle Menu) */}
@@ -499,7 +510,7 @@ export default function App() {
 
                   {/* Profile Details Dropdown */}
                   {showProfileMenu && (
-                    <div className="fixed sm:absolute top-14 sm:top-auto left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 w-auto sm:w-72 max-w-sm ml-auto rounded-3xl bg-white border border-[#dadce0] shadow-[0_4px_24px_rgba(60,64,67,0.2)] p-4 z-50 animate-in fade-in slide-in-from-top-2">
+                    <div className="fixed sm:absolute top-14 sm:top-auto left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-w-sm ml-auto rounded-3xl bg-white border border-[#dadce0] shadow-[0_4px_24px_rgba(60,64,67,0.2)] p-4 z-50 animate-in fade-in slide-in-from-top-2">
                       <div className="flex flex-col items-center text-center pb-4 border-b border-[#f1f3f4]">
                         {user.photoURL ? (
                           <img
@@ -526,14 +537,41 @@ export default function App() {
 
                       <div className="pt-3 space-y-1.5">
                         <button
+                          id="profile-customize-prefs-btn"
                           onClick={() => {
                             setShowOnboarding(true);
                             setShowProfileMenu(false);
                           }}
-                          className="w-full px-3 py-2 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2 cursor-pointer transition-colors"
+                          className="w-full px-3 py-2 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
                         >
                           <Settings className="w-4 h-4 text-[#5f6368]" />
                           <span>Customize Preferences</span>
+                        </button>
+
+                        <button
+                          id="profile-signout-btn"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowLogoutConfirm(true);
+                          }}
+                          className="w-full px-3 py-2 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <LogOut className="w-4 h-4 text-[#5f6368]" />
+                          <span>Sign Out</span>
+                        </button>
+
+                        <div className="my-1 border-t border-[#f1f3f4]" />
+
+                        <button
+                          id="profile-delete-account-btn"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowDeleteAccountModal(true);
+                          }}
+                          className="w-full px-3 py-2 text-xs font-bold text-[#d93025] hover:bg-[#fce8e6] bg-[#fff5f5] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors border border-[#f5c6cb]"
+                        >
+                          <Trash2 className="w-4 h-4 text-[#d93025]" />
+                          <span>Delete Account & Wipe Data</span>
                         </button>
                       </div>
                     </div>
@@ -939,6 +977,7 @@ export default function App() {
                 onOpenOnboarding={() => setShowOnboarding(true)}
                 pinnedTools={pinnedTools}
                 onTogglePin={togglePin}
+                onDeleteAccount={() => setShowDeleteAccountModal(true)}
               />
             )}
             {/* 1. Gmail */}
@@ -1100,6 +1139,18 @@ export default function App() {
             >
               Contact Support
             </a>
+            {user && (
+              <>
+                <span>•</span>
+                <button
+                  id="footer-delete-account-btn"
+                  onClick={() => setShowDeleteAccountModal(true)}
+                  className="text-[#d93025] hover:underline font-semibold cursor-pointer"
+                >
+                  Delete Account
+                </button>
+              </>
+            )}
           </div>
         </div>
       </footer>

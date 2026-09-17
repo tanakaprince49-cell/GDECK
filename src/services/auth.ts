@@ -185,10 +185,14 @@ export const deleteAccountPermanently = async () => {
   }
   if (currentToken) {
     try {
-      await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(currentToken)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      });
+      await fetch(
+        `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(currentToken)}`,
+        {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        }
+      );
     } catch (err) {
       console.warn('Google token revocation notice:', err);
     }
@@ -205,11 +209,11 @@ export const deleteAccountPermanently = async () => {
         await signOut(auth);
       } catch {}
     }
-  } else {
-    try {
-      await signOut(auth);
-    } catch {}
   }
+
+  try {
+    await signOut(auth);
+  } catch {}
 
   // 3. Clear memory reference
   cachedAccessToken = null;

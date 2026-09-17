@@ -24,6 +24,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   isOpen,
   onComplete,
   onClose,
+  onDeleteAccount,
 }) => {
   const [userName, setUserName] = useState<string>('');
 
@@ -86,29 +87,44 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-2">
-            {onClose && (
+          <div className="flex items-center justify-between gap-3 pt-2">
+            {onDeleteAccount ? (
               <button
                 type="button"
                 onClick={() => {
-                  try {
-                    localStorage.setItem('gdeck_onboarding_completed', 'true');
-                  } catch {}
-                  onClose();
+                  if (onClose) onClose();
+                  onDeleteAccount();
                 }}
-                className="px-4 py-2 text-xs font-semibold text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
+                className="text-xs font-semibold text-[#d93025] hover:underline cursor-pointer"
               >
-                Skip
+                Delete Account
               </button>
-            )}
-            <button
-              id="onboarding-submit-btn"
-              type="submit"
-              className="px-6 py-2.5 bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full text-xs font-bold transition-all shadow-sm hover:shadow flex items-center gap-2 cursor-pointer"
-            >
-              <span>Get Started</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+            ) : <div />}
+
+            <div className="flex items-center gap-2">
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    try {
+                      localStorage.setItem('gdeck_onboarding_completed', 'true');
+                    } catch {}
+                    onClose();
+                  }}
+                  className="px-4 py-2 text-xs font-semibold text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
+                >
+                  Skip
+                </button>
+              )}
+              <button
+                id="onboarding-submit-btn"
+                type="submit"
+                className="px-6 py-2.5 bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full text-xs font-bold transition-all shadow-sm hover:shadow flex items-center gap-2 cursor-pointer"
+              >
+                <span>Save</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </form>
       </div>

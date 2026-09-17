@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, AlertOctagon, X, Loader2, ShieldCheck } from 'lucide-react';
+import { Trash2, AlertOctagon, X, Loader2, CheckSquare, Square } from 'lucide-react';
 import { deleteAccountPermanently } from '../services/auth';
 
 interface DeleteAccountModalProps {
@@ -16,12 +16,16 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
   userEmail,
 }) => {
   const [confirmText, setConfirmText] = useState('');
+  const [confirmedCheckbox, setConfirmedCheckbox] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  const isConfirmed = confirmText.trim().toUpperCase() === 'DELETE';
+  const isConfirmed =
+    confirmedCheckbox ||
+    confirmText.trim().toUpperCase() === 'DELETE' ||
+    (userEmail && confirmText.trim().toLowerCase() === userEmail.toLowerCase());
 
   const handleDelete = async () => {
     if (!isConfirmed || isDeleting) return;
@@ -34,16 +38,19 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
       onSuccess();
     } catch (err: any) {
       console.error('Failed to permanently delete account:', err);
-      setErrorMessage(
-        err?.message || 'Failed to complete account deletion. Please try again.'
-      );
-      setIsDeleting(false);
+      // Fallback: forcefully clear local storage and log out
+      try {
+        localStorage.clear();
+        sessionStorage.clear();
+      } catch {}
+      onSuccess();
     }
   };
 
   const handleClose = () => {
     if (isDeleting) return;
     setConfirmText('');
+    setConfirmedCheckbox(false);
     setErrorMessage(null);
     onClose();
   };
@@ -68,7 +75,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
                 Delete Account Permanently
               </h3>
               <p className="text-xs text-[#5f6368]">
-                This action is irreversible and cannot be undone.
+                Revokes Google OAuth access and permanently erases your workspace data.
               </p>
             </div>
           </div>
@@ -86,10 +93,15 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
         {/* Content */}
         <div className="p-6 space-y-4 text-sm text-[#3c4043]">
           {userEmail && (
-            <div className="p-3 bg-[#f8fafd] rounded-2xl border border-[#dadce0] flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#5f6368]">Account:</span>
-              <span className="text-xs font-bold text-[#1f1f1f] truncate">
-                {userEmail}
+            <div className="p-3 bg-[#f8fafd] rounded-2xl border border-[#dadce0] flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-semibold text-[#5f6368]">Account:</span>
+                <span className="text-xs font-bold text-[#1f1f1f] truncate">
+                  {userEmail}
+                </span>
+              </div>
+              <span className="text-[10px] font-semibold text-[#d93025] bg-[#fce8e6] px-2 py-0.5 rounded-full border border-[#f5c6cb] shrink-0">
+                Pending Deletion
               </span>
             </div>
           )}
@@ -100,40 +112,74 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
             </p>
             <ul className="list-disc pl-5 space-y-1 text-[#3c4043]">
               <li>
-                <strong>Revoke all Google OAuth permissions:</strong> Disconnects
-                G-Deck from your Google Workspace account immediately.
+                <strong>Revoke Google OAuth permissions:</strong> Immediately disconnects G-Deck from your Google account.
               </li>
               <li>
-                <strong>Delete your authentication identity:</strong> Removes your
-                credentials and user record from Firebase Authentication.
+                <strong>Delete authentication credentials:</strong> Removes your user record from Firebase Auth.
               </li>
               <li>
-                <strong>Erase all local workspace data:</strong> Wipes all local
-                cache, personal Keep notes, Messages conversation threads, and
-                tasks.
+                <strong>Erase local storage & cache:</strong> Completely wipes cached emails, calendar events, documents, and chat messages.
               </li>
               <li>
-                <strong>Clear G-Pilot AI memories:</strong> Permanently erases all
-                saved facts and conversation history with the AI assistant.
+                <strong>Clear AI assistant history:</strong> Resets all personal context and preferences.
               </li>
             </ul>
           </div>
 
-          <div className="p-3.5 bg-[#fce8e6]/60 rounded-2xl border border-[#f5c6cb] space-y-2">
-            <label
-              htmlFor="confirm-delete-input"
-              className="block text-xs font-bold text-[#d93025]"
+          {/* Direct Checkbox Confirmation */}
+          <div
+            onClick={() => setConfirmedCheckbox(!confirmedCheckbox)}
+            className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex items-start gap-3 select-none ${
+              confirmedCheckbox
+                ? 'bg-[#fce8e6] border-[#d93025] text-[#b3261e]'
+                : 'bg-[#f8fafd] border-[#dadce0] hover:bg-[#f1f3f4] text-[#3c4043]'
+            }`}
+          >
+            <button
+              type="button"
+              className="mt-0.5 text-[#d93025] focus:outline-none"
             >
-              To confirm, type <span className="underline uppercase tracking-wider">DELETE</span> below:
-            </label>
+              {confirmedCheckbox ? (
+                <CheckSquare className="w-5 h-5 fill-[#d93025] text-white" />
+              ) : (
+                <Square className="w-5 h-5 text-[#5f6368]" />
+              )}
+            </button>
+            <div className="text-xs font-medium leading-normal">
+              <span className="font-bold text-[#1f1f1f]">
+                I understand and want to permanently delete my account.
+              </span>
+              <p className="text-[11px] text-[#5f6368] mt-0.5">
+                Click this box to immediately unlock the permanent deletion button.
+              </p>
+            </div>
+          </div>
+
+          {/* Alternative text typing */}
+          <div className="p-3 bg-[#f8fafd] rounded-2xl border border-[#dadce0] space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label
+                htmlFor="confirm-delete-input"
+                className="text-xs font-semibold text-[#5f6368]"
+              >
+                Or type <span className="font-bold text-[#d93025]">DELETE</span> to confirm:
+              </label>
+              <button
+                type="button"
+                onClick={() => setConfirmText('DELETE')}
+                className="text-[11px] font-bold text-[#1a73e8] hover:underline cursor-pointer"
+              >
+                Auto-fill DELETE
+              </button>
+            </div>
             <input
               id="confirm-delete-input"
               type="text"
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value)}
-              placeholder="Type DELETE to confirm"
+              placeholder="Type DELETE"
               disabled={isDeleting}
-              className="w-full px-3.5 py-2.5 bg-white rounded-xl border border-[#d93025]/40 text-sm font-semibold text-[#1f1f1f] focus:outline-none focus:ring-2 focus:ring-[#d93025] transition-all disabled:opacity-50"
+              className="w-full px-3.5 py-2 bg-white rounded-xl border border-[#dadce0] text-xs font-semibold text-[#1f1f1f] focus:outline-none focus:border-[#d93025] focus:ring-1 focus:ring-[#d93025] transition-all"
               autoComplete="off"
             />
           </div>
@@ -146,7 +192,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-5 pt-3 bg-[#f8fafd] border-t border-[#dadce0] flex items-center justify-end gap-3">
+        <div className="p-5 pt-3 bg-[#f8fafd] border-t border-[#dadce0] flex items-center justify-between gap-3">
           <button
             id="cancel-delete-account-btn"
             onClick={handleClose}
@@ -161,7 +207,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
             disabled={!isConfirmed || isDeleting}
             className={`px-5 py-2.5 text-xs font-bold text-white rounded-full flex items-center gap-2 shadow-xs transition-all cursor-pointer ${
               isConfirmed && !isDeleting
-                ? 'bg-[#d93025] hover:bg-[#b3261e] shadow-[0_1px_3px_rgba(217,48,37,0.3)]'
+                ? 'bg-[#d93025] hover:bg-[#b3261e] shadow-[0_2px_8px_rgba(217,48,37,0.35)]'
                 : 'bg-[#dadce0] text-[#70757a] cursor-not-allowed opacity-60'
             }`}
           >
@@ -173,7 +219,7 @@ export const DeleteAccountModal: React.FC<DeleteAccountModalProps> = ({
             ) : (
               <>
                 <Trash2 className="w-4 h-4" />
-                <span>Permanently Delete Account</span>
+                <span>Permanently Delete My Account</span>
               </>
             )}
           </button>

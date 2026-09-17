@@ -20,6 +20,8 @@ import {
   CheckSquare,
   Mail,
   HardDrive,
+  Trash2,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   CalendarEvent,
@@ -59,6 +61,7 @@ interface OverviewViewProps {
   onOpenOnboarding?: () => void;
   pinnedTools?: string[];
   onTogglePin?: (toolId: string) => void;
+  onDeleteAccount?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -71,6 +74,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   onOpenOnboarding,
   pinnedTools: propsPinnedTools,
   onTogglePin: propsOnTogglePin,
+  onDeleteAccount,
 }) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -588,6 +592,31 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Account Security & Privacy Section */}
+      <div className="bg-white rounded-3xl border border-[#dadce0] p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="p-3 bg-[#e8f0fe] rounded-2xl text-[#1a73e8] shrink-0">
+            <ShieldCheck className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-[#1f1f1f]">Google Workspace Account & Privacy</h4>
+            <p className="text-xs text-[#5f6368] mt-0.5 max-w-xl leading-relaxed">
+              Connected via Google OAuth 2.0 with least-privilege permissions. You can disconnect your active session or permanently delete your account and wipe all stored data at any time.
+            </p>
+          </div>
+        </div>
+        {onDeleteAccount && (
+          <button
+            id="overview-delete-account-btn"
+            onClick={onDeleteAccount}
+            className="px-4 py-2 bg-[#fdf2f2] hover:bg-[#fce8e6] text-[#d93025] rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 border border-[#f5c6cb]"
+          >
+            <Trash2 className="w-4 h-4 text-[#d93025]" />
+            <span>Delete Account & Wipe Data</span>
+          </button>
+        )}
       </div>
 
       {/* Customize Pinned Tools Modal */}
