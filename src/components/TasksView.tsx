@@ -158,7 +158,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ token, onBackToOverview })
     if (!newTaskTitle.trim()) return;
 
     const newTask: TaskItem = {
-      id: `task-${Date.now()}`,
+      id: `task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: newTaskTitle.trim(),
       notes: newTaskNotes.trim() || undefined,
       due: newTaskDue ? new Date(newTaskDue).toISOString() : undefined,

@@ -87,7 +87,7 @@ export const SlidesView: React.FC<SlidesViewProps> = ({
   // Add new slide
   const handleAddSlide = (layout: SlideItem['layout'] = 'title-body') => {
     const newSlide: SlideItem = {
-      id: `slide-${Date.now()}`,
+      id: `slide-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       layout,
       title: 'Click to add title',
       bodyText: '• Click to add bullet points\n• Second item',
@@ -104,7 +104,7 @@ export const SlidesView: React.FC<SlidesViewProps> = ({
     const source = slides[index];
     const dup: SlideItem = {
       ...source,
-      id: `slide-${Date.now()}`,
+      id: `slide-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: `${source.title} (Copy)`,
     };
     const updated = [...slides];

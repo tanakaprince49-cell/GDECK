@@ -235,7 +235,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setIsSending(true);
 
     const newMsg: ChatMessage = {
-      name: `msg-${Date.now()}`,
+      name: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       text,
       createTime: new Date().toISOString(),
       sender: {
@@ -289,7 +289,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
 
     const meetMsg: ChatMessage = {
-      name: `msg-meet-${Date.now()}`,
+      name: `msg-meet-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       text: `📹 Google Meet video call: ${meetLink}`,
       meetingUri: meetLink,
       createTime: new Date().toISOString(),
@@ -322,7 +322,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     e.preventDefault();
     if (!newChatEmail.trim()) return;
     const email = newChatEmail.trim();
-    const id = `dm-${Date.now()}`;
+    const id = `dm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     const newConv: ChatConversation = {
       id,
@@ -343,7 +343,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       ...prev,
       [id]: [
         {
-          name: `msg-sys-${Date.now()}`,
+          name: `msg-sys-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           text: `Conversation started with ${email}`,
           createTime: new Date().toISOString(),
           sender: {
@@ -364,7 +364,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
     e.preventDefault();
     if (!newSpaceName.trim()) return;
     const spaceName = newSpaceName.trim();
-    const id = `space-${Date.now()}`;
+    const id = `space-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
 
     const newConv: ChatConversation = {
       id,
@@ -381,7 +381,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       ...prev,
       [id]: [
         {
-          name: `msg-space-${Date.now()}`,
+          name: `msg-space-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           text: `Welcome to #${spaceName}! Collaborate and share files here.`,
           createTime: new Date().toISOString(),
           sender: {

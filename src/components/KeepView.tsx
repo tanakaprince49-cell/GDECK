@@ -114,7 +114,7 @@ export const KeepView: React.FC<{ onBackToOverview?: () => void }> = ({ onBackTo
       return;
     }
     const note: NoteItem = {
-      id: `note-${Date.now()}`,
+      id: `note-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: newTitle.trim(),
       content: newContent.trim(),
       isPinned: newIsPinned,

@@ -192,7 +192,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, onBackToOverv
     if (!messageInput.trim() || !selectedThread) return;
 
     const newMsg: MessageItem = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       sender: 'Me',
       senderName: 'Me',
       text: messageInput.trim(),
@@ -227,7 +227,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, onBackToOverv
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const newMsg: MessageItem = {
-      id: `msg-${Date.now()}`,
+      id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       sender: 'Me',
       senderName: 'Me',
       text: newRecipientText.trim(),
@@ -238,7 +238,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, onBackToOverv
     };
 
     const newThread: ConversationThread = {
-      id: `thread-${Date.now()}`,
+      id: `thread-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       contactName,
       phoneNumber: newRecipientPhone.trim(),
       unreadCount: 0,

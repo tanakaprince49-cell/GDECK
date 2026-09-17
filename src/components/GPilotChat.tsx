@@ -111,6 +111,12 @@ const ActionApprovalBox: React.FC<{
 };
 
 // Client-side sliding-window helper to keep token usage low
+let msgSequenceCounter = 0;
+function generateUniqueMsgId(prefix = 'msg'): string {
+  msgSequenceCounter += 1;
+  return `${prefix}-${Date.now()}-${msgSequenceCounter}-${Math.random().toString(36).substring(2, 7)}`;
+}
+
 function pruneClientContext(context: any[]): any[] {
   if (!Array.isArray(context) || context.length <= 6) return context;
   let slice = context.slice(-6);
@@ -404,7 +410,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       : "Hi, I'm G-Pilot, your assistant for Google Workspace.";
     setMessages([
       {
-        id: Date.now().toString(),
+        id: generateUniqueMsgId('sys'),
         role: 'system',
         content: `${initialGreeting} Conversation cleared.\n\n**Today is ${todayString}**\n\n- 📅 View calendar & schedule meetings\n- 📧 Read & send emails in Gmail\n- 📹 Create Google Meet links\n- ✅ Read & create Google Tasks\n- 📁 Search Google Drive files`,
       },
@@ -618,7 +624,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           } catch {}
         }
 
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: displayError }]);
+        setMessages(prev => [...prev, { id: generateUniqueMsgId('err'), role: 'model', content: displayError }]);
         setIsLoading(false);
         return;
       }
@@ -638,7 +644,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
           
           if (requiresApproval) {
             setMessages(prev => [...prev, {
-              id: Date.now().toString(),
+              id: generateUniqueMsgId('approval'),
               role: 'system',
               content: `Approval Required: ${name}`,
               isApprovalRequest: true,
@@ -675,14 +681,14 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
         await processResponse(prunedCurrentContext);
         
       } else if (data.text) {
-        setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: data.text }]);
+        setMessages(prev => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: data.text }]);
         setApiContext(pruneClientContext([...context, { role: 'model', parts: [{ text: data.text }] }]));
       }
       
     } catch (error: any) {
       console.error('GPilotChat handled error:', error);
       const friendlyMsg = "I'm G-Pilot! I can help you read and send emails in Gmail, view and schedule meetings on your Google Calendar, and generate Google Meet video links.";
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: friendlyMsg }]);
+      setMessages(prev => [...prev, { id: generateUniqueMsgId('ai-err'), role: 'model', content: friendlyMsg }]);
     }
     setIsLoading(false);
   };
@@ -693,7 +699,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
     
     setInput('');
     
-    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: textToSend }]);
+    setMessages(prev => [...prev, { id: generateUniqueMsgId('user'), role: 'user', content: textToSend }]);
 
     // Client-side instant triage for pure conversational pleasantries (Zero Token Consumption)
     const cleanLower = textToSend.toLowerCase().replace(/[^\w\s]/g, '').trim();
@@ -703,19 +709,19 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
 
     if (isGreeting) {
       const reply = `Hi ${userName || 'there'}! I'm G-Pilot, your assistant for Google Workspace. Ask me to check today's schedule, read unread emails, schedule meetings, create tasks, or search files in Drive.`;
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: reply }]);
+      setMessages(prev => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
       return;
     }
 
     if (isThanks) {
       const reply = "You're very welcome! Let me know whenever you need anything else across your calendar, emails, tasks, or drive.";
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: reply }]);
+      setMessages(prev => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
       return;
     }
 
     if (isHelp) {
       const reply = `Here are actions you can ask me to perform across your Workspace:\n\n- 📅 **Calendar**: "What's on my calendar today?" or "Schedule a 30m sync with Sarah tomorrow"\n- 📧 **Gmail**: "Check my unread emails" or "Send an email to alex@example.com"\n- 📹 **Google Meet**: "Generate a Meet video link"\n- ✅ **Google Tasks**: "Show my pending tasks" or "Add a task: Review Q3 budget"\n- 📁 **Google Drive**: "Search Drive for project roadmap"\n- 💡 **Memory**: "Remember that I prefer 30-minute meetings"`;
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'model', content: reply }]);
+      setMessages(prev => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
       return;
     }
     
@@ -729,7 +735,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
     setMessages(prev => prev.filter(m => m.id !== msgId));
     
     if (approved) {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `(System: User Approved Action - ${action.name})` }]);
+      setMessages(prev => [...prev, { id: generateUniqueMsgId('approved'), role: 'user', content: `(System: User Approved Action - ${action.name})` }]);
       
       const result = await executeFunction(action.name, action.args);
       
@@ -740,7 +746,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       setApiContext(newContext);
       await processResponse(newContext);
     } else {
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'user', content: `(System: User Denied Action - ${action.name})` }]);
+      setMessages(prev => [...prev, { id: generateUniqueMsgId('denied'), role: 'user', content: `(System: User Denied Action - ${action.name})` }]);
       const newContext = pruneClientContext([...apiContext, 
         { role: 'model', parts: modelParts || [{ functionCall: action }] },
         { role: 'user', parts: [{ functionResponse: { name: action.name, response: { error: "User denied the action." } } }] }
@@ -875,9 +881,9 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-white/60">
-            {messages.map((msg) => (
+            {messages.map((msg, idx) => (
               <div
-                key={msg.id}
+                key={msg.id ? `msg-${msg.id}-${idx}` : `msg-idx-${idx}`}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
                 <div

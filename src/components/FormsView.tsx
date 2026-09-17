@@ -102,11 +102,11 @@ export const FormsView: React.FC<FormsViewProps> = ({
   // Add question
   const handleAddQuestion = () => {
     const newQ: FormQuestion = {
-      id: `q-${Date.now()}`,
+      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: 'Untitled Question',
       type: 'MULTIPLE_CHOICE',
       options: [
-        { id: `opt-1-${Date.now()}`, text: 'Option 1' },
+        { id: `opt-1-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, text: 'Option 1' },
       ],
       required: false,
     };
@@ -127,9 +127,9 @@ export const FormsView: React.FC<FormsViewProps> = ({
     if (!source) return;
     const dup: FormQuestion = {
       ...source,
-      id: `q-${Date.now()}`,
+      id: `q-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       title: `${source.title} (Copy)`,
-      options: source.options.map((o) => ({ ...o, id: `opt-${Date.now()}-${Math.random()}` })),
+      options: source.options.map((o) => ({ ...o, id: `opt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}` })),
     };
     const activeIdx = questions.findIndex((q) => q.id === qId);
     const updated = [...questions];

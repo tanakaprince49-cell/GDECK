@@ -37,7 +37,7 @@ export const FormsQuestionCard: React.FC<FormsQuestionCardProps> = ({
 }) => {
   const handleAddOption = () => {
     const newOpt: FormOption = {
-      id: `opt-${Date.now()}`,
+      id: `opt-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
       text: `Option ${question.options.length + 1}`,
     };
     onUpdate({ options: [...question.options, newOpt] });
@@ -174,7 +174,7 @@ export const FormsQuestionCard: React.FC<FormsQuestionCardProps> = ({
                       <button
                         onClick={() => {
                           const otherOpt: FormOption = {
-                            id: `opt-other-${Date.now()}`,
+                            id: `opt-other-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                             text: 'Other...',
                           };
                           onUpdate({ options: [...question.options, otherOpt] });

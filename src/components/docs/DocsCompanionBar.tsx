@@ -43,7 +43,7 @@ export const DocsCompanionBar: React.FC<DocsCompanionBarProps> = ({ onOpenApp })
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTaskText.trim()) return;
-    setSideTasks([...sideTasks, { id: Date.now().toString(), title: newTaskText.trim(), done: false }]);
+    setSideTasks([...sideTasks, { id: `task-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, title: newTaskText.trim(), done: false }]);
     setNewTaskText('');
   };
 
@@ -52,7 +52,7 @@ export const DocsCompanionBar: React.FC<DocsCompanionBarProps> = ({ onOpenApp })
     if (!newNoteTitle.trim() && !newNoteContent.trim()) return;
     setSideNotes([
       ...sideNotes,
-      { id: Date.now().toString(), title: newNoteTitle || 'Untitled note', content: newNoteContent },
+      { id: `note-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`, title: newNoteTitle || 'Untitled note', content: newNoteContent },
     ]);
     setNewNoteTitle('');
     setNewNoteContent('');
