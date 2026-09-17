@@ -30,6 +30,7 @@ import {
 import { initAuth, googleSignIn, logout, deleteAccountPermanently } from './services/auth';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DeleteAccountModal } from './components/DeleteAccountModal';
+import { SecurityCenterModal } from './components/SecurityCenterModal';
 import { OverviewView } from './components/OverviewView';
 import { DriveView } from './components/DriveView';
 import { SheetsView } from './components/SheetsView';
@@ -96,6 +97,7 @@ export default function App() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState<boolean>(false);
+  const [showSecurityCenter, setShowSecurityCenter] = useState<boolean>(false);
   const [accountDeletedBanner, setAccountDeletedBanner] = useState<boolean>(false);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
 
@@ -406,6 +408,17 @@ export default function App() {
             )}
             {user ? (
               <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Security Center Quick Access Button */}
+                <button
+                  id="direct-header-security-btn"
+                  onClick={() => setShowSecurityCenter(true)}
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-[#137333] hover:bg-[#e6f4ea] bg-[#f1f8f3] rounded-full border border-[#ceead6] transition-colors cursor-pointer"
+                  title="View Security & Privacy Protections"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#137333]" />
+                  <span className="hidden sm:inline">Protected</span>
+                </button>
+
                 {/* Direct Desktop Sign Out button */}
                 <button
                   id="direct-header-signout-btn"
@@ -978,6 +991,7 @@ export default function App() {
                 pinnedTools={pinnedTools}
                 onTogglePin={togglePin}
                 onDeleteAccount={() => setShowDeleteAccountModal(true)}
+                onOpenSecurity={() => setShowSecurityCenter(true)}
               />
             )}
             {/* 1. Gmail */}
@@ -1173,6 +1187,15 @@ export default function App() {
         onClose={() => setShowDeleteAccountModal(false)}
         onSuccess={handleAccountDeletedSuccess}
         userEmail={user?.email}
+      />
+
+      {/* Security & Privacy Center Modal */}
+      <SecurityCenterModal
+        isOpen={showSecurityCenter}
+        onClose={() => setShowSecurityCenter(false)}
+        userEmail={user?.email}
+        onOpenPrivacyPolicy={() => setActiveTab('privacy')}
+        onOpenDeleteAccount={() => setShowDeleteAccountModal(true)}
       />
 
       {/* G-Pilot AI Assistant */}

@@ -43,10 +43,10 @@ function pruneAndSanitizeContents(rawContents: any[]) {
     return [];
   }
 
-  // Choose the closest start point that keeps within the last 8-10 turns
+  // Choose the closest start point that keeps within the last 4-6 turns (optimal token economy)
   let startIndex = validStartIndices[0];
   for (const idx of validStartIndices) {
-    if (validTurns.length - idx <= 8) {
+    if (validTurns.length - idx <= 6) {
       startIndex = idx;
       break;
     }
@@ -92,18 +92,31 @@ function pruneAndSanitizeContents(rawContents: any[]) {
   // 4. Sanitize and compact payloads to prevent token quota issues
   return verified.map((turn: any) => {
     const cleanParts = turn.parts.map((part: any) => {
-      // Compact large function responses
+      // Compact large function responses to save significant input tokens
       if (part.functionResponse?.response) {
         const resp = part.functionResponse.response;
         try {
           const serialized = JSON.stringify(resp);
-          if (serialized.length > 1500) {
+          if (serialized.length > 600) {
             const compact: any = {};
             for (const [k, v] of Object.entries(resp)) {
               if (Array.isArray(v)) {
-                compact[k] = v.slice(0, 4);
-              } else if (typeof v === 'string' && v.length > 250) {
-                compact[k] = v.slice(0, 250) + '...';
+                compact[k] = v.slice(0, 3).map((item: any) => {
+                  if (typeof item === 'object' && item !== null) {
+                    const cleanItem: any = {};
+                    for (const [ik, iv] of Object.entries(item)) {
+                      if (typeof iv === 'string') {
+                        cleanItem[ik] = iv.length > 120 ? iv.slice(0, 120) + '...' : iv;
+                      } else {
+                        cleanItem[ik] = iv;
+                      }
+                    }
+                    return cleanItem;
+                  }
+                  return item;
+                });
+              } else if (typeof v === 'string' && v.length > 150) {
+                compact[k] = v.slice(0, 150) + '...';
               } else {
                 compact[k] = v;
               }
@@ -122,8 +135,8 @@ function pruneAndSanitizeContents(rawContents: any[]) {
       }
 
       // Compact large user text
-      if (typeof part.text === 'string' && part.text.length > 3000) {
-        return { ...part, text: part.text.slice(0, 3000) + '...[truncated]' };
+      if (typeof part.text === 'string' && part.text.length > 2000) {
+        return { ...part, text: part.text.slice(0, 2000) + '...[truncated]' };
       }
 
       return part;
@@ -137,7 +150,43 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json({ limit: "50mb" }));
+  // Security Headers Middleware
+  app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    next();
+  });
+
+  // Strict request body size limit for JSON payload protection
+  app.use(express.json({ limit: "2mb" }));
+
+  // In-memory sliding rate limiter for AI endpoints (protect against abuse & denial of service)
+  const ipRequestCounts = new Map<string, { count: number; resetTime: number }>();
+  const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
+  const RATE_LIMIT_MAX = 40; // max 40 AI queries per minute per IP
+
+  const rateLimitMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const rawIp = req.headers["x-forwarded-for"] || req.socket.remoteAddress || "unknown";
+    const clientIp = Array.isArray(rawIp) ? rawIp[0] : String(rawIp).split(",")[0].trim();
+    const now = Date.now();
+
+    const record = ipRequestCounts.get(clientIp);
+    if (!record || now > record.resetTime) {
+      ipRequestCounts.set(clientIp, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
+      return next();
+    }
+
+    if (record.count >= RATE_LIMIT_MAX) {
+      return res.status(429).json({
+        error: "Too many AI requests. Please wait a moment before sending more queries.",
+      });
+    }
+
+    record.count++;
+    next();
+  };
 
   // SEO & Google Search Console routes
   app.get("/sitemap.xml", (req, res) => {
@@ -152,10 +201,18 @@ async function startServer() {
     res.sendFile(robotsPath);
   });
 
-  // Gemini API Proxy
-  app.post("/api/gemini/chat", async (req, res) => {
+  // Gemini API Proxy with rate limiting
+  app.post("/api/gemini/chat", rateLimitMiddleware, async (req, res) => {
     try {
-      const { contents, tools, userName, memories } = req.body || {};
+      const {
+        contents,
+        tools,
+        userName,
+        memories,
+        currentDateTime,
+        currentDateFormatted,
+        userTimeZone,
+      } = req.body || {};
       
       const rawApiKey = process.env.GEMINI_API_KEY;
       if (!rawApiKey) {
@@ -167,27 +224,26 @@ async function startServer() {
       // Prune contents to save tokens and avoid quota depletion
       const sanitizedContents = pruneAndSanitizeContents(contents);
 
-      // Focused, dedicated assistant system instruction with strict scope definition
-      let sysInstruct = `You are G-Pilot, an AI executive assistant dedicated to Gmail, Google Calendar, and Google Meet.
-User: ${userName || 'User'}.
+      const effectiveDateFormatted =
+        currentDateFormatted ||
+        new Date().toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        });
+      const effectiveDateTime = currentDateTime || new Date().toISOString();
+      const effectiveTimeZone = userTimeZone || 'UTC';
 
-YOUR CAPABILITIES (WHAT YOU CAN DO):
-1. Read emails from Gmail inbox (using gmail_read).
-2. Send emails to recipients via Gmail (using gmail_send).
-3. Read calendar events and schedule/book meetings on Google Calendar (using calendar_read, calendar_book).
-4. Create Google Meet video conference links (using meet_create_link).
-5. Remember user preferences (using memory_save, memory_read).
-
-WHAT YOU CANNOT DO:
-- You DO NOT have access to Google Drive files, Google Docs, Sheets, Slides, or Drive search.
-- You DO NOT manage Google Tasks, Keep notes, Google Forms, Chat spaces, or Messages/SMS.
-- If asked to search Drive, edit files, manage tasks, or access other parts of the workspace, state clearly and politely that your scope is focused exclusively on Gmail (reading/sending emails), Google Calendar (reading/scheduling meetings), and Google Meet (creating meeting links).
-
-EXECUTION RULES:
-- Read actions (reading emails, checking calendar): Execute immediately with relevant tools.
-- Actions with external impact (sending emails, booking meetings): Prompt for approval or confirm parameters clearly.
-- Style: Concise, direct, helpful, natural. Never invent information or claim you performed an action without calling the corresponding tool.
-- DO NOT mention tokens, token limits, pruning, or backend constraints under any circumstance.`;
+      // Concise, high-density system instruction for token efficiency and rapid response
+      let sysInstruct = `You are G-Pilot, executive AI assistant in G-Deck for Google Workspace (Gmail, Calendar, Meet, Tasks, Drive).
+User: ${userName || 'User'}. Real-World Date: ${effectiveDateFormatted} (${effectiveDateTime}, ${effectiveTimeZone}).
+RULES:
+- Today is strictly ${effectiveDateFormatted}. Anchor all relative queries ("today", "tomorrow", "this week") to this date.
+- For read requests (calendar, emails, tasks, drive files), invoke the appropriate tool immediately.
+- If calendar has no events today, state clearly that none are scheduled for today (${effectiveDateFormatted}).
+- Actions that send emails, book calendar events, or create tasks require human confirmation.
+- Output style: Direct, concise, natural, professional. Never invent fake dates or events.`;
 
       if (Array.isArray(memories) && memories.length > 0) {
         const memorySnippet = memories
@@ -197,11 +253,11 @@ EXECUTION RULES:
         sysInstruct += `\nSaved Memories:\n${memorySnippet}`;
       }
 
-      // Modern active Gemini models (gemini-3.1-flash-lite as primary)
+      // Modern active Gemini models with gemini-3.8-flash as primary
       const CANDIDATE_MODELS = [
-        "gemini-3.1-flash-lite",
         "gemini-3.8-flash",
         "gemini-flash-latest",
+        "gemini-3.1-flash-lite",
       ];
 
       let responseText = '';
@@ -248,18 +304,18 @@ EXECUTION RULES:
             }
           } catch (err: any) {
             lastError = err;
+            const errMsg = err?.message || String(err || '');
             const isTransient =
               err?.status === 429 ||
               err?.status === 503 ||
-              err?.message?.includes("429") ||
-              err?.message?.includes("503") ||
-              err?.message?.includes("RESOURCE_EXHAUSTED") ||
-              err?.message?.includes("high demand");
-
-            console.warn(`SDK Model ${model} attempt ${attempt + 1} failed (Transient: ${isTransient}):`, err?.message || err);
+              errMsg.includes("429") ||
+              errMsg.includes("503") ||
+              errMsg.includes("RESOURCE_EXHAUSTED") ||
+              errMsg.includes("UNAVAILABLE") ||
+              errMsg.includes("high demand");
 
             if (isTransient && attempt === 0) {
-              await new Promise((r) => setTimeout(r, 600));
+              await new Promise((r) => setTimeout(r, 500));
             }
           }
         }

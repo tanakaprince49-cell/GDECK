@@ -62,6 +62,7 @@ interface OverviewViewProps {
   pinnedTools?: string[];
   onTogglePin?: (toolId: string) => void;
   onDeleteAccount?: () => void;
+  onOpenSecurity?: () => void;
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({
@@ -75,6 +76,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   pinnedTools: propsPinnedTools,
   onTogglePin: propsOnTogglePin,
   onDeleteAccount,
+  onOpenSecurity,
 }) => {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);
@@ -118,15 +120,28 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const loadAllOverviewData = async () => {
     try {
       setLoading(true);
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+
       const [eventsData, taskListsData, emailsData, filesData] = await Promise.allSettled([
-        listCalendarEvents(token),
+        listCalendarEvents(token, { timeMin: startOfToday.toISOString(), maxResults: 15 }),
         listTaskLists(token),
         listGmailMessages(token, 5),
         listDriveFiles(token),
       ]);
 
       if (eventsData.status === 'fulfilled') {
-        setEvents(eventsData.value.slice(0, 4));
+        if (eventsData.value.length > 0) {
+          setEvents(eventsData.value.slice(0, 4));
+        } else {
+          // If no upcoming events starting from today, fall back to recent events
+          try {
+            const fallbackEvents = await listCalendarEvents(token, 10);
+            setEvents(fallbackEvents.slice(0, 4));
+          } catch {
+            setEvents([]);
+          }
+        }
       }
 
       if (taskListsData.status === 'fulfilled' && taskListsData.value.length > 0) {
@@ -361,6 +376,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                               hour: '2-digit',
                               minute: '2-digit',
                             })
+                          : ev.start?.date
+                          ? `${new Date(ev.start.date + 'T00:00:00').toLocaleDateString([], { month: 'short', day: 'numeric' })} (All Day)`
                           : 'All Day'}
                       </p>
                     </div>
@@ -607,16 +624,28 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </p>
           </div>
         </div>
-        {onDeleteAccount && (
-          <button
-            id="overview-delete-account-btn"
-            onClick={onDeleteAccount}
-            className="px-4 py-2 bg-[#fdf2f2] hover:bg-[#fce8e6] text-[#d93025] rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shrink-0 border border-[#f5c6cb]"
-          >
-            <Trash2 className="w-4 h-4 text-[#d93025]" />
-            <span>Delete Account & Wipe Data</span>
-          </button>
-        )}
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          {onOpenSecurity && (
+            <button
+              id="overview-open-security-btn"
+              onClick={onOpenSecurity}
+              className="px-4 py-2 bg-[#f1f8f3] hover:bg-[#e6f4ea] text-[#137333] rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-[#ceead6]"
+            >
+              <ShieldCheck className="w-4 h-4 text-[#137333]" />
+              <span>View Protections</span>
+            </button>
+          )}
+          {onDeleteAccount && (
+            <button
+              id="overview-delete-account-btn"
+              onClick={onDeleteAccount}
+              className="px-4 py-2 bg-[#fdf2f2] hover:bg-[#fce8e6] text-[#d93025] rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border border-[#f5c6cb]"
+            >
+              <Trash2 className="w-4 h-4 text-[#d93025]" />
+              <span>Delete Account & Wipe Data</span>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Customize Pinned Tools Modal */}

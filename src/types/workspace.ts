@@ -66,6 +66,7 @@ export interface CalendarEvent {
   status?: string;
   colorId?: string;
   hangoutLink?: string;
+  conferenceData?: any;
 }
 
 export interface TaskList {
