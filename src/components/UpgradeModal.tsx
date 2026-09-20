@@ -1,20 +1,37 @@
 import React, { useState } from 'react';
-import {
-  X,
-  Check,
-  Zap,
-  Lock,
-  ArrowRight,
-  ShieldCheck,
-  Search,
-  Sliders,
-  RefreshCw,
-  CreditCard,
-  Smartphone,
-  ExternalLink,
-} from 'lucide-react';
+import { X, Check, ArrowRight, RefreshCw, ShieldCheck } from 'lucide-react';
 import { usePlan, PlanTier } from '../context/PlanContext';
 import { CHECKOUT_STASH_KEY } from './CheckoutSuccessView';
+
+/** Every Pro entitlement, taken from what the app actually gates. */
+const PRO_BENEFITS: string[] = [
+  'Unlimited G-Pilot AI across Gmail, Drive, Docs, Calendar and Tasks',
+  '1-click turn any email into a task, an event and a Meet link',
+  'Meeting Prep Packs: the linked Drive docs and history, before you join',
+  'Smart Follow-Ups drafted after every meeting ends',
+  'Deep Thread TL;DR on long email chains',
+  'Tone & Polish Studio for replies',
+  'Global Omni-Search (⌘K) across every app at once',
+  'Multiple Google accounts, personal and work, in one tab',
+  'Priority Sync with offline caching',
+  'Custom dashboard layout',
+];
+
+interface PlanChoice {
+  id: 'pro_monthly' | 'pro_annual' | 'pro_monthly_zwg';
+  label: string;
+  price: string;
+  note: string;
+}
+
+const USD_PLANS: PlanChoice[] = [
+  { id: 'pro_monthly', label: 'Monthly', price: '$12', note: 'per month' },
+  { id: 'pro_annual', label: 'Yearly', price: '$120', note: 'per year · $10/mo, saves 17%' },
+];
+
+const ZWG_PLAN: PlanChoice[] = [
+  { id: 'pro_monthly_zwg', label: 'Monthly', price: 'ZWG 320', note: 'per month · EcoCash or OneMoney' },
+];
 
 export const UpgradeModal: React.FC = () => {
   const {
@@ -22,7 +39,6 @@ export const UpgradeModal: React.FC = () => {
     upgradeModalContext,
     closeUpgradeModal,
     upgradeToPro,
-    startProTrial,
     tier,
     isPro,
     aiQueriesUsed,
@@ -31,44 +47,38 @@ export const UpgradeModal: React.FC = () => {
     setMockPlan,
   } = usePlan();
 
-  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly');
   const [currency, setCurrency] = useState<'usd' | 'zwg'>('usd');
-  const [paymentMode, setPaymentMode] = useState<'hosted' | 'mobile_direct'>('hosted');
-  const [mobileNumber, setMobileNumber] = useState<string>('771111111'); // Default to EcoCash test success number
-  const [mobileNetwork, setMobileNetwork] = useState<'ecocash' | 'onemoney'>('ecocash');
-
+  const [planId, setPlanId] = useState<PlanChoice['id']>('pro_monthly');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [upgradeSuccess, setUpgradeSuccess] = useState<string | null>(null);
 
   if (!upgradeModalOpen) return null;
 
-  const isAiLimit = upgradeModalContext?.isAiLimit;
-  const contextFeatureTitle = upgradeModalContext?.title;
-  const contextFeatureDesc = upgradeModalContext?.desc;
+  const plans = currency === 'zwg' ? ZWG_PLAN : USD_PLANS;
+  const selected = plans.find((p) => p.id === planId) || plans[0];
 
-  // Plan identification
-  const getSelectedPlanId = () => {
-    if (currency === 'zwg') return 'pro_monthly_zwg';
-    return billingCycle === 'annual' ? 'pro_annual' : 'pro_monthly';
+  const selectCurrency = (next: 'usd' | 'zwg') => {
+    setCurrency(next);
+    setPlanId(next === 'zwg' ? 'pro_monthly_zwg' : 'pro_monthly');
+    setCheckoutError(null);
   };
 
-  // 1. Direct Payonify Checkout Session Trigger
   const handlePayonifyCheckout = async () => {
     setIsProcessing(true);
     setCheckoutError(null);
-
-    const planId = getSelectedPlanId();
+    setUpgradeSuccess(null);
 
     try {
       const res = await fetch('/api/payonify/checkout/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          planId,
+          planId: selected.id,
           currency,
           customerEmail: activeAccount.email,
-          paymentMethodTypes: currency === 'usd' ? ['card', 'ecocash', 'onemoney'] : ['ecocash', 'onemoney'],
+          paymentMethodTypes:
+            currency === 'usd' ? ['card', 'ecocash', 'onemoney'] : ['ecocash', 'onemoney'],
         }),
       });
 
@@ -84,486 +94,229 @@ export const UpgradeModal: React.FC = () => {
         throw new Error(data.error || `Checkout initiation failed (status ${res.status})`);
       }
 
-      if (data.url) {
-        // Payonify cannot append the session id to success_url, so hand it to the success
-        // page out-of-band; the server also keys the order off metadata.order_id.
-        try {
-          sessionStorage.setItem(
-            CHECKOUT_STASH_KEY,
-            JSON.stringify({ sessionId: data.sessionId, orderId: data.orderId, planId })
-          );
-        } catch {
-          /* private mode / storage disabled -- verification then relies on ?session_id= only */
-        }
-        // Redirect customer to Payonify hosted checkout
-        window.location.href = data.url;
-      } else {
-        throw new Error('No checkout URL returned from Payonify');
+      if (!data.url) {
+        throw new Error('Payonify did not return a checkout URL.');
       }
+
+      // Payonify cannot append the session id to success_url, so hand it to the success page
+      // out-of-band; the server also keys the order off metadata.order_id.
+      try {
+        sessionStorage.setItem(
+          CHECKOUT_STASH_KEY,
+          JSON.stringify({ sessionId: data.sessionId, orderId: data.orderId, planId: selected.id })
+        );
+      } catch {
+        /* private mode / storage disabled -- verification then relies on ?session_id= only */
+      }
+
+      window.location.href = data.url;
     } catch (err: any) {
       console.error('Payonify checkout error:', err);
-      setCheckoutError(err.message || 'Unable to connect to Payonify checkout.');
+      setCheckoutError(err.message || 'Unable to start checkout. Please try again.');
       setIsProcessing(false);
     }
   };
 
-  // 2. Direct Mobile Money Charge (EcoCash / OneMoney prompt sent to user's phone)
-  const handleDirectMobileCharge = async () => {
-    setIsProcessing(true);
-    setCheckoutError(null);
+  const headline = upgradeModalContext?.isAiLimit
+    ? `You’ve used all ${maxFreeAiQueries} free AI assists`
+    : upgradeModalContext?.title
+    ? `Unlock ${upgradeModalContext.title}`
+    : 'One plan. Everything unlocked.';
 
-    try {
-      const res = await fetch('/api/payonify/charges', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          mobileNumber,
-          network: mobileNetwork,
-          planId: getSelectedPlanId(),
-          currency,
-          customerEmail: activeAccount.email,
-        }),
-      });
-
-      let data: any = {};
-      const resText = await res.text();
-      try {
-        data = resText ? JSON.parse(resText) : {};
-      } catch {
-        throw new Error(res.ok ? 'Unexpected response format' : `Server responded with status ${res.status}`);
-      }
-
-      if (!res.ok) {
-        throw new Error(data.error || `Direct charge request failed (status ${res.status})`);
-      }
-
-      setUpgradeSuccess(
-        `USSD prompt sent to ${mobileNumber} on ${mobileNetwork.toUpperCase()}! Approve the prompt on your phone.`
-      );
-
-      const chargeId = data.chargeId || data.charge?.id;
-      if (!chargeId) {
-        throw new Error('Payonify did not return a charge reference to verify against.');
-      }
-
-      // A created charge is NOT a paid charge: Payonify answers status
-      // 'requires_authorization' / paid:false until the customer approves the PIN prompt.
-      // Poll for the real outcome instead of granting access on a timer.
-      const deadline = Date.now() + 180000;
-      let waitMs = 3000;
-      while (Date.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, waitMs));
-        const statusRes = await fetch(`/api/payonify/charge-status/${chargeId}`, { method: 'GET' });
-        const status = await statusRes.json().catch(() => ({}));
-        if (!statusRes.ok) {
-          throw new Error(status?.error || 'Failed to read payment status from Payonify.');
-        }
-        if (status.paid) {
-          upgradeToPro();
-          setUpgradeSuccess('Payment verified by Payonify. G-Deck Pro is now active.');
-          setTimeout(() => closeUpgradeModal(), 1600);
-          setIsProcessing(false);
-          return;
-        }
-        if (status.failed) {
-          throw new Error(status.failureMessage || 'The payment was declined or expired on the phone prompt.');
-        }
-        waitMs = status?.polling?.nextIntervalMs || 4000;
-      }
-      throw new Error('Timed out waiting for the USSD prompt to be approved.');
-    } catch (err: any) {
-      setCheckoutError(err.message || 'Direct charge failed.');
-      setIsProcessing(false);
-    }
-  };
-
-  const handleTrialActivation = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      // startProTrial() refuses when this browser already spent its single trial.
-      if (!startProTrial()) {
-        setIsProcessing(false);
-        setCheckoutError(
-          'The 14-day trial has already been used on this browser. G-Deck Pro is $12/month to continue.'
-        );
-        return;
-      }
-      setUpgradeSuccess('Your 14-Day Free Pro Trial is now active! All automations unlocked.');
-      setIsProcessing(false);
-      setTimeout(() => {
-        setUpgradeSuccess(null);
-        closeUpgradeModal();
-      }, 1500);
-    }, 400);
-  };
+  const subline = upgradeModalContext?.isAiLimit
+    ? `Upgrade for ${selected.price}/${selected.id === 'pro_annual' ? 'yr' : 'mo'} to keep going without a limit.`
+    : upgradeModalContext?.desc || 'Everything below is unlocked across your whole Google workspace.';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-2xl bg-white rounded-3xl border border-[#dadce0] shadow-[0_20px_50px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col max-h-[92vh]"
+        className="relative w-full max-w-lg bg-white rounded-3xl border border-[#dadce0] shadow-[0_20px_50px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Upgrade to G-Deck Pro"
       >
-        {/* Top Header Banner */}
-        <div className="bg-gradient-to-r from-[#6b21a8] via-[#7e22ce] to-[#1a73e8] p-5 sm:p-6 text-white relative">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 px-5 sm:px-6 pt-5 pb-4 border-b border-[#f1f3f4]">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-[#7e22ce] bg-[#faf5ff] border border-[#e9d5ff] rounded-full px-2 py-0.5 mb-2">
+              <ShieldCheck className="w-3 h-3" />
+              <span>G-Deck Pro</span>
+            </div>
+            <h2 className="text-lg sm:text-xl font-bold tracking-tight text-[#1f1f1f] leading-snug">
+              {headline}
+            </h2>
+            <p className="text-xs text-[#5f6368] mt-1 leading-relaxed">{subline}</p>
+          </div>
           <button
             onClick={closeUpgradeModal}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-black/20 hover:bg-black/30 text-white/90 hover:text-white transition-colors cursor-pointer"
+            className="shrink-0 p-1.5 rounded-full text-[#5f6368] hover:bg-[#f1f3f4] hover:text-[#1f1f1f] transition-colors cursor-pointer"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
-
-          <div className="flex items-center gap-2 mb-2.5">
-            <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white">
-              <span>G-DECK PRO TIER</span>
-            </div>
-            <div className="inline-flex items-center gap-1 bg-emerald-500/30 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-semibold text-emerald-100 border border-emerald-400/30">
-              <ShieldCheck className="w-3 h-3" />
-              <span>Payonify Checkout</span>
-            </div>
-          </div>
-
-          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-            {isAiLimit
-              ? `You’ve used ${maxFreeAiQueries}/${maxFreeAiQueries} free AI assists this month`
-              : contextFeatureTitle
-              ? `Unlock ${contextFeatureTitle}`
-              : currency === 'zwg'
-              ? 'Unlock G-Deck Pro for ZWG 320/month'
-              : `Unlock G-Deck Pro for ${billingCycle === 'annual' ? '$10/month' : '$12/month'}`}
-          </h2>
-
-          <p className="text-xs sm:text-sm text-purple-100 mt-1 max-w-xl">
-            {isAiLimit
-              ? 'Upgrade to G-Deck Pro for unlimited AI workspace analysis, cross-tool automations, and omni-search.'
-              : contextFeatureDesc ||
-                'The executive command center that saves you 1–2 hours every day with cross-tool automations.'}
-          </p>
         </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1">
-          {/* Success Flash Toast inside modal */}
-          {upgradeSuccess && (
-            <div className="p-3.5 bg-[#e6f4ea] border border-[#ceead6] text-[#137333] rounded-2xl text-xs font-semibold flex items-center gap-2 animate-in zoom-in-95">
-              <Check className="w-4 h-4 shrink-0 text-[#137333]" />
-              <span>{upgradeSuccess}</span>
+        {/* Body */}
+        <div className="px-5 sm:px-6 py-4 overflow-y-auto space-y-4 flex-1">
+          {isPro ? (
+            <div className="p-4 rounded-2xl bg-[#e6f4ea] border border-[#ceead6] text-[#137333] space-y-1">
+              <p className="text-sm font-bold">Pro is active on this account</p>
+              <p className="text-xs">
+                Unlimited AI and every cross-tool automation are already unlocked.
+              </p>
             </div>
-          )}
-
-          {/* Checkout Error Toast */}
-          {checkoutError && (
-            <div className="p-3.5 bg-[#fce8e6] border border-[#fad2cf] text-[#c5221f] rounded-2xl text-xs font-medium flex items-center justify-between gap-2">
-              <span>{checkoutError}</span>
-              <button onClick={() => setCheckoutError(null)} className="text-xs font-bold underline cursor-pointer">
-                Dismiss
-              </button>
-            </div>
-          )}
-
-          {/* Pricing & Currency Selector */}
-          <div className="bg-[#f8fafd] border border-[#dadce0] p-4 rounded-2xl space-y-3">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-extrabold text-[#1f1f1f]">
-                    {currency === 'zwg'
-                      ? 'ZWG 320'
-                      : billingCycle === 'monthly'
-                      ? '$12'
-                      : '$10'}
-                  </span>
-                  <span className="text-xs text-[#5f6368] font-medium">/ month</span>
-                  {currency === 'usd' && billingCycle === 'annual' && (
-                    <span className="text-[10px] font-bold text-[#137333] bg-[#e6f4ea] px-2 py-0.5 rounded-full border border-[#ceead6]">
-                      Billed annually ($120/yr, save 17%)
-                    </span>
-                  )}
+          ) : (
+            <>
+              {upgradeSuccess && (
+                <div className="p-3 bg-[#e6f4ea] border border-[#ceead6] text-[#137333] rounded-2xl text-xs font-semibold flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0" />
+                  <span>{upgradeSuccess}</span>
                 </div>
-                <p className="text-xs text-[#5f6368] mt-0.5">
-                  Powered by Payonify • Card (Visa/Mastercard), EcoCash, or OneMoney
-                </p>
-              </div>
+              )}
 
-              {/* Currency & Interval Controls */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="flex items-center bg-[#e8eaed] p-1 rounded-full text-xs font-semibold">
+              {checkoutError && (
+                <div className="p-3 bg-[#fce8e6] border border-[#fad2cf] text-[#c5221f] rounded-2xl text-xs font-medium flex items-start justify-between gap-2">
+                  <span className="leading-relaxed">{checkoutError}</span>
                   <button
-                    onClick={() => {
-                      setCurrency('usd');
-                      setBillingCycle('monthly');
-                    }}
-                    className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                      currency === 'usd'
-                        ? 'bg-white text-[#1f1f1f] shadow-xs'
-                        : 'text-[#5f6368] hover:text-[#1f1f1f]'
-                    }`}
+                    onClick={() => setCheckoutError(null)}
+                    className="shrink-0 text-xs font-bold underline cursor-pointer"
                   >
-                    USD ($)
-                  </button>
-                  <button
-                    onClick={() => {
-                      setCurrency('zwg');
-                      setBillingCycle('monthly');
-                    }}
-                    className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                      currency === 'zwg'
-                        ? 'bg-white text-[#1f1f1f] shadow-xs'
-                        : 'text-[#5f6368] hover:text-[#1f1f1f]'
-                    }`}
-                  >
-                    ZWG
+                    Dismiss
                   </button>
                 </div>
+              )}
 
-                {currency === 'usd' && (
-                  <div className="flex items-center bg-[#e8eaed] p-1 rounded-full text-xs font-semibold">
-                    <button
-                      onClick={() => setBillingCycle('monthly')}
-                      className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                        billingCycle === 'monthly'
-                          ? 'bg-white text-[#1f1f1f] shadow-xs'
-                          : 'text-[#5f6368] hover:text-[#1f1f1f]'
-                      }`}
-                    >
-                      Monthly
-                    </button>
-                    <button
-                      onClick={() => setBillingCycle('annual')}
-                      className={`px-2.5 py-1 rounded-full transition-all cursor-pointer ${
-                        billingCycle === 'annual'
-                          ? 'bg-white text-[#1f1f1f] shadow-xs'
-                          : 'text-[#5f6368] hover:text-[#1f1f1f]'
-                      }`}
-                    >
-                      Annual (-17%)
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
+              {/* Benefits */}
+              <ul className="divide-y divide-[#f1f3f4]">
+                {PRO_BENEFITS.map((benefit) => (
+                  <li key={benefit} className="flex items-start gap-2.5 py-2">
+                    <Check className="w-4 h-4 shrink-0 text-[#188038] mt-0.5" />
+                    <span className="text-[13px] leading-snug text-[#1f1f1f]">{benefit}</span>
+                  </li>
+                ))}
+              </ul>
 
-            {/* Payment Method Flow Toggle: Hosted Checkout vs Direct Mobile Money */}
-            <div className="pt-2 border-t border-[#e8eaed] flex items-center gap-3">
-              <span className="text-[11px] font-bold text-[#5f6368] uppercase tracking-wider">Method:</span>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentMode('hosted')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    paymentMode === 'hosted'
-                      ? 'bg-purple-100 text-purple-900 border border-purple-300 shadow-xs'
-                      : 'bg-white text-[#5f6368] border border-[#dadce0] hover:bg-slate-50'
-                  }`}
-                >
-                  <CreditCard className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Hosted Checkout (Card / Mobile)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaymentMode('mobile_direct')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    paymentMode === 'mobile_direct'
-                      ? 'bg-purple-100 text-purple-900 border border-purple-300 shadow-xs'
-                      : 'bg-white text-[#5f6368] border border-[#dadce0] hover:bg-slate-50'
-                  }`}
-                >
-                  <Smartphone className="w-3.5 h-3.5 text-purple-600" />
-                  <span>Direct Mobile Money Prompt</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Direct Mobile Money Form Details */}
-            {paymentMode === 'mobile_direct' && (
-              <div className="p-3 bg-white rounded-xl border border-purple-200 space-y-2 animate-in fade-in">
-                <div className="flex items-center justify-between text-xs text-[#5f6368]">
-                  <span>Instant push notification to customer phone via Payonify Charge API</span>
-                  <span className="text-[11px] text-purple-700 font-medium">Test numbers: 771111111 / 713111111</span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <select
-                    value={mobileNetwork}
-                    onChange={(e) => setMobileNetwork(e.target.value as any)}
-                    className="px-3 py-2 text-xs border border-[#dadce0] rounded-lg bg-[#f8fafd] text-[#1f1f1f] font-semibold outline-none focus:border-purple-600"
-                  >
-                    <option value="ecocash">EcoCash</option>
-                    <option value="onemoney">OneMoney</option>
-                  </select>
-                  <div className="sm:col-span-2 relative">
-                    <input
-                      type="text"
-                      placeholder="e.g. 771111111"
-                      value={mobileNumber}
-                      onChange={(e) => setMobileNumber(e.target.value)}
-                      className="w-full px-3 py-2 text-xs border border-[#dadce0] rounded-lg text-[#1f1f1f] font-mono outline-none focus:border-purple-600"
-                    />
+              {/* Plan choice */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#5f6368]">
+                    Choose a plan
+                  </h3>
+                  <div className="flex items-center gap-1 text-[11px] font-semibold">
+                    {(['usd', 'zwg'] as const).map((c) => (
+                      <button
+                        key={c}
+                        onClick={() => selectCurrency(c)}
+                        className={`px-2 py-0.5 rounded-full cursor-pointer transition-colors ${
+                          currency === c
+                            ? 'bg-[#e8f0fe] text-[#1a73e8]'
+                            : 'text-[#5f6368] hover:bg-[#f1f3f4]'
+                        }`}
+                      >
+                        {c === 'usd' ? 'USD $' : 'ZWG'}
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
 
-          {/* Feature Value Props (The 4 Pillars) */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#5f6368]">
-              What You Unlock with G-Deck Pro:
-            </h3>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="p-3 rounded-2xl bg-[#faf5ff] border border-[#e9d5ff] space-y-1">
-                <div className="flex items-center gap-1.5 text-[#7e22ce] font-bold text-xs">
-                  <Zap className="w-3.5 h-3.5 fill-current" />
-                  <span>Cross-Tool Magic Actions</span>
-                </div>
-                <p className="text-[11px] text-[#444746] leading-relaxed">
-                  • 1-Click Email to Task/Event with Google Meet
-                  <br />
-                  • Meeting Prep Packs with Drive docs & history
-                  <br />
-                  • Smart Follow-Up Generator for meetings
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-[#f0f4f9] border border-[#dadce0] space-y-1">
-                <div className="flex items-center gap-1.5 text-[#1a73e8] font-bold text-xs">
-                  <span>Unlimited Workspace AI</span>
-                </div>
-                <p className="text-[11px] text-[#444746] leading-relaxed">
-                  • Unlimited AI queries (removes the {maxFreeAiQueries}/month cap)
-                  <br />
-                  • Deep Thread TL;DR Summarization
-                  <br />
-                  • Tone & Polish Studio for emails
-                </p>
-              </div>
-
-              <div className="p-3 rounded-2xl bg-[#f8fafd] border border-[#dadce0] space-y-1">
-                <div className="flex items-center gap-1.5 text-[#188038] font-bold text-xs">
-                  <Search className="w-3.5 h-3.5" />
-                  <span>Unified Omni-Search (⌘K)</span>
-                </div>
-                <p className="text-[11px] text-[#444746] leading-relaxed">
-                  Simultaneously searches Gmail messages, Calendar descriptions, Drive files, and Google Tasks.
-                </p>
+                {plans.map((plan) => {
+                  const active = plan.id === selected.id;
+                  return (
+                    <button
+                      key={plan.id}
+                      onClick={() => {
+                        setPlanId(plan.id);
+                        setCheckoutError(null);
+                      }}
+                      className={`w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                        active
+                          ? 'border-[#7e22ce] bg-[#faf5ff] shadow-xs'
+                          : 'border-[#dadce0] bg-white hover:bg-[#f8fafd]'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5 min-w-0">
+                        <span
+                          className={`w-3.5 h-3.5 shrink-0 rounded-full border-[1.5px] flex items-center justify-center ${
+                            active ? 'border-[#7e22ce]' : 'border-[#bdc1c6]'
+                          }`}
+                        >
+                          {active && <span className="w-1.5 h-1.5 rounded-full bg-[#7e22ce]" />}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block text-[13px] font-bold text-[#1f1f1f]">{plan.label}</span>
+                          <span className="block text-[11px] text-[#5f6368] truncate">{plan.note}</span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="block text-base font-extrabold text-[#1f1f1f]">{plan.price}</span>
+                        {currency === 'usd' && plan.id === 'pro_annual' && (
+                          <span className="block text-[10px] font-bold text-[#137333]">Best value</span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <div className="p-3 rounded-2xl bg-[#f8fafd] border border-[#dadce0] space-y-1">
-                <div className="flex items-center gap-1.5 text-[#d93025] font-bold text-xs">
-                  <Sliders className="w-3.5 h-3.5" />
-                  <span>Multi-Account & Priority Sync</span>
-                </div>
-                <p className="text-[11px] text-[#444746] leading-relaxed">
-                  Multi-account Google switching (work + personal) and ultra-low latency priority sync.
-                </p>
-              </div>
-            </div>
-          </div>
+              <p className="text-[11px] text-[#5f6368] leading-relaxed">
+                Secure checkout by Payonify. Card, EcoCash or OneMoney. Cancel anytime — Pro runs to
+                the end of the period you paid for.
+              </p>
+            </>
+          )}
+        </div>
 
-          {/* Primary Action Buttons */}
-          <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
+        {/* Footer CTA */}
+        {!isPro && (
+          <div className="px-5 sm:px-6 py-4 border-t border-[#f1f3f4] bg-[#f8fafd]">
             <button
-              onClick={handleTrialActivation}
+              onClick={handlePayonifyCheckout}
               disabled={isProcessing}
-              className="w-full sm:w-auto py-3 px-4 bg-white hover:bg-slate-50 text-purple-700 text-xs font-bold rounded-2xl border border-purple-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
+              className="w-full py-3 px-5 bg-gradient-to-r from-[#7e22ce] to-[#1a73e8] hover:from-[#6b21a8] hover:to-[#1557b0] text-white text-sm font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:shadow-lg disabled:opacity-60 disabled:cursor-wait"
             >
-              <span>Start 14-Day Free Trial (No Card)</span>
+              {isProcessing ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Opening secure checkout…</span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    Upgrade for {selected.price}
+                    {planId === 'pro_annual' ? '/year' : '/month'}
+                  </span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
-
-            {paymentMode === 'hosted' ? (
-              <button
-                onClick={handlePayonifyCheckout}
-                disabled={isProcessing}
-                className="w-full sm:flex-1 py-3 px-5 bg-gradient-to-r from-[#7e22ce] to-[#1a73e8] hover:from-[#6b21a8] hover:to-[#1557b0] text-white text-xs sm:text-sm font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:shadow-lg disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Redirecting to Payonify...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Pay with Payonify ({currency === 'zwg' ? 'ZWG 320' : billingCycle === 'annual' ? '$120/yr' : '$12/mo'})</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </>
-                )}
-              </button>
-            ) : (
-              <button
-                onClick={handleDirectMobileCharge}
-                disabled={isProcessing || !mobileNumber}
-                className="w-full sm:flex-1 py-3 px-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs sm:text-sm font-bold rounded-2xl shadow-md flex items-center justify-center gap-2 cursor-pointer transition-all hover:shadow-lg disabled:opacity-50"
-              >
-                {isProcessing ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Sending USSD Prompt...</span>
-                  </>
-                ) : (
-                  <>
-                    <Smartphone className="w-4 h-4" />
-                    <span>Send {mobileNetwork.toUpperCase()} Prompt</span>
-                  </>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {import.meta.env.DEV && (
-          /* Plan switching is a dev/qa affordance only: rendering these buttons in a
-             production build put a one-click "Pro Active" bypass in front of customers. */
-          <div className="bg-[#f8fafd] border-t border-[#dadce0] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5f6368]">
-            <span className="font-semibold flex items-center gap-1">
-              <Sliders className="w-3 h-3 text-[#1a73e8]" />
-              Payonify Test Mode Active:
-            </span>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <button
-                onClick={() => setMockPlan('free', 3)}
-                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                  tier === 'free' && aiQueriesUsed < maxFreeAiQueries
-                    ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
-                    : 'bg-white hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                Free (3/10 AI)
-              </button>
-              <button
-                onClick={() => setMockPlan('free', 10)}
-                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                  tier === 'free' && aiQueriesUsed >= maxFreeAiQueries
-                    ? 'bg-amber-100 text-amber-800 border-amber-300 font-bold'
-                    : 'bg-white hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                Free (Limit Hit)
-              </button>
-              <button
-                onClick={() => setMockPlan('trial', 12)}
-                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                  tier === 'trial'
-                    ? 'bg-purple-100 text-purple-800 border-purple-300 font-bold'
-                    : 'bg-white hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                14-Day Trial
-              </button>
-              <button
-                onClick={() => setMockPlan('pro', 45)}
-                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                  tier === 'pro'
-                    ? 'bg-green-100 text-green-800 border-green-300 font-bold'
-                    : 'bg-white hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                Pro Active
-              </button>
-            </div>
+            <p className="text-[10px] text-[#5f6368] text-center mt-2">
+              Billing to {activeAccount.email}
+            </p>
           </div>
         )}
 
+        {/* Dev-only plan switcher; stripped from production bundles at build time */}
+        {import.meta.env.DEV && (
+          <div className="bg-[#f8fafd] border-t border-[#dadce0] px-4 py-2.5 flex items-center justify-between gap-2 text-[11px] text-[#5f6368]">
+            <span className="font-semibold">Dev: simulate plan</span>
+            <div className="flex items-center gap-1.5">
+              {(['free', 'pro'] as PlanTier[]).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => setMockPlan(t, t === 'free' ? 3 : 45)}
+                  className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
+                    tier === t
+                      ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
+                      : 'bg-white hover:bg-slate-100 border-slate-200'
+                  }`}
+                >
+                  {t === 'free' ? `Free (3/${maxFreeAiQueries} AI)` : 'Pro'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

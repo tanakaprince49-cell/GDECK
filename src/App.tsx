@@ -107,7 +107,6 @@ export default function App() {
   const {
     tier,
     isPro,
-    trialDaysRemaining,
     openUpgradeModal,
     accounts,
     activeAccount,
@@ -456,21 +455,7 @@ export default function App() {
             {user ? (
               <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Subscription Status Pill */}
-                {tier === 'trial' ? (
-                  <button
-                    onClick={() =>
-                      openUpgradeModal({
-                        title: '14-Day Free Pro Trial Active',
-                        desc: `You have ${trialDaysRemaining} days remaining in your full-access trial. Upgrade anytime for $12/month.`,
-                      })
-                    }
-                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 bg-purple-50 rounded-full border border-purple-200 transition-colors cursor-pointer"
-                    title="14-Day Free Pro Trial Active - Click to view or upgrade"
-                  >
-                    <span className="hidden sm:inline">Pro Trial: {trialDaysRemaining}d</span>
-                    <span className="sm:hidden">Trial</span>
-                  </button>
-                ) : tier === 'pro' ? (
+                {tier === 'pro' ? (
                   <button
                     onClick={() =>
                       openUpgradeModal({

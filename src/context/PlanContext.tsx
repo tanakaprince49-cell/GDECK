@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
-export type PlanTier = 'free' | 'trial' | 'pro';
+export type PlanTier = 'free' | 'pro';
 
 export interface GoogleAccountProfile {
   id: string;
@@ -19,8 +19,6 @@ export interface UpgradeModalContext {
 
 export interface PlanContextType {
   tier: PlanTier;
-  trialDaysRemaining: number;
-  trialStartDate: string | null;
   isPro: boolean;
   aiQueriesUsed: number;
   maxFreeAiQueries: number;
@@ -32,8 +30,6 @@ export interface PlanContextType {
   upgradeModalOpen: boolean;
   upgradeModalContext: UpgradeModalContext | null;
   upgradeToPro: () => void;
-  /** Returns false when the one-per-browser 14-day trial has already been consumed. */
-  startProTrial: () => boolean;
   readonly isProductionBuild: boolean;
   downgradeToFree: () => void;
   /** Development only: a no-op in production builds. */
@@ -49,9 +45,6 @@ export interface PlanContextType {
 }
 
 const MAX_FREE_AI_QUERIES = 10;
-const TRIAL_DURATION_DAYS = 14;
-/** Marks that this browser already spent its one 14-day trial. */
-const TRIAL_CLAIMED_KEY = 'gdeck_trial_claimed';
 
 const DEFAULT_ACCOUNTS: GoogleAccountProfile[] = [
   {
@@ -76,32 +69,14 @@ export const PlanProvider: React.FC<{
   userEmail?: string | null;
   userName?: string | null;
 }> = ({ children, userEmail, userName }) => {
-  // Everyone used to land on 'trial', which made `isPro` true on first paint and handed
-  // unlimited AI plus every Pro feature to visitors who had paid or claimed nothing.
-  // Free is now the default; the 14-day trial is an explicit, single-use choice below.
+  // Paid plans only: the automatic 14-day trial is gone, so 'free' is the entry tier and
+  // Pro arrives exclusively through a verified Payonify payment. Accounts still holding a
+  // legacy 'trial' value resolve to free.
   const [tier, setTierState] = useState<PlanTier>(() => {
     try {
-      const savedTier = localStorage.getItem('gdeck_plan_tier') as PlanTier;
-      if (savedTier && ['free', 'trial', 'pro'].includes(savedTier)) {
-        if (savedTier === 'trial' && localStorage.getItem(TRIAL_CLAIMED_KEY) !== '1') {
-          return 'free';
-        }
-        return savedTier;
-      }
+      return localStorage.getItem('gdeck_plan_tier') === 'pro' ? 'pro' : 'free';
     } catch {}
     return 'free';
-  });
-
-  const [trialStartDate, setTrialStartDate] = useState<string>(() => {
-    try {
-      const savedDate = localStorage.getItem('gdeck_trial_start_date');
-      if (savedDate) return savedDate;
-    } catch {}
-    const now = new Date().toISOString();
-    try {
-      localStorage.setItem('gdeck_trial_start_date', now);
-    } catch {}
-    return now;
   });
 
   const [aiQueriesUsed, setAiQueriesUsed] = useState<number>(() => {
@@ -154,23 +129,7 @@ export const PlanProvider: React.FC<{
     }
   }, [userEmail, userName]);
 
-  // Calculate remaining trial days
-  const calculateTrialDaysRemaining = (): number => {
-    if (tier !== 'trial') return 0;
-    try {
-      const start = new Date(trialStartDate).getTime();
-      const now = Date.now();
-      const elapsedDays = Math.floor((now - start) / (1000 * 60 * 60 * 24));
-      const remaining = TRIAL_DURATION_DAYS - elapsedDays;
-      return Math.max(0, remaining);
-    } catch {
-      return 14;
-    }
-  };
-
-  const trialDaysRemaining = calculateTrialDaysRemaining();
-
-  const isPro = tier === 'pro' || (tier === 'trial' && trialDaysRemaining > 0);
+  const isPro = tier === 'pro';
 
   const canUseAi = isPro || aiQueriesUsed < MAX_FREE_AI_QUERIES;
 
@@ -212,7 +171,7 @@ export const PlanProvider: React.FC<{
     if (aiQueriesUsed >= MAX_FREE_AI_QUERIES) {
       openUpgradeModal({
         title: 'Free AI Assists Limit Reached',
-        desc: 'You’ve unlocked 10/10 free AI assists this month. Upgrade to G-Deck Pro for unlimited AI.',
+        desc: `You’ve used all ${MAX_FREE_AI_QUERIES} free AI assists this month. Upgrade to G-Deck Pro for unlimited AI.`,
         isAiLimit: true,
       });
       return false;
@@ -229,7 +188,7 @@ export const PlanProvider: React.FC<{
       setTimeout(() => {
         openUpgradeModal({
           title: 'Free AI Assists Limit Reached',
-          desc: 'You’ve unlocked 10/10 free AI assists this month. Upgrade to G-Deck Pro for unlimited AI.',
+          desc: `You’ve used all ${MAX_FREE_AI_QUERIES} free AI assists this month. Upgrade to G-Deck Pro for unlimited AI.`,
           isAiLimit: true,
         });
       }, 1500);
@@ -245,26 +204,6 @@ export const PlanProvider: React.FC<{
     } catch {}
     closeUpgradeModal();
   }, [closeUpgradeModal]);
-
-  const startProTrial = useCallback((): boolean => {
-    try {
-      if (localStorage.getItem(TRIAL_CLAIMED_KEY) === '1' && tier !== 'trial') {
-        // Without this guard, expiring and clicking the button again restarted the clock,
-        // because the start date lived in localStorage the user controls.
-        return false;
-      }
-      localStorage.setItem(TRIAL_CLAIMED_KEY, '1');
-      setTierState('trial');
-      const now = new Date().toISOString();
-      setTrialStartDate(now);
-      localStorage.setItem('gdeck_plan_tier', 'trial');
-      localStorage.setItem('gdeck_trial_start_date', now);
-    } catch {
-      setTierState('trial');
-    }
-    closeUpgradeModal();
-    return true;
-  }, [closeUpgradeModal, tier]);
 
   const downgradeToFree = useCallback(() => {
     setTierState('free');
@@ -285,14 +224,6 @@ export const PlanProvider: React.FC<{
     try {
       localStorage.setItem('gdeck_plan_tier', newTier);
     } catch {}
-
-    if (newTier === 'trial') {
-      const now = new Date().toISOString();
-      setTrialStartDate(now);
-      try {
-        localStorage.setItem('gdeck_trial_start_date', now);
-      } catch {}
-    }
 
     if (mockAiCount !== undefined) {
       setAiQueriesUsed(mockAiCount);
@@ -337,8 +268,6 @@ export const PlanProvider: React.FC<{
     <PlanContext.Provider
       value={{
         tier,
-        trialDaysRemaining,
-        trialStartDate,
         isPro,
         aiQueriesUsed,
         maxFreeAiQueries: MAX_FREE_AI_QUERIES,
@@ -350,7 +279,6 @@ export const PlanProvider: React.FC<{
         upgradeModalOpen,
         upgradeModalContext,
         upgradeToPro,
-        startProTrial,
         downgradeToFree,
         setMockPlan,
         isProductionBuild,
