@@ -308,3 +308,88 @@ html.gdeck-mobile-tool-open body {
     min-height: 0;
   }
 }
+
+
+/* ========== Mobile layout system ========== */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /* Kill horizontal page scroll from overflowing toolbars */
+  body, #root, .gdeck-app-shell {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Comfortable page padding without wasting width */
+  main:not(.gdeck-mobile-tool-mode) {
+    padding-left: max(0.5rem, env(safe-area-inset-left));
+    padding-right: max(0.5rem, env(safe-area-inset-right));
+  }
+
+  /* Header never wraps or overflows */
+  header.sticky {
+    overflow: visible;
+  }
+  header.sticky > div {
+    min-width: 0;
+  }
+
+  /* Cards breathe but don't dominate */
+  .google-card,
+  .google-card-interactive {
+    border-radius: 1rem;
+  }
+
+  /* Tool internal headers: allow content to shrink */
+  .gdeck-mobile-tool-body header {
+    min-height: 3.25rem;
+    height: auto !important;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+    gap: 0.35rem;
+  }
+
+  /* Tool FABs clear the home indicator */
+  .gdeck-mobile-tool-body .fixed.bottom-6,
+  .gdeck-mobile-tool-body [class*="bottom-6"] {
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  /* Modal sheets: full-bleed on phones when using gdeck-mobile-sheet */
+  .gdeck-mobile-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Keep labels readable, don't force 36px on every tiny chip inside cards */
+  .google-card button,
+  .google-card-interactive button {
+    min-height: 0;
+  }
+}
+
+/* Tool mode: ensure nested scroll regions work */
+.gdeck-mobile-tool-body {
+  -webkit-overflow-scrolling: touch;
+}
+.gdeck-mobile-tool-body .overflow-y-auto,
+.gdeck-mobile-tool-body [class*="overflow-y-auto"],
+.gdeck-mobile-tool-body [class*="overflow-auto"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+
+/* Omni + upgrade overlays above tool chrome */
+.gdeck-mobile-tool-open [role="dialog"] {
+  z-index: 80;
+}

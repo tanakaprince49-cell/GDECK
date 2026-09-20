@@ -262,32 +262,38 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center pt-14 sm:pt-20 p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-[70] flex items-stretch sm:items-start justify-center sm:pt-16 md:pt-20 p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label="Search across Workspace"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+      }}
     >
       <div
-        className="w-full max-w-2xl bg-white rounded-3xl border border-[#dadce0] shadow-[0_20px_60px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col max-h-[78vh]"
+        className="w-full sm:max-w-2xl bg-white sm:rounded-3xl border-0 sm:border border-[#dadce0] shadow-none sm:shadow-[0_20px_60px_rgba(0,0,0,0.3)] overflow-hidden flex flex-col h-[100dvh] sm:h-auto sm:max-h-[min(78vh,720px)] rounded-none"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Search field */}
-        <div className="p-3 border-b border-[#f1f3f4] flex items-center gap-2">
-          <div className="flex-1 flex items-center gap-2.5 px-3.5 py-2.5 bg-[#f1f3f4] rounded-2xl transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-[#e8f0fe]">
+        <div className="p-3 sm:p-3 border-b border-[#f1f3f4] flex items-center gap-2 shrink-0">
+          <div className="flex-1 min-w-0 flex items-center gap-2.5 px-3 sm:px-3.5 py-2.5 sm:py-2.5 bg-[#f1f3f4] rounded-2xl transition-colors focus-within:bg-white focus-within:ring-2 focus-within:ring-[#e8f0fe]">
             <Search className="w-[18px] h-[18px] shrink-0 text-[#5f6368]" />
             <input
               ref={inputRef}
-              type="text"
+              type="search"
+              inputMode="search"
+              enterKeyHint="search"
               role="combobox"
               aria-expanded={visible.length > 0}
               aria-controls="omni-results"
               aria-label="Search Gmail, Calendar, Drive and Tasks"
-              placeholder="Search mail, events, files and tasks"
+              placeholder="Search mail, events, files, tasks…"
               value={query}
               disabled={!isPro}
               onChange={(e) => setQuery(e.target.value)}
-              className="flex-1 min-w-0 text-sm text-[#1f1f1f] placeholder-[#9aa0a6] outline-none bg-transparent disabled:cursor-not-allowed"
+              className="flex-1 min-w-0 text-base sm:text-sm text-[#1f1f1f] placeholder-[#9aa0a6] outline-none bg-transparent disabled:cursor-not-allowed"
             />
             {query && isPro && (
               <button
@@ -295,26 +301,28 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
                   setQuery('');
                   inputRef.current?.focus();
                 }}
-                className="shrink-0 p-1 rounded-full text-[#5f6368] hover:bg-[#e0e0e0] transition-colors cursor-pointer"
+                className="shrink-0 p-1.5 rounded-full text-[#5f6368] hover:bg-[#e0e0e0] transition-colors cursor-pointer"
                 aria-label="Clear search"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </div>
-          <ProBadge size="xs" featureTitle="Omni-Search" />
+          <span className="hidden sm:inline-flex shrink-0">
+            <ProBadge size="xs" featureTitle="Omni-Search" />
+          </span>
           <button
             onClick={onClose}
-            className="shrink-0 p-1.5 rounded-full text-[#5f6368] hover:bg-[#f1f3f4] transition-colors cursor-pointer"
+            className="shrink-0 p-2.5 sm:p-1.5 rounded-full text-[#5f6368] hover:bg-[#f1f3f4] transition-colors cursor-pointer"
             aria-label="Close (Esc)"
             title="Close (Esc)"
           >
-            <X className="w-[18px] h-[18px]" />
+            <X className="w-5 h-5 sm:w-[18px] sm:h-[18px]" />
           </button>
         </div>
 
-        {/* Source tabs */}
-        <div className="px-3 pt-2.5 pb-2.5 bg-white border-b border-[#f1f3f4] flex items-center gap-1 flex-wrap">
+        {/* Source tabs — horizontal scroll on phones so nothing wraps off-screen */}
+        <div className="px-2 sm:px-3 pt-2 pb-2 bg-white border-b border-[#f1f3f4] flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
           {tabs.map((t) => {
             const on = activeFilter === t.id;
             return (
@@ -325,7 +333,7 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
                   setCursor(0);
                 }}
                 disabled={!isPro}
-                className={`inline-flex items-center gap-1.5 pl-2 pr-2.5 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`inline-flex items-center gap-1.5 pl-2.5 pr-2.5 py-2 sm:py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap shrink-0 ${
                   on ? 'bg-[#e8f0fe] text-[#1a73e8]' : 'text-[#5f6368] hover:bg-[#f1f3f4]'
                 }`}
               >
@@ -379,7 +387,7 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
           </div>
         ) : (
           <>
-            <div id="omni-results" ref={listRef} className="overflow-y-auto flex-1 py-1.5" role="listbox">
+            <div id="omni-results" ref={listRef} className="overflow-y-auto flex-1 min-h-0 py-1.5 overscroll-contain" role="listbox">
               {isSearching && (
                 <div className="py-9 text-center text-xs text-[#5f6368] flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-[#1a73e8] border-t-transparent rounded-full animate-spin" />
@@ -434,7 +442,7 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
                             data-cursor={i}
                             onMouseEnter={() => setCursor(i)}
                             onClick={() => activate(r)}
-                            className={`w-full text-left px-4 py-2 flex items-start gap-3 transition-colors cursor-pointer ${
+                            className={`w-full text-left px-4 py-3 sm:py-2 flex items-start gap-3 transition-colors cursor-pointer ${
                               cursor === i ? 'bg-[#e8f0fe]' : 'hover:bg-[#f8fafd]'
                             }`}
                           >
@@ -459,9 +467,9 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
                 )}
             </div>
 
-            {/* Footer */}
-            <div className="px-4 py-2 bg-[#f8fafd] border-t border-[#f1f3f4] flex items-center justify-between gap-3 text-[11px] text-[#5f6368]">
-              <div className="flex items-center gap-2.5 min-w-0">
+            {/* Footer — hide keyboard hints on touch phones */}
+            <div className="px-4 py-2.5 sm:py-2 bg-[#f8fafd] border-t border-[#f1f3f4] flex items-center justify-between gap-3 text-[11px] text-[#5f6368] shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+              <div className="hidden sm:flex items-center gap-2.5 min-w-0">
                 <kbd className="bg-white px-1.5 py-0.5 rounded border border-[#dadce0] font-mono text-[10px]">↑↓</kbd>
                 <span>navigate</span>
                 <kbd className="bg-white px-1.5 py-0.5 rounded border border-[#dadce0] font-mono text-[10px]">↵</kbd>
@@ -469,6 +477,7 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
                 <kbd className="bg-white px-1.5 py-0.5 rounded border border-[#dadce0] font-mono text-[10px]">Esc</kbd>
                 <span>close</span>
               </div>
+              <span className="sm:hidden text-xs font-medium text-[#5f6368]">Tap a result to open</span>
               <span className="shrink-0 tabular-nums">
                 {isSearching ? '…' : `${visible.length} result${visible.length === 1 ? '' : 's'}`}
               </span>

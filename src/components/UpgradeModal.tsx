@@ -165,9 +165,9 @@ export const UpgradeModal: React.FC = () => {
     : upgradeModalContext?.desc || 'Everything below is unlocked across your whole Google workspace.';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[80] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
       <div
-        className="relative w-full max-w-lg bg-white rounded-3xl border border-[#dadce0] shadow-[0_20px_50px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col max-h-[92vh]"
+        className="relative w-full max-w-lg bg-white rounded-t-3xl sm:rounded-3xl border border-[#dadce0] shadow-[0_20px_50px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col max-h-[92dvh] sm:max-h-[92vh] h-auto"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

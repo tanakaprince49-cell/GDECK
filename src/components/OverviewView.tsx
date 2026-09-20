@@ -202,16 +202,16 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const displayedPinnedTools = ALL_WORKSPACE_TOOLS.filter((t) => pinned.includes(t.id));
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300 pb-20 md:pb-0">
+    <div className="space-y-5 sm:space-y-8 animate-in fade-in duration-300 pb-28 md:pb-0 px-0.5 sm:px-0">
       {/* Google Workspace Dashboard Banner */}
-      <div className="google-card p-6 sm:p-8 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="google-card p-4 sm:p-8 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-4 sm:gap-6">
         <div className="space-y-1.5 z-10">
           <div className="flex items-center gap-2">
             <span className="text-xs font-semibold text-[#1a73e8] bg-[#e8f0fe] px-2.5 py-0.5 rounded-full border border-[#d2e3fc]">
               Workspace Command Center
             </span>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-medium tracking-tight text-[#1f1f1f] font-['Google_Sans',Roboto,sans-serif]">
+          <h2 className="text-xl sm:text-3xl font-medium tracking-tight text-[#1f1f1f] font-['Google_Sans',Roboto,sans-serif]">
             Good day{userName ? `, ${userName}` : ''}
           </h2>
           <p className="text-xs sm:text-sm text-[#5f6368] max-w-xl">
@@ -296,7 +296,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
             {displayedPinnedTools.map((tool) => {
               const Icon = tool.icon;
               const isAnchor = anchorTools.includes(tool.id);
@@ -305,13 +305,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                   key={tool.id}
                   id={`overview-launch-${tool.id}`}
                   onClick={() => onNavigateTab(tool.id)}
-                  className={`google-card-interactive p-5 text-left group flex flex-col justify-between min-h-[160px] relative ${
+                  className={`google-card-interactive p-3 sm:p-5 text-left group flex flex-col justify-between min-h-[132px] sm:min-h-[160px] relative ${
                     isAnchor ? 'ring-2 ring-[#1a73e8]/30' : ''
                   }`}
                 >
                   <div className="flex items-start justify-between w-full">
                     <div className="p-2 rounded-2xl bg-[#f8fafd] border border-[#e1e3e1] group-hover:scale-105 transition-transform duration-200 shadow-2xs">
-                      <Icon className="w-8 h-8 object-contain" />
+                      <Icon className="w-7 h-7 sm:w-8 sm:h-8 object-contain" />
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -350,9 +350,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
       </div>
 
       {/* Live Workspace Feeds Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-6">
         {/* Google Calendar Card */}
-        <div className="google-card p-6 flex flex-col justify-between">
+        <div className="google-card p-4 sm:p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#f1f3f4]">
               <div className="flex items-center gap-3">
@@ -472,7 +472,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Google Tasks Card */}
-        <div className="google-card p-6 flex flex-col justify-between">
+        <div className="google-card p-4 sm:p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#f1f3f4]">
               <div className="flex items-center gap-3">
@@ -541,7 +541,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Gmail Priority Inbox Card */}
-        <div className="google-card p-6 flex flex-col justify-between">
+        <div className="google-card p-4 sm:p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#f1f3f4]">
               <div className="flex items-center gap-3">
@@ -603,7 +603,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         </div>
 
         {/* Google Drive Card */}
-        <div className="google-card p-6 flex flex-col justify-between">
+        <div className="google-card p-4 sm:p-6 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-4 border-b border-[#f1f3f4]">
               <div className="flex items-center gap-3">

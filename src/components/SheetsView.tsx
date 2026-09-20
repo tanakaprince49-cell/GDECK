@@ -250,7 +250,7 @@ export const SheetsView: React.FC<SheetsViewProps> = ({ token, onBackToOverview 
       onClick={() => setActiveMenu(null)}
     >
       {/* 1. AUTHENTIC GOOGLE SHEETS HEADER */}
-      <header className="h-16 px-4 bg-white border-b border-[#dadce0] flex items-center justify-between gap-3 shrink-0">
+      <header className="h-14 sm:h-16 px-2 sm:px-4 bg-white border-b border-[#dadce0] flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3 min-w-0">
           {onBackToOverview && (
             <button

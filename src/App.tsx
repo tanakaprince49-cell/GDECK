@@ -539,7 +539,7 @@ export default function App() {
 
       {/* Google Workspace Top App Bar — hidden on mobile while a tool is full-screen */}
       <header className={`sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-xs ${isFullscreen ? 'hidden' : ''}`}>
-        <div className="w-full mx-auto px-2.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
+        <div className="w-full mx-auto px-2 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-4 min-w-0">
           {/* Brand Identity - Google Workspace Deck */}
           <div className="flex items-center gap-1 shrink-0">
             {user && (
@@ -557,8 +557,8 @@ export default function App() {
               title="Home"
             >
               <GDeckLogo size="sm" />
-              <div className="flex flex-col text-left">
-                <span className="text-lg sm:text-xl font-medium tracking-tight text-[#5f6368] font-['Google_Sans',Roboto,sans-serif]">
+              <div className="flex flex-col text-left min-w-0">
+                <span className="text-base sm:text-xl font-medium tracking-tight text-[#5f6368] font-['Google_Sans',Roboto,sans-serif] truncate">
                   G-Deck
                 </span>
               </div>
@@ -653,14 +653,28 @@ export default function App() {
             </div>
           )}
 
-          {/* Right Header: Google 9-dot Waffle + Account Controls */}
-          <div className="flex items-center gap-0.5 sm:gap-2 shrink-0 max-w-[55%] sm:max-w-none justify-end">
+          {/* Right Header: Omni (mobile) + notifications + account — keep lean on phones */}
+          <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0 justify-end min-w-0">
+            {/* Mobile Omni-Search — desktop uses the center search pill */}
+            {!needsAuth && token && (
+              <button
+                type="button"
+                id="mobile-omni-search-btn"
+                onClick={openOmniSearch}
+                className="md:hidden p-2.5 text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer relative"
+                title="Omni-Search (Gmail, Calendar, Drive, Tasks)"
+                aria-label="Open Omni-Search"
+              >
+                <Search className="w-5 h-5" />
+                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-500" />
+              </button>
+            )}
             {!needsAuth && token && (
               <NotificationCenter onNavigateTab={(tab) => setActiveTab(tab)} />
             )}
             {user ? (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                {/* Subscription Status Pill */}
+              <div className="flex items-center gap-0.5 sm:gap-1.5">
+                {/* Subscription Status — desktop/tablet only; mobile uses profile menu */}
                 {isPro ? (
                   <button
                     onClick={() =>
@@ -671,7 +685,7 @@ export default function App() {
                           : 'Your Pro period is active. Pay again at the end of the period to renew.',
                       })
                     }
-                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-200 bg-purple-100 rounded-full border border-purple-300 transition-colors cursor-pointer"
+                    className="hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-200 bg-purple-100 rounded-full border border-purple-300 transition-colors cursor-pointer"
                     title={
                       proExpiresLabel
                         ? `Pro active until ${proExpiresLabel}`
@@ -679,12 +693,11 @@ export default function App() {
                     }
                     id="header-pro-status-pill"
                   >
-                    <span className="hidden sm:inline">
+                    <span>
                       {proDaysRemaining > 0 && proDaysRemaining <= 7
                         ? `Pro · ${proDaysRemaining}d left`
                         : 'Pro Active'}
                     </span>
-                    <span className="sm:hidden">Pro</span>
                   </button>
                 ) : (
                   <button
@@ -699,7 +712,7 @@ export default function App() {
                           : undefined
                       )
                     }
-                    className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
+                    className={`hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
                       needsRenewal
                         ? 'text-amber-900 hover:bg-amber-100 bg-amber-50 border-amber-300'
                         : 'text-purple-700 hover:bg-purple-100 bg-purple-50 border-purple-200'
@@ -878,13 +891,59 @@ export default function App() {
                       </div>
 
                       <div className="pt-3 space-y-1.5">
+                        {/* Mobile-only plan control (header pill is hidden on small screens) */}
+                        <button
+                          type="button"
+                          id="profile-plan-btn"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            openUpgradeModal(
+                              isPro
+                                ? {
+                                    title: 'G-Deck Pro Member',
+                                    desc: proExpiresLabel
+                                      ? `Pro is active until ${proExpiresLabel}.`
+                                      : 'Your Pro period is active.',
+                                  }
+                                : needsRenewal
+                                  ? {
+                                      isRenewal: true,
+                                      title: 'Pro period ended',
+                                      desc: 'Your Pro period ended. Pay again to unlock Pro features.',
+                                    }
+                                  : undefined
+                            );
+                          }}
+                          className="sm:hidden w-full px-3 py-2.5 text-xs font-semibold text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl text-left flex items-center justify-between gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <span className="flex items-center gap-2.5">
+                            <Star className="w-4 h-4 text-purple-600" />
+                            <span>{isPro ? 'Pro plan' : needsRenewal ? 'Renew Pro' : 'Upgrade to Pro'}</span>
+                          </span>
+                          <ProBadge size="xs" showLockOnFree={false} />
+                        </button>
+
+                        <button
+                          type="button"
+                          id="profile-omni-btn"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            openOmniSearch();
+                          }}
+                          className="sm:hidden w-full px-3 py-2.5 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <Search className="w-4 h-4 text-purple-600" />
+                          <span>Omni-Search</span>
+                          <ProBadge size="xs" showLockOnFree={false} />
+                        </button>
+
                         <button
                           id="profile-customize-prefs-btn"
                           onClick={() => {
                             setShowSettingsModal(true);
                             setShowProfileMenu(false);
                           }}
-                          className="w-full px-3 py-2 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
+                          className="w-full px-3 py-2.5 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
                         >
                           <Settings className="w-4 h-4 text-[#5f6368]" />
                           <span>Settings & Preferences</span>
@@ -896,7 +955,7 @@ export default function App() {
                             setShowProfileMenu(false);
                             setShowLogoutConfirm(true);
                           }}
-                          className="w-full px-3 py-2 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
+                          className="w-full px-3 py-2.5 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
                         >
                           <LogOut className="w-4 h-4 text-[#5f6368]" />
                           <span>Sign Out</span>
@@ -1109,6 +1168,18 @@ export default function App() {
                 <LayoutGrid className="w-5 h-5 shrink-0" />
                 <span className="text-sm font-semibold">Home</span>
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  openOmniSearch();
+                }}
+                className="w-full p-3 rounded-xl flex items-center gap-3 border border-purple-200 bg-purple-50 text-purple-900 text-left cursor-pointer"
+              >
+                <Search className="w-5 h-5 shrink-0 text-purple-600" />
+                <span className="text-sm font-semibold flex-1">Omni-Search</span>
+                <ProBadge size="xs" showLockOnFree={false} />
+              </button>
               {CATEGORIES.map((category) => {
                 const categoryTools = ALL_WORKSPACE_TOOLS.filter((t) => t.category === category);
                 return (
@@ -1171,7 +1242,7 @@ export default function App() {
             ? 'gdeck-mobile-tool-mode'
             : `flex-1 w-full mx-auto relative flex flex-col ${
                 activeTab === 'chat'
-                  ? 'max-w-full px-1 sm:px-2 py-1'
+                  ? 'max-w-full px-0 sm:px-2 py-0 sm:py-1'
                   : 'max-w-7xl p-2 sm:p-4 md:p-6 lg:p-8'
               }`
         }
@@ -1199,6 +1270,17 @@ export default function App() {
                 {activeToolLabel}
               </span>
             </div>
+            <button
+              type="button"
+              id="mobile-tool-omni-btn"
+              onClick={openOmniSearch}
+              className="p-2 rounded-full text-[#5f6368] hover:bg-[#f1f3f4] cursor-pointer shrink-0 relative"
+              aria-label="Omni-Search"
+              title="Omni-Search"
+            >
+              <Search className="w-5 h-5" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-500" />
+            </button>
             <button
               type="button"
               onClick={() => setMobileMenuOpen(true)}

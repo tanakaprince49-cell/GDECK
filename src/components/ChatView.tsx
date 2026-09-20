@@ -464,7 +464,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       )}
 
       {/* ================= TOP GOOGLE BAR (SEAMLESS ON #f8fafd) ================= */}
-      <div className="h-16 px-4 flex items-center justify-between gap-4 shrink-0 bg-[#f8fafd]">
+      <div className="h-14 sm:h-16 px-2 sm:px-4 flex items-center justify-between gap-4 shrink-0 bg-[#f8fafd]">
         {/* Left: Hamburger + Google Chat Brand Logo */}
         <div className="flex items-center gap-3 shrink-0">
           {onBackToOverview && (

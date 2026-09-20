@@ -493,7 +493,7 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
       />
 
       {/* AUTHENTIC GOOGLE DRIVE TOP BAR */}
-      <header className="h-16 px-3 sm:px-6 bg-[#f6f8fc] border-b border-[#dadce0]/80 flex items-center justify-between gap-2 sm:gap-4 shrink-0">
+      <header className="h-14 sm:h-16 px-2 sm:px-6 bg-[#f6f8fc] border-b border-[#dadce0]/80 flex items-center justify-between gap-1.5 sm:gap-4 shrink-0 gdeck-dense-toolbar min-w-0">
         <div className="flex items-center gap-1.5 sm:gap-3">
           {/* Mobile hamburger menu toggle */}
           <button
@@ -522,7 +522,7 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
         </div>
 
         {/* Real Drive Search Box */}
-        <div className="flex-1 max-w-2xl mx-1 sm:mx-2">
+        <div className="flex-1 min-w-0 max-w-2xl mx-1 sm:mx-2">
           <form onSubmit={handleSearch} className="relative flex items-center">
             <Search className="w-4 h-4 sm:w-5 sm:h-5 text-[#5f6368] absolute left-3.5 sm:left-4 pointer-events-none" />
             <input

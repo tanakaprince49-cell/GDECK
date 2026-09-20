@@ -158,7 +158,7 @@ export const KeepView: React.FC<{ onBackToOverview?: () => void }> = ({ onBackTo
       className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-none"
     >
       {/* 1. AUTHENTIC GOOGLE KEEP TOP BAR */}
-      <header className="h-16 px-4 sm:px-6 bg-white border-b border-[#dadce0] flex items-center justify-between gap-4 shrink-0">
+      <header className="h-14 sm:h-16 px-2 sm:px-6 bg-white border-b border-[#dadce0] flex items-center justify-between gap-2 sm:gap-4 shrink-0 gdeck-dense-toolbar">
         <div className="flex items-center gap-3">
           {onBackToOverview && (
             <button
@@ -176,15 +176,15 @@ export const KeepView: React.FC<{ onBackToOverview?: () => void }> = ({ onBackTo
         </div>
 
         {/* Real Keep Search Bar */}
-        <div className="flex-1 max-w-2xl mx-2">
+        <div className="flex-1 min-w-0 max-w-2xl mx-1 sm:mx-2">
           <div className="relative flex items-center">
-            <Search className="w-5 h-5 text-[#5f6368] absolute left-4 pointer-events-none" />
+            <Search className="w-4 h-4 sm:w-5 sm:h-5 text-[#5f6368] absolute left-3 sm:left-4 pointer-events-none" />
             <input
               type="text"
               placeholder="Search in Keep..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full h-11 pl-12 pr-10 bg-[#f1f3f4] hover:bg-[#e8eaed] focus:bg-white text-sm text-[#1f1f1f] rounded-lg border border-transparent focus:border-[#dadce0] focus:shadow-md outline-none transition-all"
+              className="w-full h-10 sm:h-11 pl-10 sm:pl-12 pr-9 sm:pr-10 bg-[#f1f3f4] hover:bg-[#e8eaed] focus:bg-white text-sm text-[#1f1f1f] rounded-lg border border-transparent focus:border-[#dadce0] focus:shadow-md outline-none transition-all"
             />
             {searchQuery && (
               <button

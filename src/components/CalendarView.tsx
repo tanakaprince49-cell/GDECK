@@ -481,7 +481,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
       />
 
       {/* 1. TOP HEADER TOOLBAR */}
-      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-3 sm:px-6 py-2.5 sm:py-3 border-b border-[#dadce0] bg-white gap-2 sm:gap-4 shrink-0">
+      <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between px-2 sm:px-6 py-2 sm:py-3 border-b border-[#dadce0] bg-white gap-1.5 sm:gap-4 shrink-0 gdeck-dense-toolbar min-w-0">
         <div className="flex items-center justify-between sm:justify-start gap-2 sm:gap-4 w-full sm:w-auto">
           <div className="flex items-center gap-1.5 sm:gap-3">
             {onBackToOverview && (

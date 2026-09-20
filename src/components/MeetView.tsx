@@ -135,7 +135,7 @@ export const MeetView: React.FC<MeetViewProps> = ({ token, onBackToOverview }) =
       className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-none"
     >
       {/* 1. AUTHENTIC GOOGLE MEET TOP HEADER */}
-      <header className="h-16 px-4 sm:px-6 bg-white border-b border-[#dadce0] flex items-center justify-between gap-4 shrink-0">
+      <header className="h-14 sm:h-16 px-2 sm:px-4 sm:px-6 bg-white border-b border-[#dadce0] flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-3">
           {onBackToOverview && (
             <button
