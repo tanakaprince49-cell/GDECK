@@ -134,7 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { contents, tools, userName, memories } = req.body || {};
+    const { contents, tools, userName, memories, systemInstruction } = req.body || {};
 
     const rawApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
 
@@ -150,8 +150,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Prune contents to save tokens and prevent 429 quota exhaustion
     const sanitizedContents = pruneAndSanitizeContents(contents);
 
-    // Ultra-lean, token-efficient system instruction (< 100 tokens)
-    let sysInstruct = `You are G-Pilot, an autonomous executive assistant for Google Workspace.
+    // Callers that generate a document rather than a conversation (meeting prep pack,
+    // follow-up drafter) pass their own instruction; G-Pilot's persona is deliberately not
+    // applied to them, because it invites chatty preamble instead of clean output.
+    let sysInstruct = systemInstruction || `You are G-Pilot, an autonomous executive assistant for Google Workspace.
 User: ${userName || 'User'}.
 Role: Read context, organize schedules, read emails, manage Drive/Tasks/Meet.
 Rules:

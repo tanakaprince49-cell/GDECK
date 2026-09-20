@@ -223,6 +223,7 @@ async function startServer() {
         currentDateTime,
         currentDateFormatted,
         userTimeZone,
+        systemInstruction,
       } = req.body || {};
       
       const rawApiKey = process.env.GEMINI_API_KEY;
@@ -247,7 +248,7 @@ async function startServer() {
       const effectiveTimeZone = userTimeZone || 'UTC';
 
       // Concise, high-density system instruction for token efficiency and rapid response
-      let sysInstruct = `You are G-Pilot, executive AI assistant in G-Deck for Google Workspace (Gmail, Calendar, Meet, Tasks, Drive).
+      let sysInstruct = systemInstruction || `You are G-Pilot, executive AI assistant in G-Deck for Google Workspace (Gmail, Calendar, Meet, Tasks, Drive).
 User: ${userName || 'User'}. Real-World Date: ${effectiveDateFormatted} (${effectiveDateTime}, ${effectiveTimeZone}).
 RULES:
 - Today is strictly ${effectiveDateFormatted}. Anchor all relative queries ("today", "tomorrow", "this week") to this date.

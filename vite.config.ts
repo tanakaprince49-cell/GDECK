@@ -4,6 +4,11 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
+  const allowedHosts = (process.env.VITE_ALLOWED_HOSTS || '')
+    .split(',')
+    .map((h) => h.trim())
+    .filter(Boolean);
+
   return {
     plugins: [react(), tailwindcss()],
     resolve: {
@@ -12,10 +17,10 @@ export default defineConfig(() => {
       },
     },
     server: {
-      // Sandbox/remote previews reach the dev server through a proxy hostname that Vite's
-      // host allowlist rejects by default. Opt in with VITE_ALLOWED_HOSTS='*'; unset, the
-      // behaviour is exactly as before.
-      allowedHosts: process.env.VITE_ALLOWED_HOSTS === '*' ? true : undefined,
+      // Remote previews reach the dev server through a proxy hostname that Vite's host
+      // allowlist rejects by default. Pass a comma-separated list (a leading dot allows all
+      // subdomains, e.g. VITE_ALLOWED_HOSTS=.example.app). Unset, behaviour is unchanged.
+      allowedHosts: allowedHosts.length ? allowedHosts : undefined,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
