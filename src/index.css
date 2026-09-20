@@ -218,7 +218,7 @@ html.gdeck-mobile-tool-open body {
   height: 100%;
   height: 100dvh;
   overscroll-behavior: none;
-  touch-action: pan-y;
+  /* Do NOT set touch-action on html/body — it blocks nested tool scrolling on iOS */
 }
 
 .gdeck-app-shell {
@@ -327,26 +327,40 @@ html.gdeck-mobile-tool-open body {
   min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  /* Body itself doesn't scroll — the tool root does (or its inner main) */
   overflow: hidden !important;
   position: relative !important;
   width: 100% !important;
   max-width: 100% !important;
   padding: 0 !important;
   margin: 0 !important;
+  -webkit-overflow-scrolling: touch;
 }
 
-/* Tool views: 100% of remaining viewport, no card chrome */
+/* Tool views fill remaining viewport and MUST be able to scroll */
 .gdeck-mobile-tool-body > * {
   flex: 1 1 auto !important;
   min-height: 0 !important;
   width: 100% !important;
   max-width: 100% !important;
   height: 100% !important;
-  max-height: none !important;
+  max-height: 100% !important;
   border-radius: 0 !important;
   border: none !important;
   box-shadow: none !important;
   margin: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+/* Nested mains that already scroll keep working inside the root scroller */
+.gdeck-mobile-tool-body .overflow-y-auto,
+.gdeck-mobile-tool-body [class*="overflow-y-auto"] {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Outer card-style roots lose side margins so the tool is edge-to-edge */

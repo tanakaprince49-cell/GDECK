@@ -28,7 +28,7 @@ export const WorkspaceAppView: React.FC<WorkspaceAppViewProps> = ({
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300">
+    <div className="w-full max-w-5xl mx-auto space-y-6 animate-in fade-in duration-300 h-full min-h-0 overflow-y-auto p-3 sm:p-0">
       {/* Top Header Card */}
       <div className="bg-white rounded-3xl border border-[#dadce0] p-6 sm:p-8 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-start gap-4">

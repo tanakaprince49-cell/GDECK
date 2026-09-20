@@ -463,7 +463,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
       }}
       onDragLeave={() => setIsDragOver(false)}
       onDrop={handleDrop}
-      className={`flex flex-col h-full bg-white relative select-none ${
+      className={`flex flex-col h-full min-h-0 overflow-y-auto bg-white relative select-none ${
         isDragOver ? 'ring-4 ring-[#1a73e8] ring-inset' : ''
       }`}
     >

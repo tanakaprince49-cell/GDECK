@@ -555,7 +555,7 @@ export default function App() {
 
           {/* Tools-only search — Omni is NOT in this bar */}
           {!needsAuth && token && (
-            <div ref={!isFullscreen ? searchRef : undefined} className="flex flex-1 min-w-0 max-w-xl relative items-center">
+            <div ref={!isFullscreen ? searchRef : undefined} className="flex flex-1 min-w-0 relative items-center">
               <div className="w-full relative flex items-center">
                 <div className="absolute left-3 sm:left-3.5 pointer-events-none text-[#5f6368]">
                   <Search className="w-4 h-4" />
@@ -904,19 +904,6 @@ export default function App() {
                           <ProBadge size="xs" showLockOnFree={false} />
                         </button>
 
-                        <button
-                          type="button"
-                          id="profile-omni-btn"
-                          onClick={() => {
-                            setShowProfileMenu(false);
-                            openOmniSearch();
-                          }}
-                          className="sm:hidden w-full px-3 py-2.5 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
-                        >
-                          <Search className="w-4 h-4 text-purple-600" />
-                          <span>Omni-Search</span>
-                          <ProBadge size="xs" showLockOnFree={false} />
-                        </button>
 
                         <button
                           id="profile-customize-prefs-btn"
@@ -958,17 +945,6 @@ export default function App() {
               </button>
             )}
 
-            {/* Mobile menu toggle */}
-            {!needsAuth && token && (
-              <button
-                id="mobile-menu-toggle-btn"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-1.5 sm:p-2 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer"
-                aria-label="Toggle mobile menu"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5 text-[#1f1f1f]" /> : <Menu className="w-5 h-5 text-[#1f1f1f]" />}
-              </button>
-            )}
           </div>
         </div>
 
@@ -1151,6 +1127,7 @@ export default function App() {
               </button>
               <button
                 type="button"
+                id="drawer-omni-search-btn"
                 onClick={() => {
                   setMobileMenuOpen(false);
                   openOmniSearch();
@@ -1158,9 +1135,15 @@ export default function App() {
                 className="w-full p-3 rounded-xl flex items-center gap-3 border border-purple-200 bg-purple-50 text-purple-900 text-left cursor-pointer"
               >
                 <Search className="w-5 h-5 shrink-0 text-purple-600" />
-                <span className="text-sm font-semibold flex-1">Omni-Search</span>
+                <div className="min-w-0 flex-1 text-left">
+                  <span className="block text-sm font-semibold">Omni-Search</span>
+                  <span className="block text-[11px] text-purple-700/80 font-medium">Search across all connected tools</span>
+                </div>
                 <ProBadge size="xs" showLockOnFree={false} />
               </button>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#5f6368] px-1 pt-1">
+                All connected tools
+              </p>
               {CATEGORIES.map((category) => {
                 const categoryTools = ALL_WORKSPACE_TOOLS.filter((t) => t.category === category);
                 return (
@@ -1263,75 +1246,9 @@ export default function App() {
                 </span>
               </div>
             </div>
-            <div className="gdeck-mobile-tool-search-row">
-              <div className="gdeck-mobile-tool-search" ref={isFullscreen ? searchRef : undefined}>
-                <Search className="w-4 h-4 text-[#5f6368] shrink-0" />
-                <input
-                  type="search"
-                  inputMode="search"
-                  placeholder="Search tools…"
-                  value={globalSearchQuery}
-                  onFocus={() => setShowSearchResults(true)}
-                  onChange={(e) => {
-                    setGlobalSearchQuery(e.target.value);
-                    setShowSearchResults(true);
-                  }}
-                  className="flex-1 min-w-0 bg-transparent text-sm text-[#1f1f1f] placeholder-[#9aa0a6] outline-none"
-                  id="mobile-tool-tools-search"
-                  aria-label="Search tools"
-                />
-                {globalSearchQuery ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGlobalSearchQuery('');
-                      setShowSearchResults(false);
-                    }}
-                    className="p-1.5 rounded-full text-[#5f6368] hover:bg-[#e8eaed] cursor-pointer shrink-0"
-                    aria-label="Clear"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                ) : null}
-                {showSearchResults && globalSearchQuery.trim() && (
-                  <div className="gdeck-mobile-tool-search-results">
-                    <div className="text-[10px] font-bold text-[#5f6368] px-3 py-2 uppercase tracking-wider">
-                      Tools matching &quot;{globalSearchQuery}&quot;
-                    </div>
-                    {filteredSearchTools.length === 0 ? (
-                      <div className="p-4 text-center text-xs text-[#5f6368]">No tools found</div>
-                    ) : (
-                      <div className="max-h-[50vh] overflow-y-auto">
-                        {filteredSearchTools.map((tool) => {
-                          const Icon = tool.icon;
-                          return (
-                            <button
-                              key={tool.id}
-                              type="button"
-                              onClick={() => {
-                                setActiveTab(tool.id);
-                                setShowSearchResults(false);
-                                setGlobalSearchQuery('');
-                              }}
-                              className="w-full p-3.5 flex items-center gap-3 hover:bg-[#f0f4f9] text-left cursor-pointer border-b border-[#f1f3f4] last:border-0"
-                            >
-                              <Icon className="w-5 h-5 object-contain shrink-0" />
-                              <span className="text-sm font-semibold text-[#1f1f1f] truncate flex-1">
-                                {tool.name}
-                              </span>
-                              <span className="text-[10px] text-[#5f6368] shrink-0">{tool.category}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         )}
-                {activeTab === 'privacy' ? (
+        {activeTab === 'privacy' ? (
           <PrivacyPolicyView onBack={() => setActiveTab('overview')} />
         ) : activeTab === 'terms' ? (
           <TermsOfServiceView onBack={() => setActiveTab('overview')} />
