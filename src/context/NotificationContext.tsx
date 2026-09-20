@@ -6,7 +6,7 @@ interface NotificationContextType {
   unreadCount: number;
   settings: NotificationSettings;
   activeToast: WorkspaceNotification | null;
-  addNotification: (notification: Omit<WorkspaceNotification, 'id' | 'timestamp' | 'read'>) => void;
+  addNotification: (notification: Omit<WorkspaceNotification, 'id' | 'timestamp' | 'read'> & { tag?: string }) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearNotification: (id: string) => void;
@@ -25,6 +25,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   notifyDrive: true,
   notifyTasks: true,
   notifyGPilot: true,
+  notifyBilling: true,
   pollingIntervalSeconds: 30,
 };
 
@@ -140,7 +141,10 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
   const [settings, setSettings] = useState<NotificationSettings>(() => {
     try {
       const saved = localStorage.getItem('gdeck_notification_settings');
-      return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
+      if (!saved) return DEFAULT_SETTINGS;
+      const parsed = JSON.parse(saved);
+      // Backfill keys added after the settings shape shipped.
+      return { ...DEFAULT_SETTINGS, ...parsed };
     } catch {
       return DEFAULT_SETTINGS;
     }
@@ -177,15 +181,24 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
 
   // Add a new notification
   const addNotification = useCallback(
-    (newNotifData: Omit<WorkspaceNotification, 'id' | 'timestamp' | 'read'>) => {
+    (newNotifData: Omit<WorkspaceNotification, 'id' | 'timestamp' | 'read'> & { tag?: string }) => {
+      // Honour per-category mute switches.
+      if (newNotifData.category === 'gmail' && !settings.notifyGmail) return;
+      if (newNotifData.category === 'calendar' && !settings.notifyCalendar) return;
+      if (newNotifData.category === 'drive' && !settings.notifyDrive) return;
+      if (newNotifData.category === 'tasks' && !settings.notifyTasks) return;
+      if (newNotifData.category === 'gpilot' && !settings.notifyGPilot) return;
+      if (newNotifData.category === 'billing' && !settings.notifyBilling) return;
+
+      const { tag: desktopTag, ...rest } = newNotifData as typeof newNotifData & { tag?: string };
       const newNotif: WorkspaceNotification = {
-        ...newNotifData,
+        ...rest,
         id: `notif-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
         timestamp: new Date().toISOString(),
         read: false,
       };
 
-      setNotifications((prev) => [newNotif, ...prev]);
+      setNotifications((prev) => [newNotif, ...prev].slice(0, 100));
       setActiveToast(newNotif);
 
       // Sound feedback
@@ -193,7 +206,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
         playNotificationChime();
       }
 
-      // Browser Desktop Push Notification
+      // Browser Desktop Push Notification (page-level; fires while G-Deck is open)
       if (settings.enableDesktopPush && 'Notification' in window && Notification.permission === 'granted') {
         const logoMap: Record<string, string> = {
           gmail: '/logos/gmail.svg',
@@ -207,12 +220,36 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
           forms: '/logos/forms.svg',
           chat: '/logos/chat.svg',
           keep: '/logos/keep.svg',
+          billing: '/favicon.ico',
+          system: '/favicon.ico',
+          gpilot: '/favicon.ico',
         };
         try {
-          new Notification(newNotif.title, {
+          const opts: NotificationOptions & { renotify?: boolean } = {
             body: newNotif.message,
             icon: logoMap[newNotif.category] || '/favicon.ico',
-          });
+            tag: desktopTag || `gdeck-${newNotif.category}`,
+            renotify: newNotif.category === 'billing',
+            requireInteraction: newNotif.category === 'billing' || newNotif.priority === 'urgent',
+          };
+          const n = new Notification(newNotif.title, opts);
+          n.onclick = () => {
+            try {
+              window.focus();
+              if (newNotif.actionTab === 'upgrade' || newNotif.category === 'billing') {
+                window.dispatchEvent(
+                  new CustomEvent('gdeck_open_upgrade', {
+                    detail: { isRenewal: true, source: 'desktop-notification' },
+                  })
+                );
+              } else if (newNotif.actionTab) {
+                window.dispatchEvent(
+                  new CustomEvent('gdeck_navigate_tab', { detail: { tab: newNotif.actionTab } })
+                );
+              }
+            } catch {}
+            try { n.close(); } catch {}
+          };
         } catch {}
       }
     },
@@ -346,7 +383,7 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
 
   // Demo Trigger for testing notifications on demand
   const triggerTestNotification = useCallback(() => {
-    const samples: Omit<WorkspaceNotification, 'id' | 'timestamp' | 'read'>[] = [
+    const samples: (Omit<WorkspaceNotification, 'id' | 'timestamp' | 'read'> & { tag?: string })[] = [
       {
         title: 'New Email: Project Milestone Approved',
         message: 'Marcus Thorne approved the revised Q4 deliverables budget in Gmail.',
@@ -388,6 +425,15 @@ export const NotificationProvider: React.FC<{ children: ReactNode; token?: strin
         priority: 'normal',
         actionTab: 'overview',
         actionText: 'Ask Assistant',
+      },
+      {
+        title: 'Pro renews in 2 days',
+        message: 'Your G-Deck Pro period ends soon. Renew now so unlimited AI stays on.',
+        category: 'billing',
+        priority: 'high',
+        actionTab: 'upgrade',
+        actionText: 'Renew Pro',
+        tag: 'gdeck-pro-renewal',
       },
     ];
 

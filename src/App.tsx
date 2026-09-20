@@ -57,6 +57,7 @@ import { GoogleLogo } from './components/GoogleIcons';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationCenter } from './components/NotificationCenter';
 import { NotificationToast } from './components/NotificationToast';
+import { ProRenewalReminder } from './components/ProRenewalReminder';
 import { PrivacyPolicyView } from './components/PrivacyPolicyView';
 import { TermsOfServiceView } from './components/TermsOfServiceView';
 import { LandingView } from './components/LandingView';
@@ -1406,6 +1407,7 @@ export default function App() {
       />
 
       {/* Floating Real-time Notification Toast */}
+      <ProRenewalReminder />
       <NotificationToast onNavigateTab={(tab) => setActiveTab(tab)} />
       <Analytics />
     </div>

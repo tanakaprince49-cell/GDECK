@@ -54,7 +54,7 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                 <div>
                   <h4 className="text-xs font-bold text-[#1f1f1f]">Browser Desktop Push Alerts</h4>
                   <p className="text-[11px] text-[#5f6368]">
-                    Show native OS popups even when GDECK is in background
+                    Native OS popups while G-Deck is open (needed for Pro renewal push alerts)
                   </p>
                 </div>
               </div>
@@ -150,6 +150,21 @@ export const NotificationSettingsModal: React.FC<NotificationSettingsModalProps>
                   checked={settings.notifyTasks}
                   onChange={(e) => updateSettings({ notifyTasks: e.target.checked })}
                   className="rounded border-slate-300 text-[#1a73e8] focus:ring-[#1a73e8]"
+                />
+              </label>
+
+              <label className="p-3 rounded-xl border border-[#dadce0] bg-white flex items-center justify-between cursor-pointer hover:bg-[#f0f4f9] transition-colors col-span-2">
+                <div className="min-w-0 pr-2">
+                  <span className="text-xs font-semibold text-[#1f1f1f] block">Pro renewal reminders</span>
+                  <span className="text-[10px] text-[#5f6368] block leading-snug">
+                    Daily alert for the last 3 days before your Pro period ends
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={settings.notifyBilling !== false}
+                  onChange={(e) => updateSettings({ notifyBilling: e.target.checked })}
+                  className="rounded border-slate-300 text-[#7e22ce] focus:ring-[#7e22ce] shrink-0"
                 />
               </label>
             </div>

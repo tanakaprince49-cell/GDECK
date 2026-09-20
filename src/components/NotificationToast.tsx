@@ -154,6 +154,16 @@ const getToolConfig = (category: NotificationCategory | string): ToolStyleConfig
         actionClass: 'text-[#1a73e8] hover:bg-[#e8f0fe]',
         containerBg: 'bg-[#0b0f17]',
       };
+    case 'billing':
+      return {
+        name: 'G-Deck Pro',
+        IconComponent: GoogleLogo,
+        chipBg: 'bg-[#faf5ff]',
+        chipText: 'text-[#7e22ce]',
+        chipBorder: 'border-[#e9d5ff]',
+        actionClass: 'text-[#7e22ce] hover:bg-[#faf5ff]',
+        containerBg: 'bg-white',
+      };
     default:
       return {
         name: 'Google Workspace',
@@ -185,7 +195,13 @@ export const NotificationToast: React.FC<NotificationToastProps> = ({ onNavigate
 
   const handleAction = () => {
     markAsRead(activeToast.id);
-    if (activeToast.actionTab && onNavigateTab) {
+    if (activeToast.actionTab === 'upgrade' || activeToast.category === 'billing') {
+      window.dispatchEvent(
+        new CustomEvent('gdeck_open_upgrade', {
+          detail: { isRenewal: true, source: 'notification-toast' },
+        })
+      );
+    } else if (activeToast.actionTab && onNavigateTab) {
       onNavigateTab(activeToast.actionTab);
     }
     dismissToast();

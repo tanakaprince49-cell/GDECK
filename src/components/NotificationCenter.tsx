@@ -58,6 +58,8 @@ const getCategoryBadge = (category: NotificationCategory) => {
       return { icon: GoogleChatIcon, label: 'Chat', bg: 'bg-white', text: 'text-[#00832d]', border: 'border-[#dadce0]' };
     case 'gpilot':
       return { icon: GPilotIcon, label: 'G-Pilot', bg: 'bg-[#0b0f17]', text: 'text-[#fbe618]', border: 'border-[#222]' };
+    case 'billing':
+      return { icon: Zap, label: 'Billing', bg: 'bg-[#faf5ff]', text: 'text-[#7e22ce]', border: 'border-[#e9d5ff]' };
     default:
       return { icon: GoogleLogo, label: 'System', bg: 'bg-white', text: 'text-[#5f6368]', border: 'border-[#dadce0]' };
   }
@@ -98,6 +100,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
 
   const handleNotificationClick = (n: WorkspaceNotification) => {
     markAsRead(n.id);
+    if (n.actionTab === 'upgrade' || n.category === 'billing') {
+      window.dispatchEvent(
+        new CustomEvent('gdeck_open_upgrade', {
+          detail: { isRenewal: true, source: 'notification-center' },
+        })
+      );
+      setIsOpen(false);
+      return;
+    }
     if (n.actionTab && onNavigateTab) {
       onNavigateTab(n.actionTab);
       setIsOpen(false);

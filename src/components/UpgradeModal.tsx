@@ -493,6 +493,19 @@ export const UpgradeModal: React.FC = () => {
                 Pro 60s
               </button>
               <button
+                onClick={() => {
+                  try { localStorage.removeItem('gdeck_pro_renewal_notified_day'); } catch {}
+                  setMockPlan('pro', 45, {
+                    planId: 'pro_monthly',
+                    expiresInMs: 2.5 * 24 * 60 * 60 * 1000,
+                  });
+                }}
+                className="px-2 py-0.5 rounded-md border font-medium cursor-pointer bg-white hover:bg-slate-100 border-slate-200"
+                title="Pro with ~2.5 days left — fires daily renewal reminder"
+              >
+                Pro 2d left
+              </button>
+              <button
                 onClick={() => setMockPlan('pro', 45, { planId: 'pro_monthly' })}
                 className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
                   tier === 'pro'

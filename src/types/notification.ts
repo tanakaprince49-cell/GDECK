@@ -11,7 +11,8 @@ export type NotificationCategory =
   | 'chat'
   | 'keep'
   | 'gpilot'
-  | 'system';
+  | 'system'
+  | 'billing';
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'urgent';
 
@@ -37,5 +38,7 @@ export interface NotificationSettings {
   notifyDrive: boolean;
   notifyTasks: boolean;
   notifyGPilot: boolean;
+  /** Daily Pro renewal reminders in the last 3 days of a paid period. */
+  notifyBilling: boolean;
   pollingIntervalSeconds: number;
 }
