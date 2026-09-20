@@ -228,54 +228,109 @@ html.gdeck-mobile-tool-open body {
   flex-direction: column;
 }
 
-/* Full-screen tool surface on phones */
+/* TRUE full-screen tool surface — edge to edge, only tool chrome + tool UI */
 .gdeck-mobile-tool-mode {
-  position: fixed;
-  inset: 0;
-  z-index: 30;
-  display: flex;
-  flex-direction: column;
-  background: #f8fafd;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 40;
+  display: flex !important;
+  flex-direction: column !important;
+  background: #ffffff;
+  padding: 0 !important;
   padding-top: var(--gdeck-safe-top);
   padding-bottom: var(--gdeck-safe-bottom);
   padding-left: var(--gdeck-safe-left);
   padding-right: var(--gdeck-safe-right);
-  height: 100dvh;
-  max-height: 100dvh;
-  overflow: hidden;
+  width: 100vw !important;
+  max-width: 100vw !important;
+  height: 100vh !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+.gdeck-mobile-tool-chrome {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-bottom: 1px solid #dadce0;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.06);
+  z-index: 5;
 }
 
 .gdeck-mobile-tool-bar {
   flex-shrink: 0;
-  height: 3.25rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0 0.35rem;
+  background: #ffffff;
+}
+
+.gdeck-mobile-tool-search {
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0 0.625rem;
+  margin: 0 0.5rem 0.5rem;
+  padding: 0.45rem 0.75rem;
+  background: #f0f4f9;
+  border-radius: 999px;
+  position: relative;
+  min-height: 2.5rem;
+}
+
+.gdeck-mobile-tool-search-results {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 0.35rem);
   background: #ffffff;
-  border-bottom: 1px solid #dadce0;
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08);
+  border: 1px solid #dadce0;
+  border-radius: 1rem;
+  box-shadow: 0 12px 32px rgba(60, 64, 67, 0.18);
+  z-index: 60;
+  overflow: hidden;
 }
 
 .gdeck-mobile-tool-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  position: relative;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
-/* Tool views fill the mobile shell instead of calc(100vh - header) */
+/* Tool views: 100% of remaining viewport, no card chrome */
 .gdeck-mobile-tool-body > * {
-  flex: 1 1 auto;
-  min-height: 0;
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
   height: 100% !important;
-  max-height: 100%;
+  max-height: none !important;
   border-radius: 0 !important;
-  border-left: none !important;
-  border-right: none !important;
-  border-bottom: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+}
+
+/* Outer card-style roots lose side margins so the tool is edge-to-edge */
+.gdeck-mobile-tool-body > .space-y-6,
+.gdeck-mobile-tool-body > .space-y-3,
+.gdeck-mobile-tool-body > [id$="-view"] {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* Hide floating G-Pilot on mobile while a tool is open (FAB collides with tool FABs) */
@@ -392,4 +447,17 @@ html.gdeck-mobile-tool-open body {
 /* Omni + upgrade overlays above tool chrome */
 .gdeck-mobile-tool-open [role="dialog"] {
   z-index: 80;
+}
+
+
+/* Full-screen tools on all phone + tablet portrait widths */
+@media (max-width: 1023px) {
+  html.gdeck-mobile-tool-open .gdeck-app-shell > footer,
+  html.gdeck-mobile-tool-open .gdeck-app-shell > header {
+    display: none !important;
+  }
+  /* Hide redundant tool-internal "Back to Overview" that we already hide via md: */
+  .gdeck-mobile-tool-body [id$="back-to-overview-btn"] {
+    display: none !important;
+  }
 }

@@ -95,7 +95,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
   });
 
   return (
-    <div id="contacts-view" className="flex flex-col h-full min-h-0 space-y-3 md:space-y-6 overflow-y-auto p-2 md:p-0">
+    <div id="contacts-view" className="flex flex-col h-full min-h-0 space-y-3 md:space-y-6 overflow-y-auto p-0 sm:p-2 md:p-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/75 backdrop-blur-2xl p-5 sm:p-6 rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)]">
         <div className="flex items-center gap-3">

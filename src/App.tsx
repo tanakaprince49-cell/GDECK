@@ -393,7 +393,7 @@ export default function App() {
       'checkout_cancel',
     ]);
     const compute = () => {
-      const mobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const mobile = typeof window !== 'undefined' && window.innerWidth < 1024;
       const toolOpen = !chromeTabs.has(activeTab);
       setIsFullscreen(Boolean(mobile && toolOpen && token && !needsAuth));
     };
@@ -538,26 +538,41 @@ export default function App() {
       )}
 
       {/* Google Workspace Top App Bar — hidden on mobile while a tool is full-screen */}
-      <header className={`sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-xs ${isFullscreen ? 'hidden' : ''}`}>
-        <div className="w-full mx-auto px-2 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-4 min-w-0">
-          {/* Brand Identity - Google Workspace Deck */}
-          <div className="flex items-center gap-1 shrink-0">
+      <header className={`sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-xs ${isFullscreen ? 'hidden' : ''} gdeck-dense-toolbar`}>
+        <div className="w-full mx-auto px-1.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-1 sm:gap-3 min-w-0">
+          {/* Menu + Back + Brand */}
+          <div className="flex items-center gap-0.5 shrink-0 min-w-0">
             {user && (
               <button
+                type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 -ml-1 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors sm:hidden"
+                className="p-2 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors lg:hidden"
                 aria-label="Toggle navigation menu"
+                id="header-menu-btn"
               >
                 <Menu className="w-5 h-5 text-[#1f1f1f]" />
               </button>
             )}
+            {/* Back next to three-lines — always on mobile when signed in */}
+            {!needsAuth && token && (
+              <button
+                type="button"
+                onClick={goHome}
+                className="p-2 text-[#5f6368] hover:bg-[#f1f3f4] rounded-full transition-colors lg:hidden"
+                aria-label="Back to home"
+                title="Back to home"
+                id="header-back-btn"
+              >
+                <ArrowLeft className="w-5 h-5 text-[#1f1f1f]" />
+              </button>
+            )}
             <button
               onClick={goHome}
-              className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 sm:pr-3 rounded-lg hover:bg-[#f1f3f4] transition-colors cursor-pointer group"
+              className="flex items-center gap-1 sm:gap-2 p-1 sm:p-1.5 sm:pr-3 rounded-lg hover:bg-[#f1f3f4] transition-colors cursor-pointer group min-w-0"
               title="Home"
             >
               <GDeckLogo size="sm" />
-              <div className="flex flex-col text-left min-w-0">
+              <div className="hidden xs:flex sm:flex flex-col text-left min-w-0">
                 <span className="text-base sm:text-xl font-medium tracking-tight text-[#5f6368] font-['Google_Sans',Roboto,sans-serif] truncate">
                   G-Deck
                 </span>
@@ -565,23 +580,24 @@ export default function App() {
             </button>
           </div>
 
-          {/* Center: Google Search Pill */}
+          {/* Center: Tools search — ALWAYS visible when signed in (not desktop-only) */}
           {!needsAuth && token && (
-            <div ref={searchRef} className="hidden md:flex flex-1 max-w-2xl mx-auto relative items-center gap-2">
+            <div ref={!isFullscreen ? searchRef : undefined} className="flex flex-1 min-w-0 max-w-2xl mx-0.5 sm:mx-auto relative items-center gap-1 sm:gap-2">
               <div className="w-full relative flex items-center">
-                <div className="absolute left-4 pointer-events-none text-[#5f6368]">
+                <div className="absolute left-2.5 sm:left-4 pointer-events-none text-[#5f6368]">
                   <Search className="w-4 h-4" />
                 </div>
                 <input
-                  type="text"
-                  placeholder="Search in Google Workspace, apps, and tools..."
+                  type="search"
+                  inputMode="search"
+                  placeholder="Search tools..."
                   value={globalSearchQuery}
                   onFocus={() => setShowSearchResults(true)}
                   onChange={(e) => {
                     setGlobalSearchQuery(e.target.value);
                     setShowSearchResults(true);
                   }}
-                  className="w-full pl-11 pr-24 py-2.5 bg-[#f0f4f9] hover:bg-[#e9eef6] focus:bg-white text-sm text-[#1f1f1f] placeholder-[#5f6368] rounded-full border border-transparent focus:border-[#1a73e8] focus:shadow-[0_1px_3px_1px_rgba(60,64,67,0.15)] transition-all outline-none"
+                  className="w-full pl-9 sm:pl-11 pr-16 sm:pr-24 py-2 sm:py-2.5 bg-[#f0f4f9] hover:bg-[#e9eef6] focus:bg-white text-xs sm:text-sm text-[#1f1f1f] placeholder-[#5f6368] rounded-full border border-transparent focus:border-[#1a73e8] focus:shadow-[0_1px_3px_1px_rgba(60,64,67,0.15)] transition-all outline-none min-w-0"
                 />
                 <div className="absolute right-2.5 flex items-center gap-1">
                   {globalSearchQuery && (
@@ -595,11 +611,11 @@ export default function App() {
                   <button
                     type="button"
                     onClick={openOmniSearch}
-                    className="px-2 py-0.5 text-[11px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md border border-purple-200 flex items-center gap-1 cursor-pointer transition-colors"
+                    className="px-1.5 sm:px-2 py-0.5 text-[10px] sm:text-[11px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md border border-purple-200 flex items-center gap-0.5 sm:gap-1 cursor-pointer transition-colors shrink-0"
                     title="Omni-Search across Gmail, Calendar, Drive, Tasks (Cmd+K)"
                   >
-                    <span className="hidden lg:inline">Omni</span>
-                    <kbd className="text-[10px] bg-white px-1 py-0.2 rounded border border-purple-200 text-purple-600 font-mono">⌘K</kbd>
+                    <span>Omni</span>
+                    <kbd className="hidden md:inline text-[10px] bg-white px-1 py-0.2 rounded border border-purple-200 text-purple-600 font-mono">⌘K</kbd>
                     <ProBadge size="xs" showLockOnFree={false} />
                   </button>
                 </div>
@@ -607,7 +623,7 @@ export default function App() {
 
               {/* Quick Search Dropdown */}
               {showSearchResults && globalSearchQuery.trim() && (
-                <div className="absolute top-12 left-0 right-0 bg-white rounded-2xl border border-[#dadce0] shadow-xl p-2.5 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="fixed sm:absolute top-14 sm:top-12 left-2 right-2 sm:left-0 sm:right-0 bg-white rounded-2xl border border-[#dadce0] shadow-xl p-2.5 z-50 animate-in fade-in slide-in-from-top-2 max-h-[min(70vh,24rem)] overflow-y-auto">
                   <div className="text-[11px] font-bold text-[#5f6368] px-3 py-1.5 uppercase tracking-wider">
                     Google Tools Matching "{globalSearchQuery}"
                   </div>
@@ -655,20 +671,6 @@ export default function App() {
 
           {/* Right Header: Omni (mobile) + notifications + account — keep lean on phones */}
           <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0 justify-end min-w-0">
-            {/* Mobile Omni-Search — desktop uses the center search pill */}
-            {!needsAuth && token && (
-              <button
-                type="button"
-                id="mobile-omni-search-btn"
-                onClick={openOmniSearch}
-                className="md:hidden p-2.5 text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#f1f3f4] rounded-full transition-colors cursor-pointer relative"
-                title="Omni-Search (Gmail, Calendar, Drive, Tasks)"
-                aria-label="Open Omni-Search"
-              >
-                <Search className="w-5 h-5" />
-                <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-500" />
-              </button>
-            )}
             {!needsAuth && token && (
               <NotificationCenter onNavigateTab={(tab) => setActiveTab(tab)} />
             )}
@@ -1247,49 +1249,118 @@ export default function App() {
               }`
         }
       >
-        {/* Mobile full-screen tool chrome: Home back + tool name */}
+        {/* Mobile FULL-SCREEN tool chrome: Menu | Back | title + tools search + Omni */}
         {isFullscreen && (
-          <div className="gdeck-mobile-tool-bar gdeck-dense-toolbar" id="mobile-tool-topbar">
-            <button
-              type="button"
-              onClick={goHome}
-              className="inline-flex items-center gap-1.5 pl-2 pr-3 py-2 rounded-full bg-[#e8f0fe] text-[#1a73e8] text-xs font-bold border border-[#d2e3fc] active:scale-95 cursor-pointer shrink-0"
-              aria-label="Back to home"
-              id="mobile-tool-home-btn"
-            >
-              <ArrowLeft className="w-4 h-4 shrink-0" />
-              <span>Home</span>
-            </button>
-            <div className="flex-1 min-w-0 flex items-center gap-2">
-              {activeToolMeta?.icon ? (
-                <span className="shrink-0 w-6 h-6 flex items-center justify-center">
-                  {React.createElement(activeToolMeta.icon, { className: 'w-5 h-5' })}
+          <div className="gdeck-mobile-tool-chrome" id="mobile-tool-topbar">
+            <div className="gdeck-mobile-tool-bar gdeck-dense-toolbar">
+              {/* Three-lines menu */}
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(true)}
+                className="p-2 rounded-full text-[#1f1f1f] hover:bg-[#f1f3f4] cursor-pointer shrink-0"
+                aria-label="Open menu"
+                title="Menu"
+                id="mobile-tool-menu-btn"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+              {/* Back immediately next to three lines */}
+              <button
+                type="button"
+                onClick={goHome}
+                className="p-2 rounded-full text-[#1f1f1f] hover:bg-[#e8f0fe] cursor-pointer shrink-0"
+                aria-label="Back to home"
+                title="Back"
+                id="mobile-tool-home-btn"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </button>
+              <div className="flex-1 min-w-0 flex items-center gap-1.5">
+                {activeToolMeta?.icon ? (
+                  <span className="shrink-0 w-5 h-5 flex items-center justify-center">
+                    {React.createElement(activeToolMeta.icon, { className: 'w-5 h-5' })}
+                  </span>
+                ) : null}
+                <span className="text-sm font-bold text-[#1f1f1f] truncate capitalize">
+                  {activeToolLabel}
                 </span>
-              ) : null}
-              <span className="text-sm font-bold text-[#1f1f1f] truncate capitalize">
-                {activeToolLabel}
-              </span>
+              </div>
+              <button
+                type="button"
+                id="mobile-tool-omni-btn"
+                onClick={openOmniSearch}
+                className="px-2 py-1 rounded-full text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 cursor-pointer shrink-0"
+                aria-label="Omni-Search"
+                title="Omni-Search"
+              >
+                Omni
+              </button>
             </div>
-            <button
-              type="button"
-              id="mobile-tool-omni-btn"
-              onClick={openOmniSearch}
-              className="p-2 rounded-full text-[#5f6368] hover:bg-[#f1f3f4] cursor-pointer shrink-0 relative"
-              aria-label="Omni-Search"
-              title="Omni-Search"
-            >
-              <Search className="w-5 h-5" />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-purple-500" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileMenuOpen(true)}
-              className="p-2 rounded-full text-[#5f6368] hover:bg-[#f1f3f4] cursor-pointer shrink-0"
-              aria-label="Open menu"
-              title="Menu"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+            {/* Tools-only search always visible in full-screen tools */}
+            <div className="gdeck-mobile-tool-search gdeck-dense-toolbar" ref={isFullscreen ? searchRef : undefined}>
+              <Search className="w-4 h-4 text-[#5f6368] shrink-0" />
+              <input
+                type="search"
+                inputMode="search"
+                placeholder="Search tools…"
+                value={globalSearchQuery}
+                onFocus={() => setShowSearchResults(true)}
+                onChange={(e) => {
+                  setGlobalSearchQuery(e.target.value);
+                  setShowSearchResults(true);
+                }}
+                className="flex-1 min-w-0 bg-transparent text-sm text-[#1f1f1f] placeholder-[#9aa0a6] outline-none"
+                id="mobile-tool-tools-search"
+                aria-label="Search tools"
+              />
+              {globalSearchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGlobalSearchQuery('');
+                    setShowSearchResults(false);
+                  }}
+                  className="p-1 rounded-full text-[#5f6368] hover:bg-[#e8eaed] cursor-pointer shrink-0"
+                  aria-label="Clear"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              ) : null}
+              {showSearchResults && globalSearchQuery.trim() && (
+                <div className="gdeck-mobile-tool-search-results">
+                  <div className="text-[10px] font-bold text-[#5f6368] px-3 py-1.5 uppercase tracking-wider">
+                    Tools matching &quot;{globalSearchQuery}&quot;
+                  </div>
+                  {filteredSearchTools.length === 0 ? (
+                    <div className="p-4 text-center text-xs text-[#5f6368]">No tools found</div>
+                  ) : (
+                    <div className="max-h-[50vh] overflow-y-auto">
+                      {filteredSearchTools.map((tool) => {
+                        const Icon = tool.icon;
+                        return (
+                          <button
+                            key={tool.id}
+                            type="button"
+                            onClick={() => {
+                              setActiveTab(tool.id);
+                              setShowSearchResults(false);
+                              setGlobalSearchQuery('');
+                            }}
+                            className="w-full p-3 flex items-center gap-3 hover:bg-[#f0f4f9] text-left cursor-pointer border-b border-[#f1f3f4] last:border-0"
+                          >
+                            <Icon className="w-5 h-5 object-contain shrink-0" />
+                            <span className="text-sm font-semibold text-[#1f1f1f] truncate flex-1">
+                              {tool.name}
+                            </span>
+                            <span className="text-[10px] text-[#5f6368] shrink-0">{tool.category}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         )}
         {activeTab === 'privacy' ? (
