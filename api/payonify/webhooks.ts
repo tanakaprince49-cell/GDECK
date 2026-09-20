@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyWebhookSignature } from '../../src/lib/payonify.js';
+import { getPayonifyEnv } from '../../src/lib/payonify-env.js';
 import { PayonifyStore } from '../../src/lib/payonify-store.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -10,6 +11,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const signatureHeader = (req.headers['payonify-signature'] as string) || '';
   let rawBody = '';
 
+  // NOTE on the re-serialization fallback: Vercel's @vercel/node parses req.body before
+  // the handler runs and exposes no raw stream, so the signed bytes are reconstructed as
+  // JSON.stringify(req.body). That round-trips exactly for compact ASCII JSON (key order
+  // is preserved, no whitespace added), which is what Payonify sends. If Payonify ever
+  // escapes non-ASCII differently, signature checks will start failing -- in that case
+  // order fulfilment is unaffected, because Pro is only ever activated from the
+  // server-side session/charge polls, never from webhooks. The dev express server
+  // (server.ts) captures the true raw body via express.json({ verify }).
   if (typeof req.body === 'string') {
     rawBody = req.body;
   } else if (Buffer.isBuffer(req.body)) {
@@ -45,6 +54,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const dataObj = event.data?.object || {};
     const orderId = dataObj.metadata?.order_id || dataObj.client_reference_id;
+
+    // An event from the OTHER Payonify environment must never provision local orders:
+    // a live (real-money) event must not be acted on by a test-mode app, and vice versa.
+    let skipFulfilment = false;
+    try {
+      const env = getPayonifyEnv();
+      const eventLive = String(event.livemode ?? '').toLowerCase() === 'true';
+      if (eventLive !== (env.mode === 'live')) {
+        console.warn(`[Payonify Webhook] Event ${event.id} livemode=${event.livemode} does not match app mode -- skipping fulfilment`);
+        skipFulfilment = true;
+      }
+    } catch (envErr: any) {
+      console.error('[Payonify Webhook] Payonify env invalid, skipping fulfilment:', envErr?.message);
+      skipFulfilment = true;
+    }
+    if (skipFulfilment) {
+      return res.status(200).json({ received: true, skipped: 'livemode_mismatch' });
+    }
 
     switch (event.type) {
       case 'checkout.succeeded':

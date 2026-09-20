@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { retrieveCharge, isChargePaid, isChargeFailed } from '../../../src/lib/payonify.js';
+import { retrieveCharge, isChargePaid, isChargeFailed, livemodeMatches } from '../../../src/lib/payonify.js';
 import { PayonifyStore } from '../../../src/lib/payonify-store.js';
 
 /**
@@ -33,6 +33,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const charge = await retrieveCharge(chargeId);
+
+    // A charge from the other Payonify environment must never drive fulfilment here.
+    if (!livemodeMatches(charge)) {
+      console.error(`Refusing to fulfil: charge ${chargeId} livemode=${charge?.livemode} does not match app mode`);
+      return res.status(409).json({ error: 'Charge environment mismatch', code: 'livemode_mismatch' });
+    }
+
     const paid = isChargePaid(charge);
     const failed = isChargeFailed(charge);
 

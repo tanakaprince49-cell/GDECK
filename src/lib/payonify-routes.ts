@@ -11,6 +11,7 @@ import {
   isChargeFailed,
   createRefund,
   verifyWebhookSignature,
+  livemodeMatches,
   PayonifyError,
 } from './payonify.js';
 import { PayonifyStore } from './payonify-store.js';
@@ -162,14 +163,21 @@ payonifyRouter.post('/checkout/create', async (req, res) => {
  */
 payonifyRouter.get('/checkout/session/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    const session = await retrieveCheckoutSession(id);
-    const storedSession = PayonifyStore.getSession(id);
-    const orderId = session.metadata?.order_id || storedSession?.orderId;
+      const { id } = req.params;
+      const session = await retrieveCheckoutSession(id);
+      const storedSession = PayonifyStore.getSession(id);
 
-    let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
+      // A session from the other Payonify environment must never drive fulfilment here.
+      if (!livemodeMatches(session)) {
+        console.error(`Refusing to fulfil: session ${id} livemode=${session.livemode} does not match app mode`);
+        return res.status(409).json({ error: 'Payment session environment mismatch', code: 'livemode_mismatch' });
+      }
 
-    // Fulfil only on Payonify's own paid signal (payment_status), not on mere existence
+      const orderId = session.metadata?.order_id || storedSession?.orderId;
+
+      let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
+
+      // Fulfil only on Payonify's own paid signal (payment_status), not on mere existence
     if (isCheckoutSessionPaid(session) && order && order.status !== 'paid') {
       PayonifyStore.updateOrderStatus(order.id, 'paid', new Date().toISOString());
       // Fulfill subscription
@@ -280,6 +288,13 @@ payonifyRouter.post('/charges', async (req, res) => {
 payonifyRouter.get('/charge-status/:id', async (req, res) => {
   try {
     const charge = await retrieveCharge(req.params.id);
+
+    // A charge from the other Payonify environment must never drive fulfilment here.
+    if (!livemodeMatches(charge)) {
+      console.error(`Refusing to fulfil: charge ${req.params.id} livemode=${charge?.livemode} does not match app mode`);
+      return res.status(409).json({ error: 'Charge environment mismatch', code: 'livemode_mismatch' });
+    }
+
     const paid = isChargePaid(charge);
     const failed = isChargeFailed(charge);
     const orderId: string | undefined = charge?.metadata?.order_id;
@@ -346,6 +361,24 @@ payonifyRouter.post('/webhooks', (req, res) => {
   try {
     const dataObj = event.data?.object || {};
     const orderId = dataObj.metadata?.order_id || dataObj.client_reference_id;
+
+    // An event from the OTHER Payonify environment must never provision local orders:
+    // a live (real-money) event must not be acted on by a test-mode app, and vice versa.
+    let skipFulfilment = false;
+    try {
+      const env = getPayonifyEnv();
+      const eventLive = String(event.livemode ?? '').toLowerCase() === 'true';
+      if (eventLive !== (env.mode === 'live')) {
+        console.warn(`[Payonify Webhook] Event ${event.id} livemode=${event.livemode} does not match app mode -- skipping fulfilment`);
+        skipFulfilment = true;
+      }
+    } catch (envErr: any) {
+      console.error('[Payonify Webhook] Payonify env invalid, skipping fulfilment:', envErr?.message);
+      skipFulfilment = true;
+    }
+    if (skipFulfilment) {
+      return res.status(200).json({ received: true, skipped: 'livemode_mismatch' });
+    }
 
     switch (event.type) {
       case 'checkout.succeeded':

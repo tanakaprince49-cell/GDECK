@@ -323,6 +323,21 @@ export async function createRefund(params: PayonifyRefundParams): Promise<any> {
 }
 
 /**
+ * A session/charge may only fulfil an order when it was created in the SAME environment
+ * the app is currently running in. A sandbox object (livemode "false") must never
+ * activate a real subscription in live mode, and vice versa. Payonify serialises the
+ * flag as the string "false"/"true" (sometimes a boolean), so normalise both. When the
+ * field is absent there is no evidence of a mismatch, so allow it.
+ */
+export function livemodeMatches(object?: { livemode?: boolean | string } | null): boolean {
+  if (!object || object.livemode === undefined || object.livemode === null) return true;
+  const objectIsLive =
+    typeof object.livemode === 'string' ? object.livemode.toLowerCase() === 'true' : object.livemode === true;
+  const env = getPayonifyEnv();
+  return objectIsLive === (env.mode === 'live');
+}
+
+/**
  * Verifies Payonify webhook signature using HMAC-SHA256:
  * Header: Payonify-Signature: t=1621267018,v1=...
  * Payload to verify: "{t}.{RAW_REQUEST_BODY}"
@@ -363,12 +378,17 @@ export function verifyWebhookSignature(rawBody: string, header: string | null): 
   const receivedBuffer = Buffer.from(receivedSig, 'hex');
 
   if (expectedBuffer.length !== receivedBuffer.length || !crypto.timingSafeEqual(expectedBuffer, receivedBuffer)) {
-    // If webhook secret wasn't configured yet in production, warn explicitly
-    if (secret === 'whsec_test_mock_secret') {
-      console.warn('⚠️ Webhook validated using default test secret.');
-    } else {
-      throw new PayonifyError('Invalid Payonify webhook signature', 400, 'invalid_signature');
+    // Fail closed: an event that does not verify is rejected, full stop. (The previous
+    // behaviour -- warn-and-accept while the default test secret was in place -- would
+    // have let any unsigned POST mark REAL orders paid once live keys are configured.)
+    if (!env.webhookSecretConfigured) {
+      throw new PayonifyError(
+        'PAYONIFY_WEBHOOK_SECRET is not configured -- webhook rejected',
+        400,
+        'webhook_secret_missing'
+      );
     }
+    throw new PayonifyError('Invalid Payonify webhook signature', 400, 'invalid_signature');
   }
 
   return JSON.parse(rawBody) as PayonifyEvent;

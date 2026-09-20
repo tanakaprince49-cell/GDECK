@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { retrieveCheckoutSession, isCheckoutSessionPaid } from '../../../../src/lib/payonify.js';
+import { retrieveCheckoutSession, isCheckoutSessionPaid, livemodeMatches } from '../../../../src/lib/payonify.js';
 import { PayonifyStore } from '../../../../src/lib/payonify-store.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -22,6 +22,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const session = await retrieveCheckoutSession(sessionId);
     const storedSession = PayonifyStore.getSession(sessionId);
     const orderId = session.metadata?.order_id || storedSession?.orderId;
+
+    // Never fulfil an order from an object created in the other Payonify environment
+    // (a sandbox session must not activate a live subscription, and vice versa).
+    if (!livemodeMatches(session)) {
+      console.error(`Refusing to fulfil: session ${sessionId} livemode=${session.livemode} does not match app mode`);
+      return res.status(409).json({ error: 'Payment session environment mismatch', code: 'livemode_mismatch' });
+    }
 
     let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
 
