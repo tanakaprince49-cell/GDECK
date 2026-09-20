@@ -1031,6 +1031,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                     className="px-3 py-1.5 text-xs font-semibold text-[#1a73e8] bg-[#f0f4f9] hover:bg-[#e8f0fe] rounded-full border border-[#dadce0] flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="Synthesize email thread highlights into executive bullets & action items"
                   >
+                    <FileText className="w-3.5 h-3.5 text-[#1a73e8]" />
                     <span>Thread TL;DR</span>
                     <ProBadge size="xs" featureTitle="Deep Email Thread Summarization" />
                   </button>

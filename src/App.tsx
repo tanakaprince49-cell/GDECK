@@ -491,10 +491,10 @@ export default function App() {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-[#8a5a00] hover:bg-[#fdf3d7] bg-[#fffbeb] rounded-full border border-[#f0e0b0] transition-colors cursor-pointer"
-                  title="Buy me a coffee — support G-Deck development"
+                  title="Buy me a coffe — support G-Deck development"
                 >
                   <Coffee className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Buy me a coffee</span>
+                  <span className="hidden sm:inline">Buy me a coffe</span>
                 </a>
 
                 {/* 9-dot Google App Launcher (Waffle Menu) */}
@@ -1279,7 +1279,7 @@ export default function App() {
               title="Support G-Deck development"
             >
               <Coffee className="w-3.5 h-3.5" />
-              <span>Buy me a coffee</span>
+              <span>Buy me a coffe</span>
             </a>
             {user && (
               <>
