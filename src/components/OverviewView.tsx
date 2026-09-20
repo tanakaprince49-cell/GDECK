@@ -202,7 +202,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
   const displayedPinnedTools = ALL_WORKSPACE_TOOLS.filter((t) => pinned.includes(t.id));
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-300">
+    <div className="space-y-8 animate-in fade-in duration-300 pb-20 md:pb-0">
       {/* Google Workspace Dashboard Banner */}
       <div className="google-card p-6 sm:p-8 relative overflow-hidden flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-1.5 z-10">

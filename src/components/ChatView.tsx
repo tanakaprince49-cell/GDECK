@@ -453,7 +453,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   return (
     <div
       id="google-chat-screen"
-      className="bg-[#f8fafd] w-full min-h-[760px] h-[calc(100vh-80px)] flex flex-col font-sans select-none text-[#1f1f1f] rounded-2xl overflow-hidden relative shadow-sm border border-[#e0e2e6]"
+      className="bg-[#f8fafd] w-full min-h-0 h-full md:min-h-[760px] md:h-[calc(100dvh-80px)] flex flex-col font-sans select-none text-[#1f1f1f] rounded-2xl overflow-hidden relative shadow-sm border border-[#e0e2e6]"
     >
       {/* Toast */}
       {toastMessage && (
@@ -470,7 +470,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           {onBackToOverview && (
             <button
               onClick={onBackToOverview}
-              className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
               title="Back to Overview"
             >
               <ArrowLeft className="w-5 h-5" />

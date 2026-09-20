@@ -246,7 +246,7 @@ export const SheetsView: React.FC<SheetsViewProps> = ({ token, onBackToOverview 
   return (
     <div
       id="sheets-view"
-      className="flex flex-col h-[calc(100vh-5.5rem)] bg-white rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-none"
+      className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-none"
       onClick={() => setActiveMenu(null)}
     >
       {/* 1. AUTHENTIC GOOGLE SHEETS HEADER */}
@@ -255,7 +255,7 @@ export const SheetsView: React.FC<SheetsViewProps> = ({ token, onBackToOverview 
           {onBackToOverview && (
             <button
               onClick={onBackToOverview}
-              className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
               title="Back to Overview"
             >
               <ArrowLeft className="w-5 h-5" />

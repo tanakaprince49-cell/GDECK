@@ -551,7 +551,7 @@ export const DocsView: React.FC<DocsViewProps> = ({
   return (
     <div
       id="google-docs-app"
-      className="flex flex-col h-[calc(100vh-5.5rem)] bg-[#f9fbfd] rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-text"
+      className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-[#f9fbfd] rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-text"
     >
       {/* 1. AUTHENTIC GOOGLE DOCS TOP HEADER */}
       <DocsHeader

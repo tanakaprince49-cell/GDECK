@@ -275,7 +275,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, onBackToOverv
   );
 
   return (
-    <div id="messages-view" className="space-y-6">
+    <div id="messages-view" className="flex flex-col h-full min-h-0 space-y-3 md:space-y-6 overflow-y-auto p-2 md:p-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/75 backdrop-blur-2xl p-5 sm:p-6 rounded-3xl border border-white/90 shadow-[0_16px_40px_rgba(0,15,40,0.05),inset_0_1.5px_2px_rgba(255,255,255,1)]">
         <div className="flex items-center gap-3">
@@ -283,7 +283,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, onBackToOverv
             <button
               id="messages-back-to-overview-btn"
               onClick={onBackToOverview}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-white/80 hover:bg-white border border-white/90 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
+              className="hidden md:inline-flex inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-blue-600 bg-white/80 hover:bg-white border border-white/90 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
               title="Return to Workspace Overview"
             >
               <ArrowLeft className="w-4 h-4" />

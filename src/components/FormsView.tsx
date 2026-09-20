@@ -149,7 +149,7 @@ export const FormsView: React.FC<FormsViewProps> = ({
   return (
     <div
       id="google-forms-app"
-      className="flex flex-col h-[calc(100vh-5.5rem)] rounded-2xl overflow-hidden border border-[#dadce0] shadow-sm relative select-text"
+      className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] rounded-2xl overflow-hidden border border-[#dadce0] shadow-sm relative select-text"
       style={{ backgroundColor: bgColor, fontFamily }}
     >
       {/* 1. AUTHENTIC GOOGLE FORMS HEADER (Logo, Title, Tabs, Palette, Preview, Undo, Send) */}

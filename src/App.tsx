@@ -339,16 +339,47 @@ export default function App() {
     };
   }, []);
 
-  // Mobile full-screen effect
+  // Mobile: every tool is full-screen with a Home back bar (not overview/legal/checkout).
   useEffect(() => {
-    if (activeTab === 'overview') {
-      setIsFullscreen(false);
+    const chromeTabs = new Set([
+      'overview',
+      'privacy',
+      'terms',
+      'checkout_success',
+      'checkout_cancel',
+    ]);
+    const compute = () => {
+      const mobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const toolOpen = !chromeTabs.has(activeTab);
+      setIsFullscreen(Boolean(mobile && toolOpen && token && !needsAuth));
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, [activeTab, token, needsAuth]);
+
+  // Lock page scroll + hide colliding FABs while a mobile tool is open.
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isFullscreen) {
+      root.classList.add('gdeck-mobile-tool-open');
     } else {
-      if (typeof window !== 'undefined' && window.innerWidth < 768) {
-        setIsFullscreen(true);
-      }
+      root.classList.remove('gdeck-mobile-tool-open');
     }
-  }, [activeTab]);
+    return () => root.classList.remove('gdeck-mobile-tool-open');
+  }, [isFullscreen]);
+
+  const goHome = () => {
+    setActiveTab('overview');
+    setMobileMenuOpen(false);
+    setIsFullscreen(false);
+  };
+
+  const activeToolMeta = ALL_WORKSPACE_TOOLS.find((t) => t.id === activeTab);
+  const activeToolLabel =
+    activeToolMeta?.shortName ||
+    activeToolMeta?.name ||
+    (activeTab === 'chat' ? 'Chat' : activeTab);
 
   const handleSignIn = async () => {
     setIsLoggingIn(true);
@@ -422,7 +453,7 @@ export default function App() {
 
   return (
     <NotificationProvider token={token}>
-      <div className="min-h-screen bg-[#F8FAFD] flex flex-col antialiased text-[#1F1F1F] selection:bg-[#c2e7ff] selection:text-[#001d35] relative" style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}>
+      <div className="gdeck-app-shell min-h-screen bg-[#F8FAFD] flex flex-col antialiased text-[#1F1F1F] selection:bg-[#c2e7ff] selection:text-[#001d35] relative" style={{ fontFamily: "'Google Sans', Roboto, sans-serif" }}>
       {/* Account Deletion Notice Banner */}
       {accountDeletedBanner && (
         <div id="account-deleted-banner" className="bg-[#188038] text-white px-4 py-3 text-xs sm:text-sm font-semibold flex items-center justify-between gap-3 shadow-md z-50 animate-in slide-in-from-top duration-300">
@@ -440,8 +471,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Google Workspace Top App Bar */}
-      <header className="sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-xs">
+      {/* Google Workspace Top App Bar — hidden on mobile while a tool is full-screen */}
+      <header className={`sticky top-0 z-40 bg-white border-b border-[#dadce0] shadow-xs ${isFullscreen ? 'hidden' : ''}`}>
         <div className="w-full mx-auto px-2.5 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4">
           {/* Brand Identity - Google Workspace Deck */}
           <div className="flex items-center gap-1 shrink-0">
@@ -455,9 +486,9 @@ export default function App() {
               </button>
             )}
             <button
-              onClick={() => setActiveTab('overview')}
+              onClick={goHome}
               className="flex items-center gap-1.5 sm:gap-2 p-1 sm:p-1.5 sm:pr-3 rounded-lg hover:bg-[#f1f3f4] transition-colors cursor-pointer group"
-              title="Google Workspace Deck Dashboard"
+              title="Home"
             >
               <GDeckLogo size="sm" />
               <div className="flex flex-col text-left">
@@ -557,7 +588,7 @@ export default function App() {
           )}
 
           {/* Right Header: Google 9-dot Waffle + Account Controls */}
-          <div className="flex items-center gap-1 sm:gap-2">
+          <div className="flex items-center gap-0.5 sm:gap-2 shrink-0 max-w-[55%] sm:max-w-none justify-end">
             {!needsAuth && token && (
               <NotificationCenter onNavigateTab={(tab) => setActiveTab(tab)} />
             )}
@@ -625,11 +656,11 @@ export default function App() {
                   href={SUPPORT_CAMPAIGN_URL}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-[#8a5a00] hover:bg-[#fdf3d7] bg-[#fffbeb] rounded-full border border-[#f0e0b0] transition-colors cursor-pointer"
+                  className="hidden sm:inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-[#8a5a00] hover:bg-[#fdf3d7] bg-[#fffbeb] rounded-full border border-[#f0e0b0] transition-colors cursor-pointer"
                   title="Buy me a coffe — support G-Deck development"
                 >
                   <Coffee className="w-3.5 h-3.5 shrink-0" />
-                  <span className="hidden sm:inline">Buy me a coffe</span>
+                  <span>Buy me a coffe</span>
                 </a>
 
                 {/* 9-dot Google App Launcher (Waffle Menu) */}
@@ -963,209 +994,156 @@ export default function App() {
           </div>
         )}
 
-        {/* Mobile Navigation Menu */}
-        {mobileMenuOpen && !needsAuth && token && (
-          <div className="lg:hidden border-t border-[#dadce0] bg-white p-4 space-y-4 max-h-[85vh] overflow-y-auto animate-in slide-in-from-top duration-200">
-            {/* Mobile User Profile & Sign Out Bar */}
-            {user && (
-              <div className="p-3.5 bg-[#f8fafd] rounded-2xl border border-[#dadce0] flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {user.photoURL ? (
-                    <img
-                      src={user.photoURL}
-                      alt="User"
-                      referrerPolicy="no-referrer"
-                      className="w-10 h-10 rounded-full object-cover border border-[#dadce0] shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-[#1a73e8] text-white flex items-center justify-center text-sm font-bold shrink-0">
-                      {user.displayName ? user.displayName[0].toUpperCase() : 'G'}
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <p className="text-xs font-bold text-[#1f1f1f] truncate">
-                      {user.displayName || 'Google User'}
-                    </p>
-                    <p className="text-[11px] text-[#5f6368] truncate">{user.email}</p>
-                  </div>
-                </div>
+      </header>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <button
-                    id="mobile-sign-out-btn"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setShowLogoutConfirm(true);
-                    }}
-                    className="px-2.5 py-1.5 bg-[#f1f3f4] hover:bg-[#e8eaed] text-[#3c4043] rounded-full text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Sign out"
-                  >
-                    <LogOut className="w-3.5 h-3.5" />
-                    <span>Sign Out</span>
-                  </button>
-                  <button
-                    id="mobile-delete-account-btn"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setShowDeleteAccountModal(true);
-                    }}
-                    className="px-2.5 py-1.5 bg-[#fce8e6] hover:bg-[#fad2cf] text-[#d93025] rounded-full text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer border border-[#f5c6cb]"
-                    title="Delete account permanently"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Delete</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Mobile Search Bar */}
-            <div className="relative">
-              <Search className="w-4 h-4 text-[#5f6368] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                id="mobile-search-input"
-                type="text"
-                placeholder="Search tools & apps..."
-                value={globalSearchQuery}
-                onChange={(e) => setGlobalSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-3.5 py-2 text-xs bg-[#f0f4f9] rounded-full border border-transparent focus:border-[#1a73e8] focus:bg-white outline-none"
-              />
+      {/* Mobile nav drawer — works even when the top header is hidden in tool full-screen */}
+      {mobileMenuOpen && !needsAuth && token && (
+        <div className="fixed inset-0 z-[60] lg:hidden" id="mobile-nav-overlay">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[2px] cursor-pointer"
+            aria-label="Close menu"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="absolute inset-y-0 left-0 w-[min(100vw-3rem,20rem)] max-w-full bg-white shadow-2xl flex flex-col animate-in slide-in-from-left duration-200 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
+            <div className="h-14 px-4 flex items-center justify-between border-b border-[#dadce0] shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  goHome();
+                  setMobileMenuOpen(false);
+                }}
+                className="flex items-center gap-2 cursor-pointer"
+              >
+                <GDeckLogo size="sm" />
+                <span className="text-base font-semibold text-[#1f1f1f]">G-Deck</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-2 rounded-full hover:bg-[#f1f3f4] cursor-pointer"
+                aria-label="Close"
+              >
+                <X className="w-5 h-5 text-[#5f6368]" />
+              </button>
             </div>
-
-            {/* Dashboard Quick Button */}
-            <button
-              id="mobile-nav-dashboard-btn"
-              onClick={() => {
-                setActiveTab('overview');
-                setMobileMenuOpen(false);
-              }}
-              className={`w-full px-4 py-2.5 rounded-2xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
-                activeTab === 'overview'
-                  ? 'bg-[#c2e7ff] text-[#001d35] border border-[#b3defa]'
-                  : 'text-[#1f1f1f] bg-[#f0f4f9] hover:bg-[#e8f0fe]'
-              }`}
-            >
-              <div className="flex items-center gap-2.5">
-                <GoogleLogo className="w-4 h-4" />
-                <span>Workspace Dashboard</span>
-              </div>
-              <span className="text-[10px] bg-white px-2 py-0.5 rounded-full border border-[#dadce0] text-[#5f6368]">
-                Home
-              </span>
-            </button>
-
-            {/* Filtered tools if searching, or categories */}
-            {globalSearchQuery.trim() ? (
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[#5f6368] px-2">
-                  Matching Tools ({filteredSearchTools.length})
-                </p>
-                {filteredSearchTools.length === 0 ? (
-                  <p className="text-xs text-[#5f6368] p-3 text-center">No matching tools</p>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
-                    {filteredSearchTools.map((tool) => {
-                      const Icon = tool.icon;
-                      const isActive = activeTab === tool.id;
-                      return (
-                        <div
-                          key={tool.id}
-                          onClick={() => {
-                            setActiveTab(tool.id);
-                            setMobileMenuOpen(false);
-                            setGlobalSearchQuery('');
-                          }}
-                          className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer border transition-all ${
-                            isActive
-                              ? 'bg-[#c2e7ff] border-[#b3defa] text-[#001d35] font-semibold'
-                              : 'bg-[#f8fafd] border-[#dadce0] text-[#1f1f1f] hover:bg-[#f0f4f9]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2.5 min-w-0">
-                            <Icon className="w-5 h-5 object-contain" />
-                            <span className="text-xs font-medium truncate">{tool.name}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            ) : (
-              CATEGORIES.map((category) => {
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              <button
+                type="button"
+                onClick={() => {
+                  goHome();
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full p-3 rounded-xl flex items-center gap-3 border text-left cursor-pointer ${
+                  activeTab === 'overview'
+                    ? 'bg-[#c2e7ff] border-[#b3defa] text-[#001d35] font-semibold'
+                    : 'bg-[#f8fafd] border-[#dadce0] text-[#1f1f1f]'
+                }`}
+              >
+                <LayoutGrid className="w-5 h-5 shrink-0" />
+                <span className="text-sm font-semibold">Home</span>
+              </button>
+              {CATEGORIES.map((category) => {
                 const categoryTools = ALL_WORKSPACE_TOOLS.filter((t) => t.category === category);
                 return (
-                  <div key={category} className="space-y-1">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#5f6368] px-2">
+                  <div key={category} className="space-y-1.5">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-[#5f6368] px-1">
                       {category}
                     </p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    <div className="grid grid-cols-1 gap-1.5">
                       {categoryTools.map((tool) => {
                         const Icon = tool.icon;
                         const isActive = activeTab === tool.id;
-                        const isPinned = pinnedTools.includes(tool.id);
                         return (
-                          <div
+                          <button
                             key={tool.id}
+                            type="button"
                             onClick={() => {
                               setActiveTab(tool.id);
                               setMobileMenuOpen(false);
                             }}
-                            className={`p-2.5 rounded-xl flex items-center justify-between cursor-pointer border transition-all ${
+                            className={`p-3 rounded-xl flex items-center gap-3 border text-left cursor-pointer min-h-[48px] ${
                               isActive
                                 ? 'bg-[#c2e7ff] border-[#b3defa] text-[#001d35] font-semibold'
-                                : 'bg-[#f8fafd] border-[#dadce0] text-[#1f1f1f] hover:bg-[#f0f4f9]'
+                                : 'bg-[#f8fafd] border-[#dadce0] text-[#1f1f1f]'
                             }`}
                           >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <Icon className="w-5 h-5 object-contain" />
-                              <span className="text-xs font-medium truncate">{tool.name}</span>
-                            </div>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                togglePin(tool.id);
-                              }}
-                              className={`p-1.5 rounded-lg ${
-                                isPinned ? 'text-[#1a73e8]' : 'text-[#5f6368]'
-                              }`}
-                              title={isPinned ? 'Unpin' : 'Pin'}
-                            >
-                              <Pin className={`w-3.5 h-3.5 ${isPinned ? 'fill-current' : ''}`} />
-                            </button>
-                          </div>
+                            <Icon className="w-5 h-5 object-contain shrink-0" />
+                            <span className="text-sm font-medium truncate flex-1">{tool.name}</span>
+                            {isActive ? <Check className="w-4 h-4 shrink-0" /> : null}
+                          </button>
                         );
                       })}
                     </div>
                   </div>
                 );
-              })
-            )}
-
-            {/* Settings & preferences link */}
-            <div className="pt-2 border-t border-[#dadce0] flex items-center justify-between">
-              <button
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  setShowSettingsModal(true);
-                }}
-                className="text-xs text-[#1a73e8] hover:underline font-semibold flex items-center gap-1.5"
-              >
-                <Settings className="w-3.5 h-3.5" /> Settings & Preferences
-              </button>
+              })}
             </div>
+            {user && (
+              <div className="p-4 border-t border-[#dadce0] space-y-2 shrink-0">
+                <p className="text-xs text-[#5f6368] truncate px-1">{user.email}</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setShowLogoutConfirm(true);
+                  }}
+                  className="w-full py-2.5 rounded-full bg-[#f1f3f4] text-[#1f1f1f] text-xs font-semibold cursor-pointer"
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
           </div>
-        )}
-      </header>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main
-        className={`flex-1 w-full mx-auto relative flex flex-col ${
-          activeTab === 'chat'
-            ? 'max-w-full px-1 sm:px-2 py-1'
-            : 'max-w-7xl p-2 sm:p-4 md:p-6 lg:p-8'
-        }`}
+        className={
+          isFullscreen
+            ? 'gdeck-mobile-tool-mode'
+            : `flex-1 w-full mx-auto relative flex flex-col ${
+                activeTab === 'chat'
+                  ? 'max-w-full px-1 sm:px-2 py-1'
+                  : 'max-w-7xl p-2 sm:p-4 md:p-6 lg:p-8'
+              }`
+        }
       >
+        {/* Mobile full-screen tool chrome: Home back + tool name */}
+        {isFullscreen && (
+          <div className="gdeck-mobile-tool-bar gdeck-dense-toolbar" id="mobile-tool-topbar">
+            <button
+              type="button"
+              onClick={goHome}
+              className="inline-flex items-center gap-1.5 pl-2 pr-3 py-2 rounded-full bg-[#e8f0fe] text-[#1a73e8] text-xs font-bold border border-[#d2e3fc] active:scale-95 cursor-pointer shrink-0"
+              aria-label="Back to home"
+              id="mobile-tool-home-btn"
+            >
+              <ArrowLeft className="w-4 h-4 shrink-0" />
+              <span>Home</span>
+            </button>
+            <div className="flex-1 min-w-0 flex items-center gap-2">
+              {activeToolMeta?.icon ? (
+                <span className="shrink-0 w-6 h-6 flex items-center justify-center">
+                  {React.createElement(activeToolMeta.icon, { className: 'w-5 h-5' })}
+                </span>
+              ) : null}
+              <span className="text-sm font-bold text-[#1f1f1f] truncate capitalize">
+                {activeToolLabel}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(true)}
+              className="p-2 rounded-full text-[#5f6368] hover:bg-[#f1f3f4] cursor-pointer shrink-0"
+              aria-label="Open menu"
+              title="Menu"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+          </div>
+        )}
         {activeTab === 'privacy' ? (
           <PrivacyPolicyView onBack={() => setActiveTab('overview')} />
         ) : activeTab === 'terms' ? (
@@ -1198,16 +1176,16 @@ export default function App() {
           />
         ) : (
           /* Active Views */
-          <div className="flex flex-col flex-1 h-full">
-            {/* Breadcrumb Bar */}
-            {activeTab !== 'overview' && activeTab !== 'chat' && (
-              <div className="mb-3 sm:mb-5 flex items-center justify-between bg-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl border border-[#dadce0] shadow-2xs">
+          <div className={isFullscreen ? 'gdeck-mobile-tool-body' : 'flex flex-col flex-1 h-full min-h-0'}>
+            {/* Breadcrumb Bar — desktop only; mobile tools use the Home bar */}
+            {activeTab !== 'overview' && activeTab !== 'chat' && !isFullscreen && (
+              <div className="mb-3 sm:mb-5 hidden md:flex items-center justify-between bg-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-2xl border border-[#dadce0] shadow-2xs">
                 <nav
                   aria-label="Breadcrumb"
                   className="text-xs text-[#5f6368] flex items-center gap-1.5 sm:gap-2 font-medium"
                 >
                   <button
-                    onClick={() => setActiveTab('overview')}
+                    onClick={goHome}
                     className="hover:text-[#1a73e8] transition-colors cursor-pointer flex items-center gap-1.5 font-semibold text-[#1f1f1f]"
                   >
                     Google Workspace

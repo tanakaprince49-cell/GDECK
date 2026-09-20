@@ -192,3 +192,119 @@ table tbody tr:hover {
 ::-webkit-scrollbar-thumb:hover {
   background: #bdc1c6;
 }
+
+
+/* ============================================================
+   MOBILE APP SHELL — full-screen tools + safe areas
+   ============================================================ */
+:root {
+  --gdeck-header-h: 3.5rem;
+  --gdeck-safe-top: env(safe-area-inset-top, 0px);
+  --gdeck-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --gdeck-safe-left: env(safe-area-inset-left, 0px);
+  --gdeck-safe-right: env(safe-area-inset-right, 0px);
+}
+
+html, body, #root {
+  height: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+/* When a tool is open on mobile, lock the page to the viewport. */
+html.gdeck-mobile-tool-open,
+html.gdeck-mobile-tool-open body {
+  overflow: hidden;
+  height: 100%;
+  height: 100dvh;
+  overscroll-behavior: none;
+  touch-action: pan-y;
+}
+
+.gdeck-app-shell {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Full-screen tool surface on phones */
+.gdeck-mobile-tool-mode {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: #f8fafd;
+  padding-top: var(--gdeck-safe-top);
+  padding-bottom: var(--gdeck-safe-bottom);
+  padding-left: var(--gdeck-safe-left);
+  padding-right: var(--gdeck-safe-right);
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.gdeck-mobile-tool-bar {
+  flex-shrink: 0;
+  height: 3.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0.625rem;
+  background: #ffffff;
+  border-bottom: 1px solid #dadce0;
+  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08);
+}
+
+.gdeck-mobile-tool-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Tool views fill the mobile shell instead of calc(100vh - header) */
+.gdeck-mobile-tool-body > * {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100% !important;
+  max-height: 100%;
+  border-radius: 0 !important;
+  border-left: none !important;
+  border-right: none !important;
+  border-bottom: none !important;
+}
+
+/* Hide floating G-Pilot on mobile while a tool is open (FAB collides with tool FABs) */
+.gdeck-mobile-tool-open #gpilot-chat-floating-btn {
+  display: none !important;
+}
+
+/* Keep G-Pilot chat window usable on small screens when opened from overview */
+@media (max-width: 640px) {
+  #gpilot-chat-floating-btn {
+    bottom: calc(1rem + var(--gdeck-safe-bottom));
+    right: calc(1rem + var(--gdeck-safe-right));
+  }
+}
+
+/* Prevent tiny unreadable controls on phones */
+@media (max-width: 767px) {
+  /* Touch targets on chrome (home, overview). Tool UIs keep native sizing. */
+  button, a, [role="button"] {
+    min-height: 36px;
+  }
+  .gdeck-dense-toolbar button,
+  .gdeck-dense-toolbar a,
+  .gdeck-dense-toolbar [role="button"],
+  .gdeck-mobile-tool-body button,
+  .gdeck-mobile-tool-body a,
+  .gdeck-mobile-tool-body [role="button"],
+  .gdeck-mobile-tool-bar button,
+  .gdeck-mobile-tool-bar a {
+    min-height: 0;
+  }
+}

@@ -600,7 +600,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
   });
 
   return (
-    <div id="gmail-view" className="flex flex-col h-[calc(100vh-5.5rem)] bg-[#f6f8fc] rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative">
+    <div id="gmail-view" className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-[#f6f8fc] rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative">
       {/* AUTHENTIC GMAIL TOP SEARCH & LOGO BAR */}
       <header className="h-16 px-3 sm:px-6 bg-[#f6f8fc] border-b border-[#dadce0]/80 flex items-center justify-between gap-2 sm:gap-4 shrink-0">
         <div className="flex items-center gap-1.5 sm:gap-3">
@@ -616,7 +616,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
           {onBackToOverview && (
             <button
               onClick={onBackToOverview}
-              className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
               title="Back to Overview"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -1483,7 +1483,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
             setIsComposeOpen(true);
             setIsComposeMinimized(false);
           }}
-          className="fixed bottom-6 right-6 z-40 md:hidden flex items-center gap-2.5 px-5 py-3.5 bg-[#c2e7ff] hover:bg-[#b3defa] active:bg-[#a0d2f8] text-[#001d35] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-95 transition-all font-semibold text-sm cursor-pointer select-none"
+          className="fixed bottom-[calc(1.25rem+env(safe-area-inset-bottom))] right-[calc(1rem+env(safe-area-inset-right))] z-40 md:hidden flex items-center gap-2.5 px-5 py-3.5 bg-[#c2e7ff] hover:bg-[#b3defa] active:bg-[#a0d2f8] text-[#001d35] rounded-2xl shadow-[0_4px_16px_rgba(0,0,0,0.25)] active:scale-95 transition-all font-semibold text-sm cursor-pointer select-none"
           title="Compose email"
         >
           <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">

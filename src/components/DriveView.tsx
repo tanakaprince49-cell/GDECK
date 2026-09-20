@@ -466,7 +466,7 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
   return (
     <div
       id="drive-view"
-      className="flex flex-col h-[calc(100vh-5.5rem)] bg-[#f6f8fc] rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative"
+      className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-[#f6f8fc] rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative"
       onDragOver={(e) => {
         e.preventDefault();
         setIsDragging(true);
@@ -509,7 +509,7 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
             <button
               id="drive-back-btn"
               onClick={onBackToOverview}
-              className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
               title="Back to Overview"
             >
               <ArrowLeft className="w-5 h-5" />

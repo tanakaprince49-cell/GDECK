@@ -155,7 +155,7 @@ export const KeepView: React.FC<{ onBackToOverview?: () => void }> = ({ onBackTo
   return (
     <div
       id="keep-view"
-      className="flex flex-col h-[calc(100vh-5.5rem)] bg-white rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-none"
+      className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-white rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative select-none"
     >
       {/* 1. AUTHENTIC GOOGLE KEEP TOP BAR */}
       <header className="h-16 px-4 sm:px-6 bg-white border-b border-[#dadce0] flex items-center justify-between gap-4 shrink-0">
@@ -163,7 +163,7 @@ export const KeepView: React.FC<{ onBackToOverview?: () => void }> = ({ onBackTo
           {onBackToOverview && (
             <button
               onClick={onBackToOverview}
-              className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
               title="Back to Overview"
             >
               <ArrowLeft className="w-5 h-5" />
