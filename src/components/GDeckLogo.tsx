@@ -10,7 +10,6 @@ export const GDeckLogo: React.FC<GDeckLogoProps> = ({
   className = '',
   size = 'md',
 }) => {
-  const [imgSrc, setImgSrc] = useState<string>('/logo.webp');
   const [imgError, setImgError] = useState(false);
 
   const sizeClasses = {
@@ -27,10 +26,6 @@ export const GDeckLogo: React.FC<GDeckLogoProps> = ({
     xl: 'w-12 h-12',
   }[size];
 
-  const handleImageError = () => {
-    setImgError(true);
-  };
-
   if (imgError) {
     return (
       <div
@@ -43,12 +38,12 @@ export const GDeckLogo: React.FC<GDeckLogoProps> = ({
 
   return (
     <div
-      className={`${sizeClasses} rounded-xl overflow-hidden border border-[#dadce0] shrink-0 relative bg-white flex items-center justify-center p-0.5 ${className}`}
+      className={`${sizeClasses} rounded-xl overflow-hidden border border-[#dadce0] shrink-0 relative bg-white flex items-center justify-center p-0.5 shadow-xs ${className}`}
     >
       <img
-        src={imgSrc}
+        src="/logo.webp"
         alt="GDECK"
-        onError={handleImageError}
+        onError={() => setImgError(true)}
         className="w-full h-full object-cover rounded-lg select-none scale-105"
         referrerPolicy="no-referrer"
       />

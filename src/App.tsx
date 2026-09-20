@@ -51,6 +51,7 @@ import { WorkspaceAppView } from './components/WorkspaceAppView';
 
 import GPilotChat from './components/GPilotChat';
 import { OnboardingModal, OnboardingPreferences } from './components/OnboardingModal';
+import { SettingsModal } from './components/SettingsModal';
 import { GDeckLogo } from './components/GDeckLogo';
 import { GoogleLogo } from './components/GoogleIcons';
 import { NotificationProvider } from './context/NotificationContext';
@@ -134,6 +135,7 @@ export default function App() {
   const [showSecurityCenter, setShowSecurityCenter] = useState<boolean>(false);
   const [accountDeletedBanner, setAccountDeletedBanner] = useState<boolean>(false);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
+  const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
 
   // Category Dropdown State for Desktop Nav
   const [openCategoryDropdown, setOpenCategoryDropdown] = useState<string | null>(null);
@@ -497,39 +499,6 @@ export default function App() {
                   </button>
                 )}
 
-                {/* Security Center Quick Access Button */}
-                <button
-                  id="direct-header-security-btn"
-                  onClick={() => setShowSecurityCenter(true)}
-                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-[#137333] hover:bg-[#e6f4ea] bg-[#f1f8f3] rounded-full border border-[#ceead6] transition-colors cursor-pointer"
-                  title="View Security & Privacy Protections"
-                >
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#137333]" />
-                  <span className="hidden sm:inline">Protected</span>
-                </button>
-
-                {/* Direct Desktop Sign Out button */}
-                <button
-                  id="direct-header-signout-btn"
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#e8eaed] bg-[#f0f4f9] rounded-full border border-[#dadce0] transition-colors cursor-pointer"
-                  title="Sign out of Google Workspace"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                  <span>Sign Out</span>
-                </button>
-
-                {/* Direct Desktop Delete Account button */}
-                <button
-                  id="direct-header-delete-btn"
-                  onClick={() => setShowDeleteAccountModal(true)}
-                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#d93025] hover:bg-[#fce8e6] bg-[#fdf2f2] rounded-full border border-[#f5c6cb] transition-colors cursor-pointer"
-                  title="Permanently delete account and revoke all permissions"
-                >
-                  <Trash2 className="w-3.5 h-3.5 text-[#d93025]" />
-                  <span>Delete Account</span>
-                </button>
-
                 {/* 9-dot Google App Launcher (Waffle Menu) */}
                 <div ref={waffleRef} className="relative hidden xs:block">
                   <button
@@ -682,13 +651,13 @@ export default function App() {
                         <button
                           id="profile-customize-prefs-btn"
                           onClick={() => {
-                            setShowOnboarding(true);
+                            setShowSettingsModal(true);
                             setShowProfileMenu(false);
                           }}
                           className="w-full px-3 py-2 text-xs font-semibold text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors"
                         >
                           <Settings className="w-4 h-4 text-[#5f6368]" />
-                          <span>Customize Preferences</span>
+                          <span>Settings & Preferences</span>
                         </button>
 
                         <button
@@ -701,20 +670,6 @@ export default function App() {
                         >
                           <LogOut className="w-4 h-4 text-[#5f6368]" />
                           <span>Sign Out</span>
-                        </button>
-
-                        <div className="my-1 border-t border-[#f1f3f4]" />
-
-                        <button
-                          id="profile-delete-account-btn"
-                          onClick={() => {
-                            setShowProfileMenu(false);
-                            setShowDeleteAccountModal(true);
-                          }}
-                          className="w-full px-3 py-2 text-xs font-bold text-[#d93025] hover:bg-[#fce8e6] bg-[#fff5f5] rounded-xl text-left flex items-center gap-2.5 cursor-pointer transition-colors border border-[#f5c6cb]"
-                        >
-                          <Trash2 className="w-4 h-4 text-[#d93025]" />
-                          <span>Delete Account & Wipe Data</span>
                         </button>
                       </div>
                     </div>
@@ -1054,16 +1009,16 @@ export default function App() {
               })
             )}
 
-            {/* Customize preferences link */}
+            {/* Settings & preferences link */}
             <div className="pt-2 border-t border-[#dadce0] flex items-center justify-between">
               <button
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  setShowOnboarding(true);
+                  setShowSettingsModal(true);
                 }}
                 className="text-xs text-[#1a73e8] hover:underline font-semibold flex items-center gap-1.5"
               >
-                <Settings className="w-3.5 h-3.5" /> Customize Preferences
+                <Settings className="w-3.5 h-3.5" /> Settings & Preferences
               </button>
             </div>
           </div>
@@ -1376,6 +1331,17 @@ export default function App() {
         }}
         initialTheme="light"
         onDeleteAccount={() => setShowDeleteAccountModal(true)}
+      />
+
+      {/* Settings & Account Management Modal */}
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onSavePreferences={handleCompleteOnboarding}
+        onOpenDeleteAccount={() => setShowDeleteAccountModal(true)}
+        onSignOut={() => setShowLogoutConfirm(true)}
+        userEmail={user?.email}
+        currentPreferences={onboardingPrefs}
       />
 
       {/* Floating Real-time Notification Toast */}

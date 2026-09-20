@@ -222,21 +222,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
 
         {/* Action button cluster */}
         <div className="flex items-center flex-wrap gap-2.5 z-10">
-          {/* Priority Sync & Offline toggle */}
-          <button
-            onClick={() => togglePrioritySync()}
-            className={`px-3.5 py-1.5 rounded-full text-xs font-semibold border flex items-center gap-1.5 transition-all cursor-pointer ${
-              prioritySyncActive
-                ? 'bg-purple-50 border-purple-300 text-purple-800 shadow-2xs'
-                : 'bg-white border-[#dadce0] text-[#5f6368] hover:bg-[#f8fafd]'
-            }`}
-            title="Priority Sync & Offline-Ready Cache (Sub-second sync)"
-          >
-            <Zap className={`w-3.5 h-3.5 ${prioritySyncActive ? 'fill-purple-600 text-purple-600' : 'text-slate-400'}`} />
-            <span>{prioritySyncActive ? '⚡ Priority Sync: Active (38ms)' : 'Priority Sync'}</span>
-            <ProBadge size="xs" featureTitle="Priority Sync & Offline Mode" />
-          </button>
-
           <button
             onClick={() => {
               if (!requirePro('Custom Dashboard Layout', 'Pin, unpin, rearrange, and resize widgets on the Overview dashboard.')) {
@@ -688,43 +673,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
               <Plus className="w-3.5 h-3.5" /> Upload or Browse All Drive Files
             </button>
           </div>
-        </div>
-      </div>
-
-      {/* Account Security & Privacy Section */}
-      <div className="bg-white rounded-3xl border border-[#dadce0] p-5 sm:p-6 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="p-3 bg-[#e8f0fe] rounded-2xl text-[#1a73e8] shrink-0">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
-          <div>
-            <h4 className="text-sm font-bold text-[#1f1f1f]">Google Workspace Account & Privacy</h4>
-            <p className="text-xs text-[#5f6368] mt-0.5 max-w-xl leading-relaxed">
-              Connected via Google OAuth 2.0 with least-privilege permissions. You can disconnect your active session or permanently delete your account and wipe all stored data at any time.
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0 flex-wrap">
-          {onOpenSecurity && (
-            <button
-              id="overview-open-security-btn"
-              onClick={onOpenSecurity}
-              className="px-4 py-2 bg-[#f1f8f3] hover:bg-[#e6f4ea] text-[#137333] rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 border border-[#ceead6]"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#137333]" />
-              <span>View Protections</span>
-            </button>
-          )}
-          {onDeleteAccount && (
-            <button
-              id="overview-delete-account-btn"
-              onClick={onDeleteAccount}
-              className="px-4 py-2 bg-[#fdf2f2] hover:bg-[#fce8e6] text-[#d93025] rounded-full text-xs font-bold transition-all cursor-pointer flex items-center gap-2 border border-[#f5c6cb]"
-            >
-              <Trash2 className="w-4 h-4 text-[#d93025]" />
-              <span>Delete Account & Wipe Data</span>
-            </button>
-          )}
         </div>
       </div>
 
