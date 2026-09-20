@@ -46,6 +46,7 @@ interface ChatViewProps {
   userName?: string;
   userEmail?: string;
   userPhoto?: string;
+  onNavigateTab?: (tab: string) => void;
 }
 
 interface ChatConversation {
@@ -71,6 +72,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   userName = 'You',
   userEmail = '',
   userPhoto,
+  onNavigateTab,
 }) => {
   // Navigation & panels — sidebar closed by default on phones (drawer)
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(() =>
@@ -1360,14 +1362,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
                                 </p>
                               </div>
                             </div>
-                            <a
-                              href={msg.meetingUri}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-3 py-1.5 bg-[#00ac47] hover:bg-[#008f3b] text-white text-xs font-bold rounded-xl transition-colors shadow-2xs"
+                            <button
+                              type="button"
+                              onClick={() => onNavigateTab?.('meet')}
+                              className="px-3 py-1.5 bg-[#00ac47] hover:bg-[#008f3b] text-white text-xs font-bold rounded-xl transition-colors shadow-2xs cursor-pointer"
                             >
-                              Join
-                            </a>
+                              Open Meet
+                            </button>
                           </div>
                         )}
 

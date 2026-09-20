@@ -18,7 +18,6 @@ import {
   X,
   Plus,
   Copy,
-  ExternalLink,
   MoreVertical,
   Check,
 } from 'lucide-react';
@@ -206,15 +205,7 @@ export const KeepView: React.FC<{ onBackToOverview?: () => void }> = ({ onBackTo
           >
             {isGrid ? <ListIcon className="w-5 h-5" /> : <LayoutGrid className="w-5 h-5" />}
           </button>
-          <a
-            href="https://keep.google.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 text-[#5f6368] hover:bg-[#f0f4f9] rounded-full transition-colors cursor-pointer hidden sm:block"
-            title="Open Keep on web"
-          >
-            <ExternalLink className="w-5 h-5" />
-          </a>
+          
         </div>
       </header>
 

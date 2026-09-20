@@ -8,7 +8,6 @@ import {
   Users,
   Clock,
   MapPin,
-  ExternalLink,
   Check,
   Copy,
   RefreshCw,
@@ -325,18 +324,7 @@ export const MeetingPrepPackModal: React.FC<MeetingPrepPackModalProps> = ({
                 <ul className="space-y-1.5">
                   {driveFiles.map((f, i) => (
                     <li key={f.id || `${f.name}-${i}`} className="text-xs">
-                      {f.webViewLink ? (
-                        <a
-                          href={f.webViewLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#1a73e8] hover:underline flex items-start gap-1.5 cursor-pointer"
-                        >
-                          <span className="min-w-0 flex-1 leading-snug break-words">{f.name || 'Untitled'}</span>
-                          <ExternalLink className="w-3 h-3 shrink-0 mt-0.5" />
-                        </a>
-                      ) : (
-                        <span className="text-[#1f1f1f] leading-snug break-words">{f.name || 'Untitled'}</span>
+                      {(<span className="text-[#1f1f1f] leading-snug break-words">{f.name || 'Untitled'}</span>
                       )}
                       {f.owners?.[0]?.displayName && (
                         <span className="block text-[10px] text-[#9aa0a6]">owned by {f.owners[0].displayName}</span>

@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   Clock,
   ArrowLeft,
-  ExternalLink,
   Edit2,
   Download,
   Upload,
@@ -43,6 +42,7 @@ import { SmartFollowUpModal } from './SmartFollowUpModal';
 
 interface CalendarViewProps {
   token: string;
+  onNavigateTab?: (tab: string) => void;
   onBackToOverview?: () => void;
   /** Event to open straight away (from Omni-Search). */
   focusTarget?: WorkspaceFocusTarget | null;
@@ -66,7 +66,7 @@ const GOOGLE_COLORS = [
   { id: '11', name: 'Tomato', bg: 'bg-[#d50000]', text: 'text-white', hex: '#d50000' },
 ];
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverview, focusTarget, onFocusHandled }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverview, onNavigateTab, focusTarget, onFocusHandled }) => {
   const { isPro, requirePro } = usePlan();
   const [prepModalEvent, setPrepModalEvent] = useState<CalendarEvent | null>(null);
   const [followUpModalEvent, setFollowUpModalEvent] = useState<CalendarEvent | null>(null);
@@ -603,15 +603,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
               <span className="hidden md:inline">Export</span>
             </button>
 
-            <a
-              href="https://calendar.google.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-1.5 sm:p-2 text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#f0f4f9] rounded-full transition-colors cursor-pointer hidden lg:block"
-              title="Open in Google Calendar web"
-            >
-              <ExternalLink className="w-4 h-4 sm:w-5 sm:h-5" />
-            </a>
+            
           </div>
         </div>
       </header>
@@ -1091,7 +1083,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
                                     onClick={(e) => e.stopPropagation()}
                                   >
                                     <span>{evt.location}</span>
-                                    <ExternalLink className="w-3 h-3" />
+                                    
                                   </a>
                                 ) : (
                                   <span>{evt.location}</span>
@@ -1103,16 +1095,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
 
                         <div className="flex items-center gap-2 self-end sm:self-center">
                           {hasMeet && (
-                            <a
-                              href={evt.hangoutLink || 'https://meet.google.com'}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="px-3 py-1.5 bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1a73e8] rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onNavigateTab) onNavigateTab('meet');
+                              }}
+                              className="px-3 py-1.5 bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1a73e8] rounded-full text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                             >
                               <Video className="w-3.5 h-3.5" />
-                              <span>Join Meet</span>
-                            </a>
+                              <span>Join in G-Deck Meet</span>
+                            </button>
                           )}
                           <button
                             onClick={(e) => {
@@ -1652,22 +1645,12 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
                         className="text-[#1a73e8] hover:text-[#1557b0] hover:underline font-semibold inline-flex items-center gap-1 break-all"
                       >
                         <span>{selectedEvent.location}</span>
-                        <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                        
                       </a>
                     ) : (
                       <div className="flex items-center gap-2">
                         <span>{selectedEvent.location}</span>
-                        <a
-                          href={`https://maps.google.com/?q=${encodeURIComponent(
-                            selectedEvent.location
-                          )}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#1a73e8] hover:underline inline-flex items-center gap-0.5 text-[11px]"
-                        >
-                          <span>Map</span>
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
+                        
                       </div>
                     )}
                   </div>
@@ -1695,20 +1678,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
                   selectedEvent.location?.includes('meet.google.com') ||
                   selectedEvent.location?.includes('zoom.us') ||
                   selectedEvent.location?.includes('luma.com')) && (
-                  <a
-                    href={
-                      selectedEvent.hangoutLink ||
-                      (isValidUrl(selectedEvent.location || '')
-                        ? normalizeUrl(selectedEvent.location || '')
-                        : 'https://meet.google.com/new')
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-4 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onNavigateTab) onNavigateTab('meet');
+                    }}
+                    className="px-4 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                   >
                     <Video className="w-3.5 h-3.5" />
-                    <span>Join Meeting</span>
-                  </a>
+                    <span>Open Meet in G-Deck</span>
+                  </button>
                 )}
 
                 <button

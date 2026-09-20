@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   FileImage,
   File,
-  ExternalLink,
   Trash2,
   Search,
   RefreshCw,
@@ -598,15 +597,7 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
             <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin text-[#1a73e8]' : ''}`} />
           </button>
 
-          <a
-            href="https://drive.google.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 text-[#444746] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer hidden md:block"
-            title="Open official Google Drive web app"
-          >
-            <ExternalLink className="w-5 h-5" />
-          </a>
+          
         </div>
       </header>
 
@@ -1112,17 +1103,7 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
                 </button>
 
                 {/* Web Link */}
-                {selectedFile.webViewLink && (
-                  <a
-                    href={selectedFile.webViewLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 text-[#5f6368] hover:text-[#1a73e8] hover:bg-black/5 rounded-full transition-colors"
-                    title="Open in Google Drive"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                )}
+                
 
                 {/* Restore / Delete */}
                 {activeNav === 'trash' ? (
@@ -1296,18 +1277,7 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
                                   >
                                     <Star className={`w-3.5 h-3.5 ${file.starred ? 'fill-current' : ''}`} />
                                   </button>
-                                  {file.webViewLink && (
-                                    <a
-                                      href={file.webViewLink}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      onClick={(e) => e.stopPropagation()}
-                                      className="p-1 text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#e8f0fe] rounded-full transition-colors"
-                                      title="Open in web"
-                                    >
-                                      <ExternalLink className="w-3.5 h-3.5" />
-                                    </a>
-                                  )}
+                                  
                                 </div>
                               </div>
 
@@ -1466,17 +1436,7 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
                                       </button>
 
                                       {/* Open Web Link */}
-                                      {file.webViewLink && (
-                                        <a
-                                          href={file.webViewLink}
-                                          target="_blank"
-                                          rel="noopener noreferrer"
-                                          className="p-1.5 text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#e8f0fe] rounded-full transition-colors"
-                                          title="Open in Drive"
-                                        >
-                                          <ExternalLink className="w-3.5 h-3.5" />
-                                        </a>
-                                      )}
+                                      
 
                                       {/* Delete / Trash / Restore */}
                                       {activeNav === 'trash' ? (
@@ -1630,18 +1590,8 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
                 </button>
               )}
 
-              {/* Open in Google Drive button */}
-              {selectedFile.webViewLink && (
-                <a
-                  href={selectedFile.webViewLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2 bg-[#f0f4f9] hover:bg-[#e1eaf5] text-[#1f1f1f] rounded-full text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
-                >
-                  <span>Open in Google Drive</span>
-                  <ExternalLink className="w-3.5 h-3.5 text-[#5f6368]" />
-                </a>
-              )}
+              
+              
 
               {/* Trash / Delete / Restore */}
               {activeNav === 'trash' ? (

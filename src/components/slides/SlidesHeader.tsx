@@ -5,7 +5,6 @@ import {
   Check,
   Lock,
   Unlock,
-  ExternalLink,
   ArrowLeft,
   MessageSquare,
   Video,

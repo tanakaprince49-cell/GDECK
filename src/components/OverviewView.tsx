@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Clock,
   RefreshCw,
-  ExternalLink,
   Video,
   FileSpreadsheet,
   CheckCircle2,
@@ -222,18 +221,13 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
         {/* Action button cluster */}
         <div className="flex items-center flex-wrap gap-2.5 z-10">
           <button
-            onClick={() => {
-              if (!requirePro('Custom Dashboard Layout', 'Pin, unpin, rearrange, and resize widgets on the Overview dashboard.')) {
-                return;
-              }
-              setShowCustomizeModal(true);
-            }}
+            onClick={() => setShowCustomizeModal(true)}
             className="btn-google-secondary px-4 py-2 flex items-center gap-2"
-            title="Choose which Google tools appear on this dashboard (Pro)"
+            title="Choose which Google tools appear on this dashboard"
+            id="overview-customize-pinned-btn"
           >
             <SlidersHorizontal className="w-3.5 h-3.5 text-[#1a73e8]" />
             <span>Customize Pinned ({pinned.length})</span>
-            <ProBadge size="xs" featureTitle="Custom Dashboard Layout" />
           </button>
 
           <button
@@ -262,17 +256,12 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
           </div>
 
           <button
-            onClick={() => {
-              if (!requirePro('Custom Dashboard Layout', 'Pin, unpin, rearrange, and resize widgets on the Overview dashboard.')) {
-                return;
-              }
-              setShowCustomizeModal(true);
-            }}
+            onClick={() => setShowCustomizeModal(true)}
             className="text-xs text-[#1a73e8] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+            id="overview-edit-pinned-btn"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Edit Pinned</span>
-            <ProBadge size="xs" featureTitle="Custom Dashboard Layout" />
           </button>
         </div>
 
@@ -443,17 +432,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         <ProBadge size="xs" featureTitle="Smart Follow-Up Generator" />
                       </button>
 
-                      {ev.htmlLink && (
-                        <a
-                          href={ev.htmlLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[#5f6368] hover:text-[#1a73e8] p-1.5 rounded-lg hover:bg-[#e8f0fe] transition-colors"
-                          title="Open in Google Calendar"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                      )}
+                      <button
+                        type="button"
+                        onClick={() => onNavigateTab('calendar')}
+                        className="p-1.5 text-[#1a73e8] hover:bg-[#e8f0fe] rounded-lg cursor-pointer"
+                        title="Open in G-Deck Calendar"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 ))
@@ -632,9 +618,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                 </div>
               ) : (
                 recentFiles.map((file) => (
-                  <div
+                  <button
+                    type="button"
                     key={file.id}
-                    className="py-3 flex items-start justify-between gap-3 hover:bg-[#f8fafd] px-2.5 rounded-xl transition-colors"
+                    onClick={() => onNavigateTab('drive')}
+                    className="w-full py-3 flex items-start justify-between gap-3 hover:bg-[#f8fafd] px-2.5 rounded-xl transition-colors text-left cursor-pointer"
                   >
                     <div className="min-w-0">
                       <p className="text-xs font-semibold text-[#1f1f1f] truncate">
@@ -646,18 +634,8 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                           : 'Drive Document'}
                       </p>
                     </div>
-                    {file.webViewLink && (
-                      <a
-                        href={file.webViewLink}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#5f6368] hover:text-[#188038] p-1.5 rounded-lg hover:bg-[#e6f4ea] transition-colors"
-                        title="Open file in Google Drive"
-                      >
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    )}
-                  </div>
+                    <HardDrive className="w-3.5 h-3.5 text-[#188038] shrink-0 mt-0.5" />
+                  </button>
                 ))
               )}
             </div>

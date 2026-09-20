@@ -6,7 +6,6 @@ import {
   Mail,
   Phone,
   User as UserIcon,
-  ExternalLink,
   ArrowLeft,
 } from 'lucide-react';
 import { ContactPerson } from '../types/workspace';
@@ -150,15 +149,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
               className="pl-10 pr-3.5 py-2 text-sm bg-white/70 backdrop-blur-md border border-white/90 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500/20 w-48 sm:w-60 shadow-2xs"
             />
           </div>
-          <a
-            href="https://contacts.google.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2.5 text-slate-600 hover:text-sky-600 bg-white/70 hover:bg-white rounded-xl border border-white/90 transition-colors shadow-2xs cursor-pointer"
-            title="Open Google Contacts web"
-          >
-            <ExternalLink className="w-4 h-4" />
-          </a>
+          
           <button
             onClick={loadContacts}
             disabled={loading}

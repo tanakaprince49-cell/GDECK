@@ -1203,9 +1203,14 @@ export default function App() {
                 </div>
                 <ProBadge size="xs" showLockOnFree={false} />
               </button>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#5f6368] px-1 pt-1">
-                All connected tools
-              </p>
+              <div className="flex items-center justify-between px-1 pt-1 gap-2">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#5f6368]">
+                  All tools · tap pin for Home
+                </p>
+                <span className="text-[10px] font-semibold text-[#1a73e8] bg-[#e8f0fe] px-2 py-0.5 rounded-full border border-[#d2e3fc] shrink-0">
+                  {pinnedTools.length} pinned
+                </span>
+              </div>
               {CATEGORIES.map((category) => {
                 const categoryTools = ALL_WORKSPACE_TOOLS.filter((t) => t.category === category);
                 return (
@@ -1217,24 +1222,51 @@ export default function App() {
                       {categoryTools.map((tool) => {
                         const Icon = tool.icon;
                         const isActive = activeTab === tool.id;
+                        const isPinned = pinnedTools.includes(tool.id);
                         return (
-                          <button
+                          <div
                             key={tool.id}
-                            type="button"
-                            onClick={() => {
-                              setActiveTab(tool.id);
-                              setMobileMenuOpen(false);
-                            }}
-                            className={`p-3 rounded-xl flex items-center gap-3 border text-left cursor-pointer min-h-[48px] ${
+                            className={`rounded-xl flex items-center gap-1 border min-h-[48px] pr-1 ${
                               isActive
-                                ? 'bg-[#c2e7ff] border-[#b3defa] text-[#001d35] font-semibold'
+                                ? 'bg-[#c2e7ff] border-[#b3defa] text-[#001d35]'
                                 : 'bg-[#f8fafd] border-[#dadce0] text-[#1f1f1f]'
                             }`}
                           >
-                            <Icon className="w-5 h-5 object-contain shrink-0" />
-                            <span className="text-sm font-medium truncate flex-1">{tool.name}</span>
-                            {isActive ? <Check className="w-4 h-4 shrink-0" /> : null}
-                          </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveTab(tool.id);
+                                setMobileMenuOpen(false);
+                              }}
+                              className={`flex-1 min-w-0 p-3 flex items-center gap-3 text-left cursor-pointer ${
+                                isActive ? 'font-semibold' : ''
+                              }`}
+                              id={`drawer-tool-${tool.id}`}
+                            >
+                              <Icon className="w-5 h-5 object-contain shrink-0" />
+                              <span className="text-sm font-medium truncate flex-1">{tool.name}</span>
+                              {isActive ? <Check className="w-4 h-4 shrink-0 text-[#1a73e8]" /> : null}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                togglePin(tool.id);
+                              }}
+                              className={`p-2.5 rounded-full shrink-0 cursor-pointer transition-colors ${
+                                isPinned
+                                  ? 'text-[#1a73e8] bg-[#e8f0fe] hover:bg-[#d2e3fc]'
+                                  : 'text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#f1f3f4]'
+                              }`}
+                              title={isPinned ? 'Unpin from Home' : 'Pin to Home'}
+                              aria-label={isPinned ? `Unpin ${tool.name}` : `Pin ${tool.name}`}
+                              id={`drawer-pin-${tool.id}`}
+                            >
+                              <Pin
+                                className={`w-4 h-4 ${isPinned ? 'fill-current' : ''}`}
+                              />
+                            </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -1416,13 +1448,18 @@ export default function App() {
               <CalendarView
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
+                onNavigateTab={(tab) => setActiveTab(tab)}
                 focusTarget={omniFocus}
                 onFocusHandled={() => setOmniFocus(null)}
               />
             )}
             {/* 6. Google Meet */}
             {activeTab === 'meet' && (
-              <MeetView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <MeetView
+                token={token}
+                onBackToOverview={() => setActiveTab('overview')}
+                onNavigateTab={(tab) => setActiveTab(tab)}
+              />
             )}
             {/* 7. Google Slides */}
             {activeTab === 'slides' && (
@@ -1472,6 +1509,7 @@ export default function App() {
               <ChatView
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
+                onNavigateTab={(tab) => setActiveTab(tab)}
                 userName={displayName || undefined}
                 userEmail={displayEmail || undefined}
                 userPhoto={user?.photoURL || undefined}
@@ -1507,7 +1545,9 @@ export default function App() {
                     <WorkspaceAppView
                       tool={matchedTool}
                       userEmail={displayEmail}
+                      token={token}
                       onBackToOverview={() => setActiveTab('overview')}
+                      onNavigateTab={(tab) => setActiveTab(tab)}
                     />
                   );
                 }

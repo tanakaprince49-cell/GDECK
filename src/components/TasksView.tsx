@@ -16,7 +16,6 @@ import {
   MoreVertical,
   X,
   Edit2,
-  ExternalLink,
 } from 'lucide-react';
 import { TaskList, TaskItem } from '../types/workspace';
 import {
@@ -261,15 +260,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ token, onBackToOverview, f
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
-          <a
-            href="https://calendar.google.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 text-[#5f6368] hover:bg-[#f0f4f9] rounded-full transition-colors hidden sm:block"
-            title="Open in Calendar Tasks"
-          >
-            <ExternalLink className="w-5 h-5" />
-          </a>
+          
         </div>
       </header>
 

@@ -15,7 +15,6 @@ import {
   HardDrive,
   Minimize2,
   Maximize2,
-  ExternalLink,
   Printer,
   MailOpen,
   Mail,
@@ -672,15 +671,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
           >
             <RefreshCw className={`w-4 h-4 sm:w-5 sm:h-5 ${loading ? 'animate-spin text-[#1a73e8]' : ''}`} />
           </button>
-          <a
-            href="https://mail.google.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 sm:p-2.5 text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer hidden sm:block"
-            title="Open in official Gmail web app"
-          >
-            <ExternalLink className="w-5 h-5" />
-          </a>
+          
         </div>
       </header>
 
@@ -1059,15 +1050,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                     <span>{isExportingEml ? 'Exporting...' : 'Download .eml'}</span>
                   </button>
 
-                  <a
-                    href={`https://mail.google.com/mail/u/0/#inbox/${selectedMessage.id}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 text-xs font-semibold text-[#1a73e8] hover:bg-[#e8f0fe] rounded-full flex items-center gap-1.5 transition-colors"
-                  >
-                    <span>Open in Web</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  
 
                   <button
                     onClick={() => window.print()}

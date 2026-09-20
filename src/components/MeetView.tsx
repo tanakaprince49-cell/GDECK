@@ -6,7 +6,6 @@ import {
   MicOff,
   Plus,
   Copy,
-  ExternalLink,
   Check,
   Calendar,
   Users,
@@ -31,10 +30,11 @@ import { GoogleMeetIcon } from './GoogleIcons';
 
 interface MeetViewProps {
   token: string;
+  onNavigateTab?: (tab: string) => void;
   onBackToOverview?: () => void;
 }
 
-export const MeetView: React.FC<MeetViewProps> = ({ token, onBackToOverview }) => {
+export const MeetView: React.FC<MeetViewProps> = ({ token, onBackToOverview, onNavigateTab }) => {
   const [meetingCode, setMeetingCode] = useState<string>('');
   const [createdSpaces, setCreatedSpaces] = useState<MeetSpace[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -154,15 +154,7 @@ export const MeetView: React.FC<MeetViewProps> = ({ token, onBackToOverview }) =
 
         <div className="flex items-center gap-4 text-[#5f6368] text-sm">
           <span className="hidden md:inline font-medium">{timeStr}</span>
-          <a
-            href="https://meet.google.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 hover:bg-[#f0f4f9] rounded-full transition-colors"
-            title="Open Meet Web"
-          >
-            <ExternalLink className="w-5 h-5 text-[#5f6368]" />
-          </a>
+          
         </div>
       </header>
 
@@ -211,15 +203,7 @@ export const MeetView: React.FC<MeetViewProps> = ({ token, onBackToOverview }) =
                       <Plus className="w-4 h-4 text-[#5f6368]" />
                       <span>Start an instant meeting</span>
                     </button>
-                    <a
-                      href="https://calendar.google.com"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#f0f4f9] text-left text-xs font-semibold text-[#1f1f1f] cursor-pointer"
-                    >
-                      <Calendar className="w-4 h-4 text-[#5f6368]" />
-                      <span>Schedule in Google Calendar</span>
-                    </a>
+                    
                   </div>
                 )}
               </div>

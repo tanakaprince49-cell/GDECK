@@ -6,7 +6,6 @@ import {
   Check,
   Lock,
   Unlock,
-  ExternalLink,
   ArrowLeft,
   MessageSquare,
   Video,
@@ -351,17 +350,7 @@ export const DocsHeader: React.FC<DocsHeaderProps> = ({
         </button>
 
         {/* External Drive Link */}
-        {webViewLink && (
-          <a
-            href={webViewLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 text-[#5f6368] hover:text-[#1a73e8] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer hidden sm:block"
-            title="Open in official Google Docs"
-          >
-            <ExternalLink className="w-5 h-5" />
-          </a>
-        )}
+        
 
         {/* Iconic Google Docs Share Button (Light blue pill when restricted, soft emerald/unlocked when public) */}
         <button

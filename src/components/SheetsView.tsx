@@ -3,7 +3,6 @@ import {
   FileSpreadsheet,
   Plus,
   RefreshCw,
-  ExternalLink,
   Search,
   CheckCircle2,
   ArrowLeft,

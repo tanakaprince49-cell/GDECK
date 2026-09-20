@@ -3,7 +3,6 @@ import {
   Send,
   Search,
   RefreshCw,
-  ExternalLink,
   Plus,
   Trash2,
   Phone,
@@ -311,17 +310,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, onBackToOverv
             <Plus className="w-4 h-4" />
             Start Chat
           </button>
-          <a
-            href="https://messages.google.com/web"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2.5 text-slate-600 hover:text-blue-600 bg-white/70 hover:bg-white rounded-xl border border-white/90 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
-            title="Open Google Messages on Web"
-          >
-            <QrCode className="w-4 h-4 text-blue-600" />
-            <span className="hidden md:inline">Pair Device</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </a>
+          
         </div>
       </div>
 
@@ -465,15 +454,7 @@ export const MessagesView: React.FC<MessagesViewProps> = ({ token, onBackToOverv
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
-                  <a
-                    href="https://messages.google.com/web"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors cursor-pointer"
-                    title="Open in Google Messages Web"
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
+                  
                 </div>
               </div>
 
