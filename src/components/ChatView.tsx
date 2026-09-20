@@ -508,22 +508,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* ================= TOP GOOGLE BAR (SEAMLESS ON #f8fafd) ================= */}
       <div className="h-14 sm:h-16 px-2 sm:px-4 flex items-center justify-between gap-4 shrink-0 bg-[#f8fafd]">
-        {/* Left: Hamburger + Google Chat Brand Logo */}
-        <div className="flex items-center gap-3 shrink-0">
+        {/* Left: Back + chat list menu + brand */}
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           {onBackToOverview && (
             <button
+              type="button"
               onClick={onBackToOverview}
-              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
-              title="Back to Overview"
+              className="inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              title="Back to Home"
+              aria-label="Back to Home"
+              id="chat-back-home-btn"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
           )}
 
           <button
+            type="button"
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
-            title="Main menu"
+            title="Chat list"
+            aria-label="Open chat list"
           >
             <Menu className="w-5 h-5" />
           </button>

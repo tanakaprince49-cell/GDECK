@@ -487,8 +487,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
             {onBackToOverview && (
               <button
                 onClick={onBackToOverview}
-                className="hidden md:inline-flex p-1.5 sm:p-2 text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-full transition-colors cursor-pointer"
-                title="Back to Command Deck"
+                className="inline-flex p-1.5 sm:p-2 text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-full transition-colors cursor-pointer"
+                title="Back to Home"
               >
                 <ArrowLeft className="w-5 h-5" />
               </button>

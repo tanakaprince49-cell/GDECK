@@ -170,7 +170,7 @@ export const SlidesHeader: React.FC<SlidesHeaderProps> = ({
           <button
             onClick={onBackToOverview}
             className="p-1.5 sm:p-2 text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
-            title="Back to Google Workspace Overview"
+            title="Back to Home"
           >
             <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>

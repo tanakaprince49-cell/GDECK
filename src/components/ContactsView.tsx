@@ -103,7 +103,7 @@ export const ContactsView: React.FC<ContactsViewProps> = ({
             <button
               id="contacts-back-to-overview-btn"
               onClick={onBackToOverview}
-              className="hidden md:inline-flex inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-sky-600 bg-white/80 hover:bg-white border border-white/90 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-2 text-xs font-semibold text-slate-700 hover:text-sky-600 bg-white/80 hover:bg-white border border-white/90 rounded-xl transition-all shadow-2xs cursor-pointer shrink-0"
               title="Return to Workspace Overview"
             >
               <ArrowLeft className="w-4 h-4" />

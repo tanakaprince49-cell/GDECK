@@ -163,8 +163,8 @@ export const KeepView: React.FC<{ onBackToOverview?: () => void }> = ({ onBackTo
           {onBackToOverview && (
             <button
               onClick={onBackToOverview}
-              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
-              title="Back to Overview"
+              className="inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              title="Back to Home"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>

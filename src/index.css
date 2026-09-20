@@ -494,10 +494,6 @@ html.gdeck-mobile-tool-open body {
   html.gdeck-mobile-tool-open .gdeck-app-shell > header {
     display: none !important;
   }
-  /* Hide redundant tool-internal "Back to Overview" that we already hide via md: */
-  .gdeck-mobile-tool-body [id$="back-to-overview-btn"] {
-    display: none !important;
-  }
 }
 
 

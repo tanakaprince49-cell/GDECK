@@ -495,9 +495,22 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
       {/* AUTHENTIC GOOGLE DRIVE TOP BAR */}
       <header className="h-14 sm:h-16 px-2 sm:px-6 bg-[#f6f8fc] border-b border-[#dadce0]/80 flex items-center justify-between gap-1.5 sm:gap-4 shrink-0 gdeck-dense-toolbar min-w-0">
         <div className="flex items-center gap-1.5 sm:gap-3">
+          {onBackToOverview && (
+            <button
+              id="drive-back-btn"
+              type="button"
+              onClick={onBackToOverview}
+              className="inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              title="Back to Home"
+              aria-label="Back to Home"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+          )}
           {/* Mobile hamburger menu toggle */}
           <button
             id="drive-mobile-menu-toggle"
+            type="button"
             onClick={() => setIsMobileDrawerOpen(true)}
             className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer md:hidden"
             title="Open navigation menu"
@@ -505,19 +518,9 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
             <Menu className="w-5 h-5" />
           </button>
 
-          {onBackToOverview && (
-            <button
-              id="drive-back-btn"
-              onClick={onBackToOverview}
-              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
-              title="Back to Overview"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-          <div className="flex items-center gap-2 cursor-pointer select-none" onClick={onBackToOverview}>
-            <GoogleDriveIcon className="w-7 h-7 sm:w-8 sm:h-8" />
-            <span className="text-[20px] sm:text-[22px] font-normal text-[#444746] tracking-tight hidden sm:inline">Drive</span>
+          <div className="hidden sm:flex items-center gap-2 cursor-pointer select-none" onClick={onBackToOverview}>
+            <GoogleDriveIcon className="w-8 h-8" />
+            <span className="text-[22px] font-normal text-[#444746] tracking-tight">Drive</span>
           </div>
         </div>
 
