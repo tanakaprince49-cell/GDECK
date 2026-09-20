@@ -173,6 +173,73 @@ async function startServer() {
   // Payonify Payment & Webhook Routes
   app.use("/api/payonify", payonifyRouter);
 
+  // Silent Google access-token refresh (stay signed in across refresh / hour expiry)
+  app.post("/api/auth/google-refresh", async (req, res) => {
+    try {
+      const refreshToken = req.body?.refreshToken || req.body?.refresh_token;
+      if (!refreshToken || typeof refreshToken !== "string") {
+        return res.status(400).json({ error: "refreshToken is required" });
+      }
+
+      let clientId =
+        process.env.GOOGLE_OAUTH_CLIENT_ID ||
+        process.env.VITE_GOOGLE_OAUTH_CLIENT_ID ||
+        "";
+      const clientSecret =
+        process.env.GOOGLE_OAUTH_CLIENT_SECRET ||
+        process.env.VITE_GOOGLE_OAUTH_CLIENT_SECRET ||
+        "";
+
+      if (!clientId) {
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const cfg = require("./firebase-applet-config.json");
+          clientId = cfg?.oAuthClientId || "";
+        } catch {
+          /* ignore */
+        }
+      }
+
+      if (!clientId) {
+        return res.status(500).json({
+          error: "GOOGLE_OAUTH_CLIENT_ID is not configured",
+          code: "missing_client_id",
+        });
+      }
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        grant_type: "refresh_token",
+        refresh_token: refreshToken,
+      });
+      if (clientSecret) params.set("client_secret", clientSecret);
+
+      const googleRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params,
+      });
+      const data: any = await googleRes.json().catch(() => ({}));
+      if (!googleRes.ok || !data.access_token) {
+        return res.status(googleRes.status === 400 ? 400 : 502).json({
+          error: data?.error_description || data?.error || "Failed to refresh Google access token",
+          code: data?.error || "refresh_failed",
+        });
+      }
+      return res.json({
+        accessToken: data.access_token,
+        expiresIn: Number(data.expires_in) || 3600,
+        tokenType: data.token_type || "Bearer",
+        scope: data.scope,
+        refreshToken: data.refresh_token || undefined,
+      });
+    } catch (err: any) {
+      console.error("[google-refresh]", err?.message || err);
+      return res.status(500).json({ error: err?.message || "Refresh failed" });
+    }
+  });
+
+
   // In-memory sliding rate limiter for AI endpoints (protect against abuse & denial of service)
   const ipRequestCounts = new Map<string, { count: number; resetTime: number }>();
   const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute

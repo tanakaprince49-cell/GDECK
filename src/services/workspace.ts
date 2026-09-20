@@ -1,3 +1,4 @@
+import { ensureFreshAccessToken, clearTokenAndPromptReauth } from './auth';
 import {
   DriveFile,
   DriveStorageQuota,
@@ -15,18 +16,26 @@ import {
 } from '../types/workspace';
 
 // Helper for API fetch with standard Google error handling
-async function googleFetch(url: string, token: string, options: RequestInit = {}) {
-  if (!token) {
+async function googleFetch(url: string, token: string, options: RequestInit = {}, _retried = false) {
+  let activeToken = token;
+  if (!activeToken) {
+    activeToken = (await ensureFreshAccessToken()) || '';
+  }
+  if (!activeToken) {
     if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('gdeck_auth_expired', { detail: { message: 'Missing access token' } }));
+      window.dispatchEvent(
+        new CustomEvent('gdeck_auth_expired', {
+          detail: { message: 'Missing access token', recoverable: true },
+        })
+      );
     }
     throw new Error('Google Workspace session missing or expired. Please click "Reconnect Account".');
   }
 
   const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${activeToken}`,
     Accept: 'application/json',
-    ...(options.headers as Record<string, string> || {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
   try {
@@ -42,21 +51,38 @@ async function googleFetch(url: string, token: string, options: RequestInit = {}
         // ignore
       }
 
-      // Check for 401 or invalid credential errors
-      if (
+      const isAuthError =
         res.status === 401 ||
         errorMsg.includes('invalid authentication credentials') ||
         errorMsg.includes('UNAUTHENTICATED') ||
-        errorMsg.includes('OAuth 2 access token')
-      ) {
+        errorMsg.includes('OAuth 2 access token');
+
+      // Silent refresh once, then retry the same request — no logout.
+      if (isAuthError && !_retried) {
+        const fresh = await ensureFreshAccessToken();
+        if (fresh && fresh !== activeToken) {
+          return googleFetch(url, fresh, options, true);
+        }
+        // Force a refresh attempt by clearing the access token cache path
+        clearTokenAndPromptReauth();
+        const again = await ensureFreshAccessToken();
+        if (again) {
+          return googleFetch(url, again, options, true);
+        }
+      }
+
+      if (isAuthError) {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
             new CustomEvent('gdeck_auth_expired', {
-              detail: { message: 'Your Google session has expired. Click Reconnect to refresh credentials.' },
+              detail: {
+                message: 'Your Google Workspace access expired. Sign in once to refresh — you stay signed in after that.',
+                recoverable: true,
+              },
             })
           );
         }
-        throw new Error('Your Google Workspace access token expired. Please click "Reconnect Account" above.');
+        throw new Error('Your Google Workspace access token expired. Please reconnect once.');
       }
 
       throw new Error(errorMsg);

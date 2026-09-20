@@ -26,7 +26,14 @@ import {
   Coffee,
 } from 'lucide-react';
 
-import { initAuth, googleSignIn, logout, deleteAccountPermanently } from './services/auth';
+import {
+  initAuth,
+  googleSignIn,
+  reconnectWorkspace,
+  ensureFreshAccessToken,
+  logout,
+  deleteAccountPermanently,
+} from './services/auth';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DeleteAccountModal } from './components/DeleteAccountModal';
 import { SecurityCenterModal } from './components/SecurityCenterModal';
@@ -218,28 +225,91 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = initAuth((currentUser, currentToken) => {
-      setUser(currentUser);
-      setToken(currentToken);
-      setNeedsAuth(!currentUser || !currentToken);
+    // Firebase Auth is persisted locally — on refresh we restore the user and
+    // silently refresh the Google Workspace access token (no popup).
+    const unsubscribe = initAuth(
+      (currentUser, currentToken) => {
+        setUser(currentUser);
+        setToken(currentToken);
+        setNeedsAuth(false);
+        setAuthError(null);
+      },
+      (reason) => {
+        if (reason === 'signed_out') {
+          setUser(null);
+          setToken(null);
+          setNeedsAuth(true);
+          return;
+        }
+        // Firebase user still present but Workspace token missing/expired —
+        // keep the user object so we don't look "logged out"; try silent refresh,
+        // and only then ask them to reconnect Workspace (one click, not full logout).
+        setNeedsAuth(true);
+        setAuthError(
+          reason === 'workspace_token_missing' || reason === 'refresh_failed'
+            ? 'Your Google Workspace session needs a quick reconnect. Tap Sign in once — you stay signed in after that.'
+            : null
+        );
+      }
+    );
 
-      // Do not auto-pop onboarding modal on every launch
-    });
-
-    const handleAuthExpired = (e: any) => {
-      setToken('');
+    const handleAuthExpired = async (e: any) => {
+      // Prefer silent refresh over forcing the landing/sign-in screen.
+      try {
+        const fresh = await ensureFreshAccessToken();
+        if (fresh) {
+          setToken(fresh);
+          setNeedsAuth(false);
+          setAuthError(null);
+          return;
+        }
+      } catch {
+        /* fall through */
+      }
+      // Recoverable: keep Firebase user if any, prompt reconnect without wiping session.
+      setToken(null);
       setNeedsAuth(true);
       setAuthError(
-        e.detail?.message ||
-          'Your Google Workspace access credentials expired or are invalid. Please reconnect below.'
+        e?.detail?.message ||
+          'Your Google Workspace access expired. Sign in once to refresh — you will stay signed in.'
       );
     };
 
     window.addEventListener('gdeck_auth_expired', handleAuthExpired);
 
+    // Proactively refresh the access token every ~45 minutes while the tab is open.
+    const refreshTimer = window.setInterval(async () => {
+      try {
+        const fresh = await ensureFreshAccessToken();
+        if (fresh) {
+          setToken(fresh);
+          setNeedsAuth(false);
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 45 * 60 * 1000);
+
+    const onVis = async () => {
+      if (document.visibilityState !== 'visible') return;
+      try {
+        const fresh = await ensureFreshAccessToken();
+        if (fresh) {
+          setToken(fresh);
+          setNeedsAuth(false);
+          setAuthError(null);
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    document.addEventListener('visibilitychange', onVis);
+
     return () => {
       unsubscribe();
       window.removeEventListener('gdeck_auth_expired', handleAuthExpired);
+      window.clearInterval(refreshTimer);
+      document.removeEventListener('visibilitychange', onVis);
     };
   }, []);
 
@@ -258,16 +328,21 @@ export default function App() {
     setIsLoggingIn(true);
     setAuthError(null);
     try {
-      const result = await googleSignIn();
+      // Prefer a consent pass when we already know the Firebase user but lost the
+      // Workspace refresh token — captures offline access for stay-signed-in.
+      const result = user ? await reconnectWorkspace() : await googleSignIn();
       if (result) {
         setUser(result.user);
         setToken(result.accessToken);
         setNeedsAuth(false);
+        setAuthError(null);
       }
     } catch (err: any) {
       console.error('Sign-in error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         setAuthError('Sign in popup was closed before completing authorization.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setAuthError('Pop-up was blocked. Allow pop-ups for G-Deck and try again.');
       } else {
         setAuthError(err.message || 'Failed to authenticate with Google Workspace.');
       }
