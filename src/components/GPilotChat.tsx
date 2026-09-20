@@ -252,11 +252,16 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
   const {
     isPro,
     aiQueriesUsed,
+    aiQueriesRemaining,
     maxFreeAiQueries,
+    canUseAi,
     incrementAiQuery,
     requirePro,
     openUpgradeModal,
   } = usePlan();
+
+  const freeRemaining = isPro ? null : Math.max(0, aiQueriesRemaining);
+  const atFreeLimit = !isPro && !canUseAi;
 
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
@@ -710,10 +715,31 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
   const handleSend = async (customPrompt?: string) => {
     const textToSend = (customPrompt || input).trim();
     if (!textToSend || !token) return;
-    
+
+    // Free plan: 10 AI messages/month. At the cap, open the paywall and do not send.
+    if (atFreeLimit) {
+      openUpgradeModal({
+        title: 'Free AI messages used up',
+        desc: `You've used all ${maxFreeAiQueries} free G-Pilot messages this month (0 remaining). Upgrade to G-Deck Pro for unlimited AI.`,
+        isAiLimit: true,
+      });
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateUniqueMsgId('ai-limit'),
+          role: 'model',
+          content: `🔒 **Monthly AI limit reached** — you've used all **${maxFreeAiQueries}/${maxFreeAiQueries}** free G-Pilot messages this month (**0 remaining**). Upgrade to G-Deck Pro for unlimited AI.`,
+        },
+      ]);
+      return;
+    }
+
     setInput('');
-    
-    setMessages(prev => [...prev, { id: generateUniqueMsgId('user'), role: 'user', content: textToSend }]);
+
+    setMessages((prev) => [
+      ...prev,
+      { id: generateUniqueMsgId('user'), role: 'user', content: textToSend },
+    ]);
 
     // Client-side instant triage for pure conversational pleasantries (Zero Token Consumption)
     const cleanLower = textToSend.toLowerCase().replace(/[^\w\s]/g, '').trim();
@@ -723,59 +749,65 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
 
     if (isGreeting) {
       const reply = `Hi ${userName || 'there'}! I'm G-Pilot, your assistant for Google Workspace. Ask me to check today's schedule, read unread emails, schedule meetings, create tasks, or search files in Drive.`;
-      setMessages(prev => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
+      setMessages((prev) => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
       return;
     }
 
     if (isThanks) {
-      const reply = "You're very welcome! Let me know whenever you need anything else across your calendar, emails, tasks, or drive.";
-      setMessages(prev => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
+      const reply =
+        "You're very welcome! Let me know whenever you need anything else across your calendar, emails, tasks, or drive.";
+      setMessages((prev) => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
       return;
     }
 
     if (isHelp) {
       const reply = `Here are actions you can ask me to perform across your Workspace:\n\n- 📅 **Calendar**: "What's on my calendar today?" or "Schedule a 30m sync with Sarah tomorrow"\n- 📧 **Gmail**: "Check my unread emails" or "Send an email to alex@example.com"\n- 📹 **Google Meet**: "Generate a Meet video link"\n- ✅ **Google Tasks**: "Show my pending tasks" or "Add a task: Review Q3 budget"\n- 📁 **Google Drive**: "Search Drive for project roadmap"\n- 💡 **Memory**: "Remember that I prefer 30-minute meetings"`;
-      setMessages(prev => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
+      setMessages((prev) => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
       return;
     }
 
     // Check Cross-Workspace Synthesis query gate
-    const isCrossWorkspace = /across.*(drive|email|calendar|task)|summarize.*(drive|client email|project update)/i.test(textToSend);
+    const isCrossWorkspace =
+      /across.*(drive|email|calendar|task)|summarize.*(drive|client email|project update)/i.test(textToSend);
     if (isCrossWorkspace && !isPro) {
       const allowed = requirePro(
         'Cross-Workspace Synthesis',
         'Summarize all project updates across your Drive docs and client emails this week with G-Deck Pro.'
       );
       if (!allowed) {
-        setMessages(prev => [
+        setMessages((prev) => [
           ...prev,
           {
             id: generateUniqueMsgId('pro-req'),
             role: 'model',
-            content: '🔒 **G-Deck Pro Feature**: Cross-workspace synthesis across Drive docs and Gmail threads requires G-Deck Pro ($12/month). Upgrade to unlock unlimited multi-tool intelligence.',
+            content:
+              '🔒 **G-Deck Pro Feature**: Cross-workspace synthesis across Drive docs and Gmail threads requires G-Deck Pro ($12/month). Upgrade to unlock unlimited multi-tool intelligence.',
           },
         ]);
         return;
       }
     }
 
-    // Check Free AI Tier monthly limits (10 free assists/month)
+    // Free AI tier: 10 messages/month. Counts only real AI calls (not greetings).
     const allowed = incrementAiQuery();
     if (!allowed) {
-      setMessages(prev => [
+      setMessages((prev) => [
         ...prev,
         {
           id: generateUniqueMsgId('ai-limit'),
           role: 'model',
-          content: '🔒 **Monthly AI Limit Reached**: You’ve unlocked 10/10 free AI assists this month. Upgrade to G-Deck Pro for unlimited AI.',
+          content: `🔒 **Monthly AI limit reached** — you've used all **${maxFreeAiQueries}/${maxFreeAiQueries}** free G-Pilot messages this month (**0 remaining**). Upgrade to G-Deck Pro for unlimited AI.`,
         },
       ]);
       return;
     }
-    
-    const newContext = pruneClientContext([...apiContext, { role: 'user', parts: [{ text: textToSend }] }]);
+
+    const newContext = pruneClientContext([
+      ...apiContext,
+      { role: 'user', parts: [{ text: textToSend }] },
+    ]);
     setApiContext(newContext);
-    
+
     await processResponse(newContext);
   };
 
@@ -837,11 +869,39 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                     </span>
                   ) : (
                     <button
-                      onClick={() => openUpgradeModal({ isAiLimit: aiQueriesUsed >= maxFreeAiQueries })}
-                      className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 flex items-center gap-1 cursor-pointer transition-colors"
-                      title="Free monthly assists. Click to unlock Unlimited AI with G-Deck Pro."
+                      onClick={() =>
+                        openUpgradeModal({
+                          isAiLimit: atFreeLimit,
+                          title: atFreeLimit ? 'Free AI messages used up' : undefined,
+                          desc: atFreeLimit
+                            ? `You've used all ${maxFreeAiQueries} free G-Pilot messages this month (0 remaining). Upgrade to G-Deck Pro for unlimited AI.`
+                            : `Free plan: ${freeRemaining} of ${maxFreeAiQueries} G-Pilot messages left this month. Upgrade for unlimited AI.`,
+                        })
+                      }
+                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 cursor-pointer transition-colors border ${
+                        atFreeLimit
+                          ? 'bg-red-50 text-red-700 border-red-200 hover:bg-red-100'
+                          : freeRemaining !== null && freeRemaining <= 3
+                          ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100'
+                          : 'bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100'
+                      }`}
+                      title={
+                        atFreeLimit
+                          ? '0 free AI messages remaining this month. Upgrade for unlimited AI.'
+                          : `${freeRemaining} of ${maxFreeAiQueries} free AI messages remaining this month.`
+                      }
+                      id="gpilot-ai-quota-badge"
                     >
-                      <span>AI: {aiQueriesUsed}/{maxFreeAiQueries}</span>
+                      {atFreeLimit ? (
+                        <>
+                          <Lock className="w-3 h-3" />
+                          <span>0 left · Upgrade</span>
+                        </>
+                      ) : (
+                        <span>
+                          {freeRemaining} left · {aiQueriesUsed}/{maxFreeAiQueries}
+                        </span>
+                      )}
                       <ProBadge size="xs" showLockOnFree={false} />
                     </button>
                   )}
@@ -993,6 +1053,10 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               <button
                 key={idx}
                 onClick={() => {
+                  if (atFreeLimit) {
+                    handleSend(chip.prompt);
+                    return;
+                  }
                   if (chip.isPro && !isPro) {
                     requirePro(
                       'Cross-Workspace Synthesis',
@@ -1012,6 +1076,43 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
             ))}
           </div>
 
+          {/* Free-plan remaining messages strip */}
+          {!isPro && (
+            <div
+              id="gpilot-ai-remaining-strip"
+              className={`px-4 py-2 border-t flex items-center justify-between gap-2 text-[11px] ${
+                atFreeLimit
+                  ? 'bg-red-50 border-red-100 text-red-800'
+                  : freeRemaining !== null && freeRemaining <= 3
+                  ? 'bg-amber-50 border-amber-100 text-amber-900'
+                  : 'bg-[#f8fafd] border-[#f1f3f4] text-[#5f6368]'
+              }`}
+            >
+              <span className="font-medium leading-snug">
+                {atFreeLimit
+                  ? `No free AI messages left this month (0 of ${maxFreeAiQueries} remaining).`
+                  : `${freeRemaining} of ${maxFreeAiQueries} free AI messages remaining this month.`}
+              </span>
+              <button
+                type="button"
+                onClick={() =>
+                  openUpgradeModal({
+                    isAiLimit: atFreeLimit,
+                    title: atFreeLimit ? 'Free AI messages used up' : undefined,
+                    desc: atFreeLimit
+                      ? `You've used all ${maxFreeAiQueries} free G-Pilot messages this month (0 remaining). Upgrade to G-Deck Pro for unlimited AI.`
+                      : `Free plan includes ${maxFreeAiQueries} G-Pilot messages per month. ${freeRemaining} remaining — upgrade for unlimited AI.`,
+                  })
+                }
+                className={`shrink-0 font-bold underline cursor-pointer ${
+                  atFreeLimit ? 'text-red-700' : 'text-purple-700'
+                }`}
+              >
+                {atFreeLimit ? 'Upgrade' : 'Go Pro'}
+              </button>
+            </div>
+          )}
+
           {/* Input Area */}
           <div className="p-3.5 border-t border-slate-100 bg-white">
             <div className="relative flex items-center">
@@ -1019,20 +1120,51 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                placeholder="Ask G-Pilot for Calendar, Gmail, Tasks, Meet, Drive..."
-                className="w-full bg-[#f0f4f9] border border-[#dadce0] rounded-full pl-4 pr-12 py-2.5 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-hidden focus:bg-white focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] transition-all shadow-xs"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    if (atFreeLimit) {
+                      handleSend();
+                      return;
+                    }
+                    handleSend();
+                  }
+                }}
+                placeholder={
+                  atFreeLimit
+                    ? 'Monthly free AI limit reached — upgrade to keep chatting'
+                    : 'Ask G-Pilot for Calendar, Gmail, Tasks, Meet, Drive...'
+                }
+                className={`w-full bg-[#f0f4f9] border rounded-full pl-4 pr-12 py-2.5 text-xs sm:text-sm text-slate-900 placeholder-slate-400 focus:outline-hidden focus:bg-white focus:ring-1 transition-all shadow-xs ${
+                  atFreeLimit
+                    ? 'border-red-200 focus:border-red-400 focus:ring-red-200'
+                    : 'border-[#dadce0] focus:border-[#1a73e8] focus:ring-[#1a73e8]'
+                }`}
                 disabled={isLoading}
+                aria-label={
+                  atFreeLimit
+                    ? 'G-Pilot input locked — free monthly AI limit reached'
+                    : 'Message G-Pilot'
+                }
               />
               <button
                 onClick={() => handleSend()}
-                disabled={!input.trim() || isLoading}
-                className="absolute right-1.5 p-2 rounded-full bg-[#fbe618] hover:bg-[#ffe600] text-[#0B0F17] disabled:opacity-40 disabled:hover:bg-[#fbe618] transition-all cursor-pointer shadow-xs"
-                title="Send message"
+                disabled={isLoading || (!atFreeLimit && !input.trim())}
+                className={`absolute right-1.5 p-2 rounded-full transition-all cursor-pointer shadow-xs disabled:opacity-40 ${
+                  atFreeLimit
+                    ? 'bg-purple-600 hover:bg-purple-700 text-white disabled:hover:bg-purple-600'
+                    : 'bg-[#fbe618] hover:bg-[#ffe600] text-[#0B0F17] disabled:hover:bg-[#fbe618]'
+                }`}
+                title={atFreeLimit ? 'Open upgrade paywall' : 'Send message'}
+                aria-label={atFreeLimit ? 'Upgrade to keep messaging' : 'Send message'}
               >
-                <Send className="w-4 h-4" />
+                {atFreeLimit ? <Lock className="w-4 h-4" /> : <Send className="w-4 h-4" />}
               </button>
             </div>
+            {atFreeLimit && (
+              <p className="mt-2 text-[11px] text-center text-red-700 font-medium">
+                Free plan limit: {maxFreeAiQueries} AI messages / month · 0 remaining
+              </p>
+            )}
           </div>
         </div>
       )}

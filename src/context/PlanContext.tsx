@@ -20,9 +20,15 @@ export interface UpgradeModalContext {
 export interface PlanContextType {
   tier: PlanTier;
   isPro: boolean;
+  /** AI messages used in the current calendar month (free tier). */
   aiQueriesUsed: number;
+  /** Free-plan monthly AI message allowance (10). */
   maxFreeAiQueries: number;
+  /** Messages still available this month on free; Infinity for Pro. */
+  aiQueriesRemaining: number;
   canUseAi: boolean;
+  /** YYYY-MM key the free counter is currently billed against. */
+  aiQuotaMonth: string;
   incrementAiQuery: () => boolean;
   requirePro: (featureTitle?: string, featureDesc?: string) => boolean;
   openUpgradeModal: (ctx?: UpgradeModalContext) => void;
@@ -44,7 +50,46 @@ export interface PlanContextType {
   syncLatencyMs: number;
 }
 
-const MAX_FREE_AI_QUERIES = 10;
+/** Free plan: 10 G-Pilot AI messages per calendar month. */
+export const MAX_FREE_AI_QUERIES = 10;
+
+const STORAGE_USED = 'gdeck_ai_queries_used';
+const STORAGE_MONTH = 'gdeck_ai_queries_month';
+const STORAGE_TIER = 'gdeck_plan_tier';
+
+/** Calendar-month key in the user's local timezone (YYYY-MM). */
+export function currentAiQuotaMonth(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+}
+
+function readStoredUsage(): { used: number; month: string } {
+  const thisMonth = currentAiQuotaMonth();
+  try {
+    const savedMonth = localStorage.getItem(STORAGE_MONTH);
+    const savedUsed = localStorage.getItem(STORAGE_USED);
+    // New month → free allowance resets.
+    if (savedMonth !== thisMonth) {
+      localStorage.setItem(STORAGE_MONTH, thisMonth);
+      localStorage.setItem(STORAGE_USED, '0');
+      return { used: 0, month: thisMonth };
+    }
+    const used = savedUsed ? parseInt(savedUsed, 10) : 0;
+    return { used: Number.isFinite(used) && used > 0 ? used : 0, month: thisMonth };
+  } catch {
+    return { used: 0, month: thisMonth };
+  }
+}
+
+function persistUsage(used: number, month: string) {
+  try {
+    localStorage.setItem(STORAGE_USED, String(used));
+    localStorage.setItem(STORAGE_MONTH, month);
+  } catch {
+    /* private mode / quota */
+  }
+}
 
 const DEFAULT_ACCOUNTS: GoogleAccountProfile[] = [
   {
@@ -74,19 +119,14 @@ export const PlanProvider: React.FC<{
   // legacy 'trial' value resolve to free.
   const [tier, setTierState] = useState<PlanTier>(() => {
     try {
-      return localStorage.getItem('gdeck_plan_tier') === 'pro' ? 'pro' : 'free';
+      return localStorage.getItem(STORAGE_TIER) === 'pro' ? 'pro' : 'free';
     } catch {}
     return 'free';
   });
 
-  const [aiQueriesUsed, setAiQueriesUsed] = useState<number>(() => {
-    try {
-      const saved = localStorage.getItem('gdeck_ai_queries_used');
-      return saved ? parseInt(saved, 10) : 0;
-    } catch {
-      return 0;
-    }
-  });
+  const initialUsage = readStoredUsage();
+  const [aiQueriesUsed, setAiQueriesUsed] = useState<number>(initialUsage.used);
+  const [aiQuotaMonth, setAiQuotaMonth] = useState<string>(initialUsage.month);
 
   const [upgradeModalOpen, setUpgradeModalOpen] = useState<boolean>(false);
   const [upgradeModalContext, setUpgradeModalContext] = useState<UpgradeModalContext | null>(null);
@@ -129,9 +169,37 @@ export const PlanProvider: React.FC<{
     }
   }, [userEmail, userName]);
 
+  // Roll the free AI counter into a new calendar month if the tab stays open across midnight
+  // on the 1st, or if the user left the app open overnight on month boundary.
+  useEffect(() => {
+    const ensureMonth = () => {
+      const thisMonth = currentAiQuotaMonth();
+      setAiQuotaMonth((prevMonth) => {
+        if (prevMonth === thisMonth) return prevMonth;
+        setAiQueriesUsed(0);
+        persistUsage(0, thisMonth);
+        return thisMonth;
+      });
+    };
+    ensureMonth();
+    // Check hourly — cheap, catches long-lived sessions crossing month boundary.
+    const id = window.setInterval(ensureMonth, 60 * 60 * 1000);
+    const onVis = () => {
+      if (document.visibilityState === 'visible') ensureMonth();
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+
   const isPro = tier === 'pro';
 
   const canUseAi = isPro || aiQueriesUsed < MAX_FREE_AI_QUERIES;
+  const aiQueriesRemaining = isPro
+    ? Number.POSITIVE_INFINITY
+    : Math.max(0, MAX_FREE_AI_QUERIES - aiQueriesUsed);
 
   const openUpgradeModal = useCallback((ctx?: UpgradeModalContext) => {
     setUpgradeModalContext(ctx || null);
@@ -155,52 +223,65 @@ export const PlanProvider: React.FC<{
     [isPro, openUpgradeModal]
   );
 
+  const openAiLimitPaywall = useCallback(
+    (remaining: number) => {
+      openUpgradeModal({
+        title: 'Free AI messages used up',
+        desc:
+          remaining <= 0
+            ? `You’ve used all ${MAX_FREE_AI_QUERIES} free G-Pilot messages this month. Upgrade to G-Deck Pro for unlimited AI.`
+            : `You’ve used your free G-Pilot messages for this month. Upgrade to G-Deck Pro for unlimited AI.`,
+        isAiLimit: true,
+      });
+    },
+    [openUpgradeModal]
+  );
+
   const incrementAiQuery = useCallback((): boolean => {
+    // Always re-check month so a send at 00:01 on the 1st still gets a fresh allowance.
+    const thisMonth = currentAiQuotaMonth();
+
     if (isPro) {
-      // Unlimited AI for Pro
+      // Track usage for analytics UI only — Pro is unlimited.
       setAiQueriesUsed((prev) => {
         const next = prev + 1;
-        try {
-          localStorage.setItem('gdeck_ai_queries_used', String(next));
-        } catch {}
+        persistUsage(next, thisMonth);
         return next;
       });
+      setAiQuotaMonth(thisMonth);
       return true;
     }
 
-    if (aiQueriesUsed >= MAX_FREE_AI_QUERIES) {
-      openUpgradeModal({
-        title: 'Free AI Assists Limit Reached',
-        desc: `You’ve used all ${MAX_FREE_AI_QUERIES} free AI assists this month. Upgrade to G-Deck Pro for unlimited AI.`,
-        isAiLimit: true,
-      });
+    // Month rolled over since last render — reset then allow this message.
+    let used = aiQueriesUsed;
+    if (aiQuotaMonth !== thisMonth) {
+      used = 0;
+      setAiQuotaMonth(thisMonth);
+      setAiQueriesUsed(0);
+      persistUsage(0, thisMonth);
+    }
+
+    if (used >= MAX_FREE_AI_QUERIES) {
+      openAiLimitPaywall(0);
       return false;
     }
 
-    const next = aiQueriesUsed + 1;
+    const next = used + 1;
     setAiQueriesUsed(next);
-    try {
-      localStorage.setItem('gdeck_ai_queries_used', String(next));
-    } catch {}
+    persistUsage(next, thisMonth);
 
-    // If this just reached the limit, notify user
+    // Hit the cap on this send — open paywall shortly after the reply lands.
     if (next >= MAX_FREE_AI_QUERIES) {
-      setTimeout(() => {
-        openUpgradeModal({
-          title: 'Free AI Assists Limit Reached',
-          desc: `You’ve used all ${MAX_FREE_AI_QUERIES} free AI assists this month. Upgrade to G-Deck Pro for unlimited AI.`,
-          isAiLimit: true,
-        });
-      }, 1500);
+      setTimeout(() => openAiLimitPaywall(0), 1200);
     }
 
     return true;
-  }, [isPro, aiQueriesUsed, openUpgradeModal]);
+  }, [isPro, aiQueriesUsed, aiQuotaMonth, openAiLimitPaywall]);
 
   const upgradeToPro = useCallback(() => {
     setTierState('pro');
     try {
-      localStorage.setItem('gdeck_plan_tier', 'pro');
+      localStorage.setItem(STORAGE_TIER, 'pro');
     } catch {}
     closeUpgradeModal();
   }, [closeUpgradeModal]);
@@ -208,7 +289,7 @@ export const PlanProvider: React.FC<{
   const downgradeToFree = useCallback(() => {
     setTierState('free');
     try {
-      localStorage.setItem('gdeck_plan_tier', 'free');
+      localStorage.setItem(STORAGE_TIER, 'free');
     } catch {}
     closeUpgradeModal();
   }, [closeUpgradeModal]);
@@ -222,14 +303,14 @@ export const PlanProvider: React.FC<{
     }
     setTierState(newTier);
     try {
-      localStorage.setItem('gdeck_plan_tier', newTier);
+      localStorage.setItem(STORAGE_TIER, newTier);
     } catch {}
 
     if (mockAiCount !== undefined) {
+      const month = currentAiQuotaMonth();
       setAiQueriesUsed(mockAiCount);
-      try {
-        localStorage.setItem('gdeck_ai_queries_used', String(mockAiCount));
-      } catch {}
+      setAiQuotaMonth(month);
+      persistUsage(mockAiCount, month);
     }
   }, []);
 
@@ -271,7 +352,9 @@ export const PlanProvider: React.FC<{
         isPro,
         aiQueriesUsed,
         maxFreeAiQueries: MAX_FREE_AI_QUERIES,
+        aiQueriesRemaining,
         canUseAi,
+        aiQuotaMonth,
         incrementAiQuery,
         requirePro,
         openUpgradeModal,

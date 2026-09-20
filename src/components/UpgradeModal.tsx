@@ -43,10 +43,20 @@ export const UpgradeModal: React.FC = () => {
     tier,
     isPro,
     aiQueriesUsed,
+    aiQueriesRemaining,
     maxFreeAiQueries,
     activeAccount,
     setMockPlan,
   } = usePlan();
+
+  const freeRemaining = isPro
+    ? null
+    : Math.max(
+        0,
+        Number.isFinite(aiQueriesRemaining)
+          ? aiQueriesRemaining
+          : maxFreeAiQueries - aiQueriesUsed
+      );
 
   const [currency, setCurrency] = useState<'usd' | 'zwg'>('usd');
   const [planId, setPlanId] = useState<PlanChoice['id']>('pro_monthly');
@@ -118,14 +128,25 @@ export const UpgradeModal: React.FC = () => {
     }
   };
 
+  const freeLeftLabel =
+    freeRemaining === null
+      ? null
+      : freeRemaining === 0
+      ? '0 remaining'
+      : `${freeRemaining} of ${maxFreeAiQueries} remaining`;
+
   const headline = upgradeModalContext?.isAiLimit
-    ? `You’ve used all ${maxFreeAiQueries} free AI assists`
+    ? freeRemaining === 0
+      ? `You've used all ${maxFreeAiQueries} free AI messages`
+      : `Free AI messages running low`
     : upgradeModalContext?.title
     ? `Unlock ${upgradeModalContext.title}`
     : 'One plan. Everything unlocked.';
 
   const subline = upgradeModalContext?.isAiLimit
-    ? `Upgrade for ${selected.price}/${selected.id === 'pro_annual' ? 'yr' : 'mo'} to keep going without a limit.`
+    ? freeRemaining === 0
+      ? `0 of ${maxFreeAiQueries} free G-Pilot messages left this month. Upgrade for ${selected.price}/${selected.id === 'pro_annual' ? 'yr' : 'mo'} for unlimited AI.`
+      : `${freeLeftLabel} this month on the free plan. Upgrade for ${selected.price}/${selected.id === 'pro_annual' ? 'yr' : 'mo'} for unlimited AI.`
     : upgradeModalContext?.desc || 'Everything below is unlocked across your whole Google workspace.';
 
   return (
@@ -169,6 +190,46 @@ export const UpgradeModal: React.FC = () => {
             </div>
           ) : (
             <>
+              {/* Free-plan AI quota readout */}
+              <div
+                id="upgrade-ai-remaining"
+                className={`flex items-center justify-between gap-3 px-3.5 py-3 rounded-2xl border ${
+                  freeRemaining === 0
+                    ? 'bg-red-50 border-red-200 text-red-900'
+                    : (freeRemaining ?? 99) <= 3
+                    ? 'bg-amber-50 border-amber-200 text-amber-950'
+                    : 'bg-[#f8fafd] border-[#dadce0] text-[#1f1f1f]'
+                }`}
+              >
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold uppercase tracking-wider opacity-80">
+                    Free plan · AI this month
+                  </p>
+                  <p className="text-sm font-bold mt-0.5 leading-snug">
+                    {freeRemaining === 0
+                      ? `All ${maxFreeAiQueries} free messages used`
+                      : `${freeRemaining} message${freeRemaining === 1 ? '' : 's'} remaining`}
+                  </p>
+                  <p className="text-[11px] mt-0.5 opacity-80">
+                    {aiQueriesUsed} of {maxFreeAiQueries} used · resets next calendar month
+                  </p>
+                </div>
+                <div
+                  className={`shrink-0 w-14 h-14 rounded-full border-4 flex items-center justify-center ${
+                    freeRemaining === 0
+                      ? 'border-red-300 bg-white'
+                      : (freeRemaining ?? 99) <= 3
+                      ? 'border-amber-300 bg-white'
+                      : 'border-purple-300 bg-white'
+                  }`}
+                  aria-label={`${freeRemaining} of ${maxFreeAiQueries} free AI messages remaining`}
+                >
+                  <span className="text-sm font-extrabold tabular-nums">
+                    {freeRemaining}/{maxFreeAiQueries}
+                  </span>
+                </div>
+              </div>
+
               {upgradeSuccess && (
                 <div className="p-3 bg-[#e6f4ea] border border-[#ceead6] text-[#137333] rounded-2xl text-xs font-semibold flex items-center gap-2">
                   <Check className="w-4 h-4 shrink-0" />
@@ -328,19 +389,45 @@ export const UpgradeModal: React.FC = () => {
           <div className="bg-[#f8fafd] border-t border-[#dadce0] px-4 py-2.5 flex items-center justify-between gap-2 text-[11px] text-[#5f6368]">
             <span className="font-semibold">Dev: simulate plan</span>
             <div className="flex items-center gap-1.5">
-              {(['free', 'pro'] as PlanTier[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setMockPlan(t, t === 'free' ? 3 : 45)}
-                  className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                    tier === t
-                      ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
-                      : 'bg-white hover:bg-slate-100 border-slate-200'
-                  }`}
-                >
-                  {t === 'free' ? `Free (3/${maxFreeAiQueries} AI)` : 'Pro'}
-                </button>
-              ))}
+              <button
+                onClick={() => setMockPlan('free', 0)}
+                className="px-2 py-0.5 rounded-md border font-medium cursor-pointer bg-white hover:bg-slate-100 border-slate-200"
+                title="Simulate free plan with full allowance"
+              >
+                Free 10 left
+              </button>
+              <button
+                onClick={() => setMockPlan('free', maxFreeAiQueries - 3)}
+                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
+                  tier === 'free' && aiQueriesUsed === maxFreeAiQueries - 3
+                    ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
+                    : 'bg-white hover:bg-slate-100 border-slate-200'
+                }`}
+                title="Simulate free plan with 3 remaining"
+              >
+                Free 3 left
+              </button>
+              <button
+                onClick={() => setMockPlan('free', maxFreeAiQueries)}
+                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
+                  tier === 'free' && aiQueriesUsed >= maxFreeAiQueries
+                    ? 'bg-red-100 text-red-800 border-red-300 font-bold'
+                    : 'bg-white hover:bg-slate-100 border-slate-200'
+                }`}
+                title="Simulate free plan at monthly limit (0 remaining)"
+              >
+                Free 0 left
+              </button>
+              <button
+                onClick={() => setMockPlan('pro', 45)}
+                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
+                  tier === 'pro'
+                    ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
+                    : 'bg-white hover:bg-slate-100 border-slate-200'
+                }`}
+              >
+                Pro
+              </button>
             </div>
           </div>
         )}
