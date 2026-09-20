@@ -5,7 +5,10 @@ import {
   readSessionAmount,
   isCheckoutSessionPaid,
   retrieveCheckoutSession,
+  retrieveCharge,
   createCharge,
+  isChargePaid,
+  isChargeFailed,
   createRefund,
   verifyWebhookSignature,
   PayonifyError,
@@ -254,6 +257,8 @@ payonifyRouter.post('/charges', async (req, res) => {
     res.json({
       success: true,
       orderId,
+      chargeId: chargeResult?.id,
+      paid: isChargePaid(chargeResult),
       charge: chargeResult,
       message: `Payment request dispatched to ${mobileNumber} on ${network.toUpperCase()}. Please check your phone to approve the PIN prompt.`,
     });
@@ -264,6 +269,40 @@ payonifyRouter.post('/charges', async (req, res) => {
       code: error.code,
       description: error.description,
     });
+  }
+});
+
+/**
+ * GET /api/payonify/charge-status/:id
+ * Dev/self-hosted parity for the Vercel function of the same name: the client polls this
+ * to learn whether the customer actually approved the USSD prompt.
+ */
+payonifyRouter.get('/charge-status/:id', async (req, res) => {
+  try {
+    const charge = await retrieveCharge(req.params.id);
+    const paid = isChargePaid(charge);
+    const failed = isChargeFailed(charge);
+    const orderId: string | undefined = charge?.metadata?.order_id;
+    const order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
+
+    if (paid && order && order.status !== 'paid') {
+      PayonifyStore.updateOrderStatus(order.id, 'paid', new Date().toISOString());
+    } else if (failed && order && order.status === 'pending') {
+      PayonifyStore.updateOrderStatus(order.id, 'failed');
+    }
+
+    res.json({
+      chargeId: req.params.id,
+      status: charge?.status ?? 'unknown',
+      paid,
+      failed,
+      failureCode: charge?.failure_code ?? null,
+      failureMessage: charge?.failure_message ?? null,
+      order,
+      polling: { stop: paid || failed, nextIntervalMs: paid || failed ? 0 : 4000 },
+    });
+  } catch (error: any) {
+    res.status(error.status || 500).json({ error: error.message || 'Failed to retrieve charge status', code: error.code });
   }
 });
 

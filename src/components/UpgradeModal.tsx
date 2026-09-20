@@ -27,6 +27,7 @@ export const UpgradeModal: React.FC = () => {
     isPro,
     aiQueriesUsed,
     maxFreeAiQueries,
+    activeAccount,
     setMockPlan,
   } = usePlan();
 
@@ -66,7 +67,7 @@ export const UpgradeModal: React.FC = () => {
         body: JSON.stringify({
           planId,
           currency,
-          customerEmail: 'tanakaprince49@gmail.com',
+          customerEmail: activeAccount.email,
           paymentMethodTypes: currency === 'usd' ? ['card', 'ecocash', 'onemoney'] : ['ecocash', 'onemoney'],
         }),
       });
@@ -120,7 +121,7 @@ export const UpgradeModal: React.FC = () => {
           network: mobileNetwork,
           planId: getSelectedPlanId(),
           currency,
-          customerEmail: 'tanakaprince49@gmail.com',
+          customerEmail: activeAccount.email,
         }),
       });
 
@@ -140,19 +141,36 @@ export const UpgradeModal: React.FC = () => {
         `USSD prompt sent to ${mobileNumber} on ${mobileNetwork.toUpperCase()}! Approve the prompt on your phone.`
       );
 
-      // In test mode with success number 771111111 or 713111111, activate after brief delay
-      if (['771111111', '713111111'].includes(mobileNumber.trim())) {
-        setTimeout(() => {
-          upgradeToPro();
-          setIsProcessing(false);
-          setUpgradeSuccess('Payment verified! Welcome to G-Deck Pro.');
-          setTimeout(() => {
-            closeUpgradeModal();
-          }, 1800);
-        }, 3000);
-      } else {
-        setIsProcessing(false);
+      const chargeId = data.chargeId || data.charge?.id;
+      if (!chargeId) {
+        throw new Error('Payonify did not return a charge reference to verify against.');
       }
+
+      // A created charge is NOT a paid charge: Payonify answers status
+      // 'requires_authorization' / paid:false until the customer approves the PIN prompt.
+      // Poll for the real outcome instead of granting access on a timer.
+      const deadline = Date.now() + 180000;
+      let waitMs = 3000;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, waitMs));
+        const statusRes = await fetch(`/api/payonify/charge-status/${chargeId}`, { method: 'GET' });
+        const status = await statusRes.json().catch(() => ({}));
+        if (!statusRes.ok) {
+          throw new Error(status?.error || 'Failed to read payment status from Payonify.');
+        }
+        if (status.paid) {
+          upgradeToPro();
+          setUpgradeSuccess('Payment verified by Payonify. G-Deck Pro is now active.');
+          setTimeout(() => closeUpgradeModal(), 1600);
+          setIsProcessing(false);
+          return;
+        }
+        if (status.failed) {
+          throw new Error(status.failureMessage || 'The payment was declined or expired on the phone prompt.');
+        }
+        waitMs = status?.polling?.nextIntervalMs || 4000;
+      }
+      throw new Error('Timed out waiting for the USSD prompt to be approved.');
     } catch (err: any) {
       setCheckoutError(err.message || 'Direct charge failed.');
       setIsProcessing(false);
@@ -162,7 +180,14 @@ export const UpgradeModal: React.FC = () => {
   const handleTrialActivation = () => {
     setIsProcessing(true);
     setTimeout(() => {
-      startProTrial();
+      // startProTrial() refuses when this browser already spent its single trial.
+      if (!startProTrial()) {
+        setIsProcessing(false);
+        setCheckoutError(
+          'The 14-day trial has already been used on this browser. G-Deck Pro is $12/month to continue.'
+        );
+        return;
+      }
       setUpgradeSuccess('Your 14-Day Free Pro Trial is now active! All automations unlocked.');
       setIsProcessing(false);
       setTimeout(() => {
@@ -200,10 +225,12 @@ export const UpgradeModal: React.FC = () => {
 
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
             {isAiLimit
-              ? 'You’ve unlocked 10/10 free AI assists this month'
+              ? `You’ve used ${maxFreeAiQueries}/${maxFreeAiQueries} free AI assists this month`
               : contextFeatureTitle
               ? `Unlock ${contextFeatureTitle}`
-              : 'Unlock G-Deck Pro for $12/month'}
+              : currency === 'zwg'
+              ? 'Unlock G-Deck Pro for ZWG 320/month'
+              : `Unlock G-Deck Pro for ${billingCycle === 'annual' ? '$10/month' : '$12/month'}`}
           </h2>
 
           <p className="text-xs sm:text-sm text-purple-100 mt-1 max-w-xl">
@@ -404,7 +431,7 @@ export const UpgradeModal: React.FC = () => {
                   <span>Unlimited Workspace AI</span>
                 </div>
                 <p className="text-[11px] text-[#444746] leading-relaxed">
-                  • Unlimited AI queries (removes 10/month limit)
+                  • Unlimited AI queries (removes the {maxFreeAiQueries}/month cap)
                   <br />
                   • Deep Thread TL;DR Summarization
                   <br />
@@ -484,55 +511,59 @@ export const UpgradeModal: React.FC = () => {
           </div>
         </div>
 
-        {/* Developer / Tester Sandbox Switcher at the bottom */}
-        <div className="bg-[#f8fafd] border-t border-[#dadce0] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5f6368]">
-          <span className="font-semibold flex items-center gap-1">
-            <Sliders className="w-3 h-3 text-[#1a73e8]" />
-            Payonify Test Mode Active:
-          </span>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              onClick={() => setMockPlan('free', 3)}
-              className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                tier === 'free' && aiQueriesUsed < maxFreeAiQueries
-                  ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
-                  : 'bg-white hover:bg-slate-100 border-slate-200'
-              }`}
-            >
-              Free (3/10 AI)
-            </button>
-            <button
-              onClick={() => setMockPlan('free', 10)}
-              className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                tier === 'free' && aiQueriesUsed >= maxFreeAiQueries
-                  ? 'bg-amber-100 text-amber-800 border-amber-300 font-bold'
-                  : 'bg-white hover:bg-slate-100 border-slate-200'
-              }`}
-            >
-              Free (Limit Hit)
-            </button>
-            <button
-              onClick={() => setMockPlan('trial', 12)}
-              className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                tier === 'trial'
-                  ? 'bg-purple-100 text-purple-800 border-purple-300 font-bold'
-                  : 'bg-white hover:bg-slate-100 border-slate-200'
-              }`}
-            >
-              14-Day Trial
-            </button>
-            <button
-              onClick={() => setMockPlan('pro', 45)}
-              className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
-                tier === 'pro'
-                  ? 'bg-green-100 text-green-800 border-green-300 font-bold'
-                  : 'bg-white hover:bg-slate-100 border-slate-200'
-              }`}
-            >
-              Pro Active
-            </button>
+        {import.meta.env.DEV && (
+          /* Plan switching is a dev/qa affordance only: rendering these buttons in a
+             production build put a one-click "Pro Active" bypass in front of customers. */
+          <div className="bg-[#f8fafd] border-t border-[#dadce0] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#5f6368]">
+            <span className="font-semibold flex items-center gap-1">
+              <Sliders className="w-3 h-3 text-[#1a73e8]" />
+              Payonify Test Mode Active:
+            </span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                onClick={() => setMockPlan('free', 3)}
+                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
+                  tier === 'free' && aiQueriesUsed < maxFreeAiQueries
+                    ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
+                    : 'bg-white hover:bg-slate-100 border-slate-200'
+                }`}
+              >
+                Free (3/10 AI)
+              </button>
+              <button
+                onClick={() => setMockPlan('free', 10)}
+                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
+                  tier === 'free' && aiQueriesUsed >= maxFreeAiQueries
+                    ? 'bg-amber-100 text-amber-800 border-amber-300 font-bold'
+                    : 'bg-white hover:bg-slate-100 border-slate-200'
+                }`}
+              >
+                Free (Limit Hit)
+              </button>
+              <button
+                onClick={() => setMockPlan('trial', 12)}
+                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
+                  tier === 'trial'
+                    ? 'bg-purple-100 text-purple-800 border-purple-300 font-bold'
+                    : 'bg-white hover:bg-slate-100 border-slate-200'
+                }`}
+              >
+                14-Day Trial
+              </button>
+              <button
+                onClick={() => setMockPlan('pro', 45)}
+                className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
+                  tier === 'pro'
+                    ? 'bg-green-100 text-green-800 border-green-300 font-bold'
+                    : 'bg-white hover:bg-slate-100 border-slate-200'
+                }`}
+              >
+                Pro Active
+              </button>
+            </div>
           </div>
-        </div>
+        )}
+
       </div>
     </div>
   );

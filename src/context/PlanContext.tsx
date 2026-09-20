@@ -32,8 +32,11 @@ export interface PlanContextType {
   upgradeModalOpen: boolean;
   upgradeModalContext: UpgradeModalContext | null;
   upgradeToPro: () => void;
-  startProTrial: () => void;
+  /** Returns false when the one-per-browser 14-day trial has already been consumed. */
+  startProTrial: () => boolean;
+  readonly isProductionBuild: boolean;
   downgradeToFree: () => void;
+  /** Development only: a no-op in production builds. */
   setMockPlan: (tier: PlanTier, mockAiCount?: number) => void;
   // Multi-Account Switching (Pro feature)
   accounts: GoogleAccountProfile[];
@@ -47,6 +50,8 @@ export interface PlanContextType {
 
 const MAX_FREE_AI_QUERIES = 10;
 const TRIAL_DURATION_DAYS = 14;
+/** Marks that this browser already spent its one 14-day trial. */
+const TRIAL_CLAIMED_KEY = 'gdeck_trial_claimed';
 
 const DEFAULT_ACCOUNTS: GoogleAccountProfile[] = [
   {
@@ -71,15 +76,20 @@ export const PlanProvider: React.FC<{
   userEmail?: string | null;
   userName?: string | null;
 }> = ({ children, userEmail, userName }) => {
-  // Initialize Tier: Default to 14-day Pro Trial for first-time connected users!
+  // Everyone used to land on 'trial', which made `isPro` true on first paint and handed
+  // unlimited AI plus every Pro feature to visitors who had paid or claimed nothing.
+  // Free is now the default; the 14-day trial is an explicit, single-use choice below.
   const [tier, setTierState] = useState<PlanTier>(() => {
     try {
       const savedTier = localStorage.getItem('gdeck_plan_tier') as PlanTier;
       if (savedTier && ['free', 'trial', 'pro'].includes(savedTier)) {
+        if (savedTier === 'trial' && localStorage.getItem(TRIAL_CLAIMED_KEY) !== '1') {
+          return 'free';
+        }
         return savedTier;
       }
     } catch {}
-    return 'trial'; // 14-Day Free Pro Trial by default
+    return 'free';
   });
 
   const [trialStartDate, setTrialStartDate] = useState<string>(() => {
@@ -236,16 +246,25 @@ export const PlanProvider: React.FC<{
     closeUpgradeModal();
   }, [closeUpgradeModal]);
 
-  const startProTrial = useCallback(() => {
-    setTierState('trial');
-    const now = new Date().toISOString();
-    setTrialStartDate(now);
+  const startProTrial = useCallback((): boolean => {
     try {
+      if (localStorage.getItem(TRIAL_CLAIMED_KEY) === '1' && tier !== 'trial') {
+        // Without this guard, expiring and clicking the button again restarted the clock,
+        // because the start date lived in localStorage the user controls.
+        return false;
+      }
+      localStorage.setItem(TRIAL_CLAIMED_KEY, '1');
+      setTierState('trial');
+      const now = new Date().toISOString();
+      setTrialStartDate(now);
       localStorage.setItem('gdeck_plan_tier', 'trial');
       localStorage.setItem('gdeck_trial_start_date', now);
-    } catch {}
+    } catch {
+      setTierState('trial');
+    }
     closeUpgradeModal();
-  }, [closeUpgradeModal]);
+    return true;
+  }, [closeUpgradeModal, tier]);
 
   const downgradeToFree = useCallback(() => {
     setTierState('free');
@@ -255,7 +274,13 @@ export const PlanProvider: React.FC<{
     closeUpgradeModal();
   }, [closeUpgradeModal]);
 
+  const isProductionBuild = Boolean(import.meta.env.PROD);
+
   const setMockPlan = useCallback((newTier: PlanTier, mockAiCount?: number) => {
+    if (import.meta.env.PROD) {
+      console.warn('[gdeck] setMockPlan is disabled in production builds.');
+      return;
+    }
     setTierState(newTier);
     try {
       localStorage.setItem('gdeck_plan_tier', newTier);
@@ -328,6 +353,7 @@ export const PlanProvider: React.FC<{
         startProTrial,
         downgradeToFree,
         setMockPlan,
+        isProductionBuild,
         accounts,
         activeAccount,
         switchAccount,

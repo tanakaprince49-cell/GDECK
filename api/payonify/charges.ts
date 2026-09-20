@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createCharge } from '../../src/lib/payonify.js';
+import { createCharge, isChargePaid } from '../../src/lib/payonify.js';
 import { PayonifyStore } from '../../src/lib/payonify-store.js';
 import { GDECK_PLANS } from '../../src/lib/payonify-routes.js';
 
@@ -75,6 +75,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({
       success: true,
       orderId,
+      chargeId: chargeResult?.id,
+      paid: isChargePaid(chargeResult),
       charge: chargeResult,
       message: `Payment request dispatched to ${mobileNumber} on ${network.toUpperCase()}. Please check your phone to approve the PIN prompt.`,
     });

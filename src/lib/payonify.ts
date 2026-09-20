@@ -67,6 +67,7 @@ export interface PayonifyChargeParams {
   payment_method?: {
     type?: string;
     mobile_money?: {
+      /** Callers pass the flat form; createCharge maps it to Payonify's brand-keyed wire shape. */
       brand: 'ecocash' | 'onemoney';
       mobile_number: string;
     };
@@ -259,34 +260,52 @@ export async function retrieveCheckoutSession(sessionId: string): Promise<Payoni
  * Used for EcoCash / OneMoney mobile prompts
  */
 export async function createCharge(params: PayonifyChargeParams): Promise<any> {
-  const payload = {
-    ...params,
+  const { payment_method, ...rest } = params;
+
+  const payload: any = {
+    ...rest,
     amount: Math.round(params.amount),
     currency: params.currency || 'usd',
     source: params.source || 'web',
   };
 
-  try {
-    return await payonifyRequest<any>('POST', '/v1/charges', payload);
-  } catch (err: any) {
-    const env = getPayonifyEnv();
-    if (env.mode === 'test') {
-      console.warn('Payonify upstream test charge failed, returning mock sandbox charge response:', err.message);
-      return {
-        id: `chg_test_${Date.now()}`,
-        object: 'charge',
-        amount: {
-          currency: params.currency || 'usd',
-          value: Math.round(params.amount),
-        },
-        status: 'pending',
-        paid: false,
-        payment_method: params.payment_method,
-        metadata: params.metadata,
-      };
-    }
-    throw err;
+  // Wire shape is payment_method.mobile_money.<brand>.mobile_number -- i.e. the brand is the
+  // object KEY. Sending { brand: 'ecocash', mobile_number } instead is rejected with
+  // 422 parameter_invalid on "payment_method.mobile_money.ecocash can't be blank".
+  if (payment_method?.mobile_money) {
+    const { brand, mobile_number } = payment_method.mobile_money;
+    payload.payment_method = {
+      ...(payment_method.type ? { type: payment_method.type } : {}),
+      mobile_money: { [brand]: { mobile_number } },
+    };
+  } else if (payment_method) {
+    payload.payment_method = payment_method;
   }
+
+  // As with checkout sessions there is deliberately no mock fallback: a failed or unreachable
+  // /v1/charges call must surface as an error, not as a fabricated "pending" charge that the
+  // UI could interpret as a payment in progress.
+  return await payonifyRequest<any>('POST', '/v1/charges', payload);
+}
+
+/**
+ * Positive payment signal for a charge object. Payonify returns `paid: false` plus
+ * `status: 'requires_authorization'` while the customer is still at the PIN prompt, so
+ * the caller must keep polling rather than assume success from a 201/200 response.
+ */
+export function isChargePaid(charge?: any): boolean {
+  if (!charge) return false;
+  if (charge.paid === true) return true;
+  const status = String(charge.status || '').toLowerCase();
+  const paymentStatus = String(charge.payment_status || '').toLowerCase();
+  return status === 'succeeded' || status === 'paid' || status === 'complete' || paymentStatus === 'paid';
+}
+
+/** Terminal failure states -- stop polling once we see one. */
+export function isChargeFailed(charge?: any): boolean {
+  if (!charge) return false;
+  const status = String(charge.status || '').toLowerCase();
+  return status === 'failed' || status === 'cancelled' || status === 'canceled' || Boolean(charge.failure_code);
 }
 
 /**
