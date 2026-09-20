@@ -276,7 +276,6 @@ html.gdeck-mobile-tool-open body {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 0.65rem;
   padding: 0 0.75rem 0.75rem;
 }
 

@@ -553,7 +553,7 @@ export default function App() {
             </span>
           </button>
 
-          {/* Tools search (separate from Omni) */}
+          {/* Tools-only search — Omni is NOT in this bar */}
           {!needsAuth && token && (
             <div ref={!isFullscreen ? searchRef : undefined} className="flex flex-1 min-w-0 max-w-xl relative items-center">
               <div className="w-full relative flex items-center">
@@ -636,22 +636,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Right: Omni (separate) · Menu (one only) · alerts · avatar */}
+          {/* Right: Menu · alerts · avatar — tools search has NO Omni inside */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 justify-end ml-auto">
-            {!needsAuth && token && (
-              <button
-                type="button"
-                id="header-omni-btn"
-                onClick={openOmniSearch}
-                className="inline-flex items-center gap-1.5 h-10 px-3 sm:px-3.5 rounded-full text-xs font-bold text-purple-800 bg-purple-50 hover:bg-purple-100 border border-purple-200 cursor-pointer transition-colors shrink-0"
-                title="Omni-Search across Gmail, Calendar, Drive, Tasks"
-                aria-label="Omni-Search"
-              >
-                <span className="hidden sm:inline">Omni</span>
-                <span className="sm:hidden">Omni</span>
-                <ProBadge size="xs" showLockOnFree={false} />
-              </button>
-            )}
             {/* Single hamburger — right side, never beside the logo */}
             {user && (
               <button
@@ -1342,17 +1328,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-              <button
-                type="button"
-                id="mobile-tool-omni-btn"
-                onClick={openOmniSearch}
-                className="gdeck-mobile-omni-btn"
-                aria-label="Omni-Search"
-                title="Omni-Search"
-              >
-                Omni
-                <ProBadge size="xs" showLockOnFree={false} />
-              </button>
             </div>
           </div>
         )}
