@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { usePlan } from '../context/PlanContext';
+import React, {useState, useEffect} from 'react';
 import {
   X,
   Check,
@@ -26,6 +27,20 @@ export const TonePolishStudioModal: React.FC<TonePolishStudioModalProps> = ({
   originalText,
   onApplyPolishedText,
 }) => {
+  const { isPro, requirePro } = usePlan();
+
+  // Free users: never keep this Pro surface open — instant paywall.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (!isPro) {
+      onClose();
+      requirePro(
+        'Tone & Polish Studio',
+        '1-click rewrite drafts for executive, casual, or formal tones.',
+      );
+    }
+  }, [isOpen, isPro, onClose, requirePro]);
+
   const [activeTone, setActiveTone] = useState<ToneType>('executive');
   const [customDraft, setCustomDraft] = useState<string>(originalText || '');
   const [polishedResult, setPolishedResult] = useState<string>('');
@@ -33,13 +48,14 @@ export const TonePolishStudioModal: React.FC<TonePolishStudioModalProps> = ({
   const [copied, setCopied] = useState<boolean>(false);
 
   React.useEffect(() => {
-    if (isOpen) {
+    if (isOpen && isPro) {
       setCustomDraft(originalText || '');
       handlePolishDraft(originalText || '', activeTone);
     }
-  }, [isOpen, originalText]);
+  }, [isOpen, isPro, originalText]);
 
   if (!isOpen) return null;
+  if (!isPro) return null;
 
   const handlePolishDraft = async (input: string, tone: ToneType) => {
     if (!input.trim()) return;

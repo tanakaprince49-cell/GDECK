@@ -1,3 +1,4 @@
+import { usePlan } from '../context/PlanContext';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
@@ -128,6 +129,20 @@ export const EmailToTaskEventModal: React.FC<EmailToTaskEventModalProps> = ({
   token,
   onSuccess,
 }) => {
+  const { isPro, requirePro } = usePlan();
+
+  // Free users: never keep this Pro surface open — instant paywall.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (!isPro) {
+      onClose();
+      requirePro(
+        '1-Click Email to Task/Event',
+        'Automatically create a Google Calendar event and Task from any email.',
+      );
+    }
+  }, [isOpen, isPro, onClose, requirePro]);
+
   const [eventTitle, setEventTitle] = useState<string>('');
   const [summary, setSummary] = useState<string>('');
   const [taskNotes, setTaskNotes] = useState<string>('');
@@ -148,7 +163,7 @@ export const EmailToTaskEventModal: React.FC<EmailToTaskEventModalProps> = ({
 
   // Re-seed whenever a different email is opened; the modal stays mounted in GmailView.
   useEffect(() => {
-    if (!isOpen || !message) {
+    if (!isOpen || !isPro || !message) {
       abortRef.current?.abort();
       return;
     }
@@ -173,7 +188,7 @@ export const EmailToTaskEventModal: React.FC<EmailToTaskEventModalProps> = ({
       setIsDrafting(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, message]);
+  }, [isOpen, isPro, message]);
 
   const generate = async () => {
     if (!message) return;
@@ -225,6 +240,7 @@ export const EmailToTaskEventModal: React.FC<EmailToTaskEventModalProps> = ({
   };
 
   if (!isOpen || !message) return null;
+  if (!isPro) return null;
 
   const handleCreate = async () => {
     if (!token) {

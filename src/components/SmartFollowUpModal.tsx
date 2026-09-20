@@ -1,3 +1,4 @@
+import { usePlan } from '../context/PlanContext';
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Mail, Send, Check, Copy, Users, Clock, MapPin, RefreshCw, AlertTriangle } from 'lucide-react';
 import { CalendarEvent } from '../types/workspace';
@@ -28,6 +29,20 @@ export const SmartFollowUpModal: React.FC<SmartFollowUpModalProps> = ({
   token,
   onSuccess,
 }) => {
+  const { isPro, requirePro } = usePlan();
+
+  // Free users: never keep this Pro surface open — instant paywall.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (!isPro) {
+      onClose();
+      requirePro(
+        'Smart Follow-Up Generator',
+        'Generate follow-up email drafts with action items after every meeting.',
+      );
+    }
+  }, [isOpen, isPro, onClose, requirePro]);
+
   // Seed from the event on mount so the first paint is already correct, then keep the
   // fields in sync whenever a different meeting is opened.
   const [subject, setSubject] = useState<string>(() => `Follow-up & action items: ${event?.summary || 'our meeting'}`);
@@ -41,7 +56,7 @@ export const SmartFollowUpModal: React.FC<SmartFollowUpModalProps> = ({
   const generatedForRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen || !event) {
+    if (!isOpen || !isPro || !event) {
       abortRef.current?.abort();
       return;
     }
@@ -62,7 +77,7 @@ export const SmartFollowUpModal: React.FC<SmartFollowUpModalProps> = ({
       setIsGenerating(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, event]);
+  }, [isOpen, isPro, event]);
 
   const generate = async () => {
     if (!event) return;
@@ -91,6 +106,7 @@ export const SmartFollowUpModal: React.FC<SmartFollowUpModalProps> = ({
   };
 
   if (!isOpen || !event) return null;
+  if (!isPro) return null;
 
   const attendeeCount = (event.attendees || []).length;
 

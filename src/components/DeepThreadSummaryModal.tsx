@@ -1,3 +1,4 @@
+import { usePlan } from '../context/PlanContext';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
@@ -33,6 +34,20 @@ export const DeepThreadSummaryModal: React.FC<DeepThreadSummaryModalProps> = ({
   onClose,
   message,
 }) => {
+  const { isPro, requirePro } = usePlan();
+
+  // Free users: never keep this Pro surface open — instant paywall.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (!isPro) {
+      onClose();
+      requirePro(
+        'Deep Email Thread Summarization',
+        'Instant TL;DR bullet points and action items for long email threads.',
+      );
+    }
+  }, [isOpen, isPro, onClose, requirePro]);
+
   const [loading, setLoading] = useState<boolean>(false);
   const [summaryBullets, setSummaryBullets] = useState<string[]>([]);
   const [actionItems, setActionItems] = useState<string[]>([]);
@@ -98,7 +113,7 @@ export const DeepThreadSummaryModal: React.FC<DeepThreadSummaryModalProps> = ({
 
   // Auto-summarize the first time a given message is opened; abort when closed.
   useEffect(() => {
-    if (!isOpen || !message) {
+    if (!isOpen || !isPro || !message) {
       abortRef.current?.abort();
       return;
     }
@@ -109,9 +124,10 @@ export const DeepThreadSummaryModal: React.FC<DeepThreadSummaryModalProps> = ({
       abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, message]);
+  }, [isOpen, isPro, message]);
 
   if (!isOpen || !message) return null;
+  if (!isPro) return null;
 
   const handleCopy = async () => {
     const text = [

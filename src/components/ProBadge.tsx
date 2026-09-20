@@ -19,17 +19,21 @@ export const ProBadge: React.FC<ProBadgeProps> = ({
   className = '',
   onClick,
 }) => {
-  const { isPro, openUpgradeModal } = usePlan();
+  const { isPro, requirePro } = usePlan();
 
   const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
     e.stopPropagation();
     if (onClick) {
       onClick(e);
-    } else if (!isPro) {
-      openUpgradeModal({
-        title: featureTitle || 'G-Deck Pro Automation',
-        desc: featureDesc || 'Upgrade to G-Deck Pro for $12/month to unlock this cross-tool workflow.',
-      });
+      return;
+    }
+    if (!isPro) {
+      // Instant paywall for free users tapping any PRO badge.
+      requirePro(
+        featureTitle || 'G-Deck Pro Feature',
+        featureDesc || 'Upgrade to G-Deck Pro for $12/month to unlock this cross-tool workflow.'
+      );
     }
   };
 

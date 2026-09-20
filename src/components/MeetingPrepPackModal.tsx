@@ -1,3 +1,4 @@
+import { usePlan } from '../context/PlanContext';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   X,
@@ -58,6 +59,20 @@ export const MeetingPrepPackModal: React.FC<MeetingPrepPackModalProps> = ({
   event,
   token,
 }) => {
+  const { isPro, requirePro } = usePlan();
+
+  // Free users: never keep this Pro surface open — instant paywall.
+  React.useEffect(() => {
+    if (!isOpen) return;
+    if (!isPro) {
+      onClose();
+      requirePro(
+        'Meeting Prep Packs',
+        'One-click briefing with relevant emails, Drive files, and attendee details.',
+      );
+    }
+  }, [isOpen, isPro, onClose, requirePro]);
+
   const [driveFiles, setDriveFiles] = useState<PrepDoc[]>([]);
   const [gmailMessages, setGmailMessages] = useState<PrepMail[]>([]);
   const [brief, setBrief] = useState<string>('');
@@ -70,7 +85,7 @@ export const MeetingPrepPackModal: React.FC<MeetingPrepPackModalProps> = ({
   const ranForRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!isOpen || !event) {
+    if (!isOpen || !isPro || !event) {
       abortRef.current?.abort();
       return;
     }
@@ -82,7 +97,7 @@ export const MeetingPrepPackModal: React.FC<MeetingPrepPackModalProps> = ({
       abortRef.current?.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen, event]);
+  }, [isOpen, isPro, event]);
 
   const build = async () => {
     if (!event) return;
@@ -151,6 +166,7 @@ export const MeetingPrepPackModal: React.FC<MeetingPrepPackModalProps> = ({
   };
 
   if (!isOpen || !event) return null;
+  if (!isPro) return null;
 
   const attendees = event.attendees || [];
   const pending = attendees.filter((a: any) => a.responseStatus && a.responseStatus !== 'accepted').length;

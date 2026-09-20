@@ -121,6 +121,7 @@ export default function App() {
     proDaysRemaining,
     needsRenewal,
     openUpgradeModal,
+    requirePro,
     accounts,
     activeAccount,
     switchAccount,
@@ -131,16 +132,41 @@ export default function App() {
   const [omniFocus, setOmniFocus] = useState<WorkspaceFocusTarget | null>(null);
 
   // Global Keyboard Shortcut for Omni-Search (Cmd+K / Ctrl+K)
+  const openOmniSearch = () => {
+    // Free users get the paywall immediately — never the locked Omni shell.
+    if (
+      !requirePro(
+        'Omni-Search',
+        'Search Gmail, Calendar, Drive and Tasks at the same time from one bar (⌘K).'
+      )
+    ) {
+      return;
+    }
+    setOmniSearchOpen(true);
+  };
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        setOmniSearchOpen((prev) => !prev);
+        setOmniSearchOpen((prev) => {
+          if (prev) return false;
+          // Free: open paywall and keep modal closed
+          if (
+            !requirePro(
+              'Omni-Search',
+              'Search Gmail, Calendar, Drive and Tasks at the same time from one bar (⌘K).'
+            )
+          ) {
+            return false;
+          }
+          return true;
+        });
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [requirePro]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
@@ -471,7 +497,7 @@ export default function App() {
                   )}
                   <button
                     type="button"
-                    onClick={() => setOmniSearchOpen(true)}
+                    onClick={openOmniSearch}
                     className="px-2 py-0.5 text-[11px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md border border-purple-200 flex items-center gap-1 cursor-pointer transition-colors"
                     title="Omni-Search across Gmail, Calendar, Drive, Tasks (Cmd+K)"
                   >

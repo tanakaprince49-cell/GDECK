@@ -60,12 +60,20 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
   const requestIdRef = useRef(0);
 
   useEffect(() => {
-    if (isOpen) {
-      setCursor(0);
-      const t = setTimeout(() => inputRef.current?.focus(), 40);
-      return () => clearTimeout(t);
+    if (!isOpen) return;
+    // Defense in depth: free users never keep this modal — instant paywall.
+    if (!isPro) {
+      onClose();
+      openUpgradeModal({
+        title: 'Omni-Search',
+        desc: 'Search Gmail, Calendar, Drive and Tasks at the same time from a single bar.',
+      });
+      return;
     }
-  }, [isOpen]);
+    setCursor(0);
+    const t = setTimeout(() => inputRef.current?.focus(), 40);
+    return () => clearTimeout(t);
+  }, [isOpen, isPro, onClose, openUpgradeModal]);
 
   // Run the query across all four Workspace tools.
   useEffect(() => {
