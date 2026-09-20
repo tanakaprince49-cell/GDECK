@@ -197,7 +197,7 @@ export const EmailToTaskEventModal: React.FC<EmailToTaskEventModalProps> = ({
         ]
           .filter((l) => l !== null)
           .join('\n'),
-        { systemInstruction: DRAFTER_INSTRUCTION, signal: controller.signal }
+        { systemInstruction: DRAFTER_INSTRUCTION, signal: controller.signal, maxOutputTokens: 500, tag: 'email-to-task' }
       );
       const d = parseDraft(text, message);
       setEventTitle(d.title);

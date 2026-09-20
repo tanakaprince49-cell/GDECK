@@ -51,6 +51,9 @@ export const TonePolishStudioModal: React.FC<TonePolishStudioModalProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // Output length tracks the input length, so the cap is generous but still bounded.
+          maxOutputTokens: 2000,
+          tag: 'tone-polish',
           contents: [
             {
               role: 'user',

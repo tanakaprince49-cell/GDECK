@@ -595,6 +595,9 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          // Conversational turn: enough for a full list answer, bounded against rambling.
+          maxOutputTokens: 800,
+          tag: 'gpilot',
           contents: context,
           tools: GPILOT_TOOLS,
           userName,

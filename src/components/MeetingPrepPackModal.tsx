@@ -134,7 +134,7 @@ export const MeetingPrepPackModal: React.FC<MeetingPrepPackModalProps> = ({
           `\nRelated Gmail threads:\n${mailLines || 'none found'}`,
           '\nWrite the prep pack now.',
         ].join('\n'),
-        { systemInstruction: PREP_INSTRUCTION, signal: controller.signal }
+        { systemInstruction: PREP_INSTRUCTION, signal: controller.signal, maxOutputTokens: 1000, tag: 'prep-pack' }
       );
       setBrief(text);
     } catch (err: any) {

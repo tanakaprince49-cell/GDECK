@@ -66,7 +66,7 @@ export const DeepThreadSummaryModal: React.FC<DeepThreadSummaryModalProps> = ({
         ]
           .filter((l) => l !== null)
           .join('\n'),
-        { systemInstruction: TLDR_INSTRUCTION, signal: controller.signal }
+        { systemInstruction: TLDR_INSTRUCTION, signal: controller.signal, maxOutputTokens: 500, tag: 'tldr' }
       );
 
       const clean = text.replace(/```json|```/g, '').trim();

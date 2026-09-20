@@ -75,7 +75,7 @@ export const SmartFollowUpModal: React.FC<SmartFollowUpModalProps> = ({
     try {
       const text = await generateDraftText(
         `${describeEventWindow(event)}\n\nDraft the follow-up email to send to all attendees.`,
-        { systemInstruction: DRAFTER_INSTRUCTION, signal: controller.signal }
+        { systemInstruction: DRAFTER_INSTRUCTION, signal: controller.signal, maxOutputTokens: 500, tag: 'followup' }
       );
       setEmailBody(text);
     } catch (err: any) {

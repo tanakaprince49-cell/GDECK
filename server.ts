@@ -1,7 +1,7 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import dotenv from "dotenv";
 import { payonifyRouter } from "./src/lib/payonify-routes";
 
@@ -236,6 +236,31 @@ async function startServer() {
       // Prune contents to save tokens and avoid quota depletion
       const sanitizedContents = pruneAndSanitizeContents(contents);
 
+      // Cost controls (mirror of api/gemini/chat.ts). Output tokens bill at ~6x the
+      // input rate, so every request gets a hard cap (client-provided per flow, sane
+      // default otherwise, hard ceiling at 8192).
+      const rawMaxOut = Number((req.body || {}).maxOutputTokens);
+      const maxOutputTokens =
+        Number.isFinite(rawMaxOut) && rawMaxOut > 0 ? Math.min(Math.round(rawMaxOut), 8192) : 2048;
+      const tag =
+        typeof (req.body || {}).tag === 'string' && (req.body || {}).tag
+          ? (req.body || {}).tag
+          : 'default';
+
+      // Gemini 3.6+ Flash models think by default, and thought tokens bill at the OUTPUT
+      // rate. Cap thinking at "low" for those models only — Flash-Lite does not accept
+      // a thinking config and sending one would fail the primary model.
+      const isThinkingFlash = (model: string) => /gemini-3\.(?:[6-9]|1[0-9])-flash\b/.test(model);
+
+      let usedModel = '';
+      let usageMeta: any = null;
+      const logUsage = (model: string, um: any) => {
+        if (!um) return;
+        console.log(
+          `[ai-usage] tag=${tag} model=${model} prompt=${um.promptTokenCount ?? '?'} output=${um.candidatesTokenCount ?? '?'} thoughts=${um.thoughtsTokenCount ?? 0} cached=${um.cachedContentTokenCount ?? 0}`
+        );
+      };
+
       const effectiveDateFormatted =
         currentDateFormatted ||
         new Date().toLocaleDateString('en-US', {
@@ -265,11 +290,12 @@ RULES:
         sysInstruct += `\nSaved Memories:\n${memorySnippet}`;
       }
 
-      // Modern active Gemini models with gemini-3.8-flash as primary
+      // Match production (api/gemini/chat.ts): cheapest model first. 3.8 Flash is 3x
+      // the token price of Flash-Lite and only belongs in the fallback position.
       const CANDIDATE_MODELS = [
+        "gemini-3.1-flash-lite",
         "gemini-3.8-flash",
         "gemini-flash-latest",
-        "gemini-3.1-flash-lite",
       ];
 
       let responseText = '';
@@ -299,11 +325,16 @@ RULES:
                 systemInstruction: sysInstruct,
                 tools: tools ? [{ functionDeclarations: tools }] : undefined,
                 temperature: 0.2,
+                maxOutputTokens,
+                ...(isThinkingFlash(model) ? { thinkingConfig: { thinkingLevel: ThinkingLevel.LOW } } : {}),
               },
             });
             if (sdkRes) {
               const candidate = sdkRes.candidates?.[0];
               const parts = candidate?.content?.parts || [];
+              usedModel = model;
+              usageMeta = sdkRes.usageMetadata || null;
+              logUsage(model, usageMeta);
               if (sdkRes.functionCalls && sdkRes.functionCalls.length > 0) {
                 responseFunctionCalls = sdkRes.functionCalls;
                 rawModelParts = parts;
@@ -348,7 +379,11 @@ RULES:
                 contents: sanitizedContents,
                 systemInstruction: { parts: [{ text: sysInstruct }] },
                 tools: tools ? [{ functionDeclarations: tools }] : undefined,
-                generationConfig: { temperature: 0.2 },
+                generationConfig: {
+                  temperature: 0.2,
+                  maxOutputTokens,
+                  ...(isThinkingFlash(model) ? { thinkingConfig: { thinkingLevel: 'low' } } : {}),
+                },
               })
             });
 
@@ -360,7 +395,10 @@ RULES:
             const candidate = data?.candidates?.[0];
             const parts = candidate?.content?.parts || [];
             const functionCalls = parts.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
-            
+            usedModel = model;
+            usageMeta = data.usageMetadata || null;
+            logUsage(model, usageMeta);
+
             if (functionCalls.length > 0) {
               responseFunctionCalls = functionCalls;
               rawModelParts = parts;
@@ -379,11 +417,22 @@ RULES:
         throw lastError;
       }
 
+      // Token counts back to the client (harmless extra field) and into the logs above.
+      const usage = usageMeta
+        ? {
+            model: usedModel,
+            promptTokens: usageMeta.promptTokenCount,
+            outputTokens: usageMeta.candidatesTokenCount,
+            thoughtTokens: usageMeta.thoughtsTokenCount || 0,
+            cachedTokens: usageMeta.cachedContentTokenCount || 0,
+          }
+        : undefined;
+
       if (responseFunctionCalls && responseFunctionCalls.length > 0) {
-        return res.json({ functionCalls: responseFunctionCalls, modelParts: rawModelParts });
+        return res.json({ functionCalls: responseFunctionCalls, modelParts: rawModelParts, ...(usage ? { usage } : {}) });
       }
 
-      return res.json({ text: responseText || "I'm G-Pilot! I can help you search emails, view calendar schedules, manage tasks, and organize Google Workspace." });
+      return res.json({ text: responseText || "I'm G-Pilot! I can help you search emails, view calendar schedules, manage tasks, and organize Google Workspace.", ...(usage ? { usage } : {}) });
     } catch (error: any) {
       console.error("Gemini API error (handled gracefully):", error?.message || error);
       const isQuota =

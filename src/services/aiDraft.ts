@@ -10,6 +10,10 @@ export interface GenerateOptions {
   userName?: string;
   signal?: AbortSignal;
   temperature?: number;
+  /** Hard cap on output tokens. Output is the expensive meter, so every flow sets one. */
+  maxOutputTokens?: number;
+  /** Label used in the server-side usage log (e.g. 'followup', 'tldr'). */
+  tag?: string;
 }
 
 export class AiDraftError extends Error {
@@ -22,7 +26,7 @@ export class AiDraftError extends Error {
 }
 
 export async function generateDraftText(prompt: string, options: GenerateOptions = {}): Promise<string> {
-  const { systemInstruction, userName, signal } = options;
+  const { systemInstruction, userName, signal, maxOutputTokens, tag } = options;
 
   let res: Response;
   try {
@@ -35,6 +39,8 @@ export async function generateDraftText(prompt: string, options: GenerateOptions
         // No tools: a drafter should write, not call Workspace functions.
         tools: undefined,
         userName,
+        ...(maxOutputTokens ? { maxOutputTokens } : {}),
+        ...(tag ? { tag } : {}),
         ...(systemInstruction ? { systemInstruction } : {}),
       }),
     });
