@@ -24,6 +24,7 @@ import {
   Maximize,
   Minimize,
   Trash2,
+  Coffee,
 } from 'lucide-react';
 
 import { initAuth, googleSignIn, logout, deleteAccountPermanently } from './services/auth';
@@ -482,6 +483,19 @@ export default function App() {
                     <ProBadge size="xs" showLockOnFree={false} />
                   </button>
                 )}
+
+                {/* Support: Buy me a coffee (Tributejar campaign) */}
+                <a
+                  id="header-support-coffee-btn"
+                  href={SUPPORT_CAMPAIGN_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-[#8a5a00] hover:bg-[#fdf3d7] bg-[#fffbeb] rounded-full border border-[#f0e0b0] transition-colors cursor-pointer"
+                  title="Buy me a coffee — support G-Deck development"
+                >
+                  <Coffee className="w-3.5 h-3.5 shrink-0" />
+                  <span className="hidden sm:inline">Buy me a coffee</span>
+                </a>
 
                 {/* 9-dot Google App Launcher (Waffle Menu) */}
                 <div ref={waffleRef} className="relative hidden xs:block">
@@ -1261,10 +1275,11 @@ export default function App() {
               href={SUPPORT_CAMPAIGN_URL}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#1a73e8] hover:underline cursor-pointer"
+              className="inline-flex items-center gap-1 text-[#1a73e8] hover:underline cursor-pointer"
               title="Support G-Deck development"
             >
-              Buy me a coffee ☕
+              <Coffee className="w-3.5 h-3.5" />
+              <span>Buy me a coffee</span>
             </a>
             {user && (
               <>
