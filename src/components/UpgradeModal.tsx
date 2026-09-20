@@ -71,10 +71,16 @@ export const UpgradeModal: React.FC = () => {
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const resText = await res.text();
+      try {
+        data = resText ? JSON.parse(resText) : {};
+      } catch {
+        throw new Error(res.ok ? 'Unexpected response format' : `Server responded with status ${res.status}`);
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to initiate Payonify checkout session');
+        throw new Error(data.error || `Checkout initiation failed (status ${res.status})`);
       }
 
       if (data.url) {
@@ -108,10 +114,16 @@ export const UpgradeModal: React.FC = () => {
         }),
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const resText = await res.text();
+      try {
+        data = resText ? JSON.parse(resText) : {};
+      } catch {
+        throw new Error(res.ok ? 'Unexpected response format' : `Server responded with status ${res.status}`);
+      }
 
       if (!res.ok) {
-        throw new Error(data.error || 'Direct charge request failed');
+        throw new Error(data.error || `Direct charge request failed (status ${res.status})`);
       }
 
       setUpgradeSuccess(
