@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Analytics } from '@vercel/analytics/react';
 import { User } from 'firebase/auth';
 import {
   LogOut,
@@ -1409,7 +1408,6 @@ export default function App() {
       {/* Floating Real-time Notification Toast */}
       <ProRenewalReminder />
       <NotificationToast onNavigateTab={(tab) => setActiveTab(tab)} />
-      <Analytics />
     </div>
     </NotificationProvider>
   );

@@ -39,7 +39,6 @@ export const UpgradeModal: React.FC = () => {
     upgradeModalOpen,
     upgradeModalContext,
     closeUpgradeModal,
-    upgradeToPro,
     tier,
     isPro,
     proPlanId,

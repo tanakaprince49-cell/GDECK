@@ -182,7 +182,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNaviga
 
           {/* Filter Bar */}
           <div className="px-5 pb-3 bg-white border-b border-[#f1f3f4] flex flex-wrap items-center gap-2">
-            {['all', 'unread', 'gmail', 'calendar', 'drive', 'tasks', 'gpilot'].map((cat) => (
+            {['all', 'unread', 'gmail', 'calendar', 'drive', 'tasks', 'gpilot', 'billing'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setFilter(cat)}

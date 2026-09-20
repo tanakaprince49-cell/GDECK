@@ -178,6 +178,38 @@ payonifyRouter.get('/checkout/session/:id', async (req, res) => {
 
       let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
 
+    // Vercel/serverless: in-memory PayonifyStore is empty on a cold isolate. Rebuild a
+    // minimal order from the Payonify session metadata so fulfilment + period math still work.
+    if (!order && orderId && isCheckoutSessionPaid(session)) {
+      const s: any = session;
+      const planId =
+        s.metadata?.plan_id ||
+        s.metadata?.planId ||
+        'pro_monthly';
+      const amountCents =
+        typeof s.amount_total === 'number'
+          ? s.amount_total
+          : typeof s.amount?.value === 'number'
+          ? s.amount.value
+          : 1200;
+      const currency = String(s.currency || s.amount?.currency || 'usd').toLowerCase();
+      order = PayonifyStore.createOrder({
+        id: orderId,
+        userId: s.customer_email || s.metadata?.user_email || 'unknown',
+        planId,
+        status: 'pending',
+        amountCents,
+        currency: currency === 'zwg' ? 'zwg' : 'usd',
+        sessionId: s.id || orderId,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          plan_id: planId,
+          synthesised: 'true',
+        },
+      });
+    }
+
+
       // Fulfil only on Payonify's own paid signal (payment_status), not on mere existence
     if (isCheckoutSessionPaid(session) && order && order.status !== 'paid') {
       PayonifyStore.updateOrderStatus(order.id, 'paid', new Date().toISOString());
@@ -304,13 +336,54 @@ payonifyRouter.get('/charge-status/:id', async (req, res) => {
     const paid = isChargePaid(charge);
     const failed = isChargeFailed(charge);
     const orderId: string | undefined = charge?.metadata?.order_id;
-    const order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
+    let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
+
+    // Rebuild order from charge metadata when the in-memory store has no row (restart/cold).
+    if (!order && orderId && paid) {
+      const planId = charge?.metadata?.plan_id || charge?.metadata?.planId || 'pro_monthly';
+      const amountCents =
+        typeof charge?.amount?.value === 'number'
+          ? charge.amount.value
+          : typeof charge?.amount === 'number'
+          ? charge.amount
+          : 1200;
+      const currency = (charge?.currency || charge?.amount?.currency || 'usd').toLowerCase();
+      order = PayonifyStore.createOrder({
+        id: orderId,
+        userId: charge?.customer_email || charge?.metadata?.user_email || 'unknown',
+        planId,
+        status: 'pending',
+        amountCents,
+        currency: currency === 'zwg' ? 'zwg' : 'usd',
+        createdAt: new Date().toISOString(),
+        metadata: { plan_id: planId, synthesised: 'true' },
+      });
+    }
 
     if (paid && order && order.status !== 'paid') {
       PayonifyStore.updateOrderStatus(order.id, 'paid', new Date().toISOString());
+      PayonifyStore.upsertSubscription({
+        id: `sub_${Date.now()}`,
+        userId: order.userId,
+        planId: order.planId,
+        currency: order.currency,
+        amountCents: order.amountCents,
+        interval: intervalForPlanId(order.planId),
+        status: 'active',
+        currentPeriodStart: new Date().toISOString(),
+        currentPeriodEnd: computePeriodEndIso(new Date(), order.planId),
+        nextBillingAt: computePeriodEndIso(new Date(), order.planId),
+        failureCount: 0,
+        createdAt: new Date().toISOString(),
+      });
+      order = PayonifyStore.getOrder(order.id);
     } else if (failed && order && order.status === 'pending') {
       PayonifyStore.updateOrderStatus(order.id, 'failed');
     }
+
+    const subscription = order?.userId
+      ? PayonifyStore.getSubscriptionByUser(order.userId)
+      : undefined;
 
     res.json({
       chargeId: req.params.id,
@@ -320,6 +393,7 @@ payonifyRouter.get('/charge-status/:id', async (req, res) => {
       failureCode: charge?.failure_code ?? null,
       failureMessage: charge?.failure_message ?? null,
       order,
+      subscription,
       polling: { stop: paid || failed, nextIntervalMs: paid || failed ? 0 : 4000 },
     });
   } catch (error: any) {

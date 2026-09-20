@@ -47,6 +47,28 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const orderId: string | undefined = charge?.metadata?.order_id;
     let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
 
+    // Cold isolate: rebuild order from charge metadata so USSD poll can still fulfil.
+    if (!order && orderId && paid) {
+      const planId = charge?.metadata?.plan_id || charge?.metadata?.planId || 'pro_monthly';
+      const amountCents =
+        typeof charge?.amount?.value === 'number'
+          ? charge.amount.value
+          : typeof charge?.amount === 'number'
+          ? charge.amount
+          : 1200;
+      const currency = (charge?.currency || charge?.amount?.currency || 'usd').toLowerCase();
+      order = PayonifyStore.createOrder({
+        id: orderId,
+        userId: charge?.customer_email || charge?.metadata?.user_email || 'unknown',
+        planId,
+        status: 'pending',
+        amountCents,
+        currency: currency === 'zwg' ? 'zwg' : 'usd',
+        createdAt: new Date().toISOString(),
+        metadata: { plan_id: planId, synthesised: 'true' },
+      });
+    }
+
     if (paid && order && order.status !== 'paid') {
       order = PayonifyStore.updateOrderStatus(order.id, 'paid', new Date().toISOString());
       PayonifyStore.upsertSubscription({
@@ -68,6 +90,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       order = PayonifyStore.updateOrderStatus(order.id, 'failed');
     }
 
+    const subscription = order?.userId
+      ? PayonifyStore.getSubscriptionByUser(order.userId)
+      : undefined;
+
     return res.status(200).json({
       chargeId,
       status: charge?.status ?? 'unknown',
@@ -76,6 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       failureCode: charge?.failure_code ?? null,
       failureMessage: charge?.failure_message ?? null,
       order,
+      subscription,
       /** Poll guidance for the client; terminal states need no further polling. */
       polling: {
         stop: paid || failed,

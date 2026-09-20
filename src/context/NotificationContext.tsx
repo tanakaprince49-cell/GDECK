@@ -43,7 +43,7 @@ const INITIAL_NOTIFICATIONS: WorkspaceNotification[] = [
     senderName: 'Alex Rivera',
   },
   {
-    id: 'notif-[#2]',
+    id: 'notif-2',
     title: 'Upcoming Meeting in 15 mins',
     message: 'Product Roadmap Review with Engineering & Design leads on Google Meet.',
     category: 'calendar',
@@ -71,7 +71,7 @@ const INITIAL_NOTIFICATIONS: WorkspaceNotification[] = [
     message: 'High priority task assigned by G-Pilot assistant.',
     category: 'tasks',
     priority: 'high',
-    timestamp: new Date(Date.now() - 2 * 360 * 1000).toISOString(),
+    timestamp: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
     read: true,
     actionTab: 'tasks',
     actionText: 'View Tasks',

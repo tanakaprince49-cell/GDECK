@@ -33,6 +33,38 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
 
+    // Vercel/serverless: in-memory PayonifyStore is empty on a cold isolate. Rebuild a
+    // minimal order from the Payonify session metadata so fulfilment + period math still work.
+    if (!order && orderId && isCheckoutSessionPaid(session)) {
+      const s: any = session;
+      const planId =
+        s.metadata?.plan_id ||
+        s.metadata?.planId ||
+        'pro_monthly';
+      const amountCents =
+        typeof s.amount_total === 'number'
+          ? s.amount_total
+          : typeof s.amount?.value === 'number'
+          ? s.amount.value
+          : 1200;
+      const currency = String(s.currency || s.amount?.currency || 'usd').toLowerCase();
+      order = PayonifyStore.createOrder({
+        id: orderId,
+        userId: s.customer_email || s.metadata?.user_email || 'unknown',
+        planId,
+        status: 'pending',
+        amountCents,
+        currency: currency === 'zwg' ? 'zwg' : 'usd',
+        sessionId: s.id || orderId,
+        createdAt: new Date().toISOString(),
+        metadata: {
+          plan_id: planId,
+          synthesised: 'true',
+        },
+      });
+    }
+
+
     // Provision on Payonify's paid signal only
     if (isCheckoutSessionPaid(session) && order && order.status !== 'paid') {
       PayonifyStore.updateOrderStatus(order.id, 'paid', new Date().toISOString());

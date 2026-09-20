@@ -14,12 +14,11 @@ interface CheckoutSuccessViewProps {
 }
 
 export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onReturnToDashboard }) => {
-  const { activatePro, proExpiresLabel, proPlanId, proDaysRemaining } = usePlan();
+  const { activatePro, proExpiresLabel, proDaysRemaining } = usePlan();
   const [loading, setLoading] = useState<boolean>(true);
   const [sessionDetails, setSessionDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [activatedPlanId, setActivatedPlanId] = useState<string | null>(null);
-  const [activatedExpires, setActivatedExpires] = useState<string | null>(null);
 
   const queryParams = new URLSearchParams(window.location.search);
   const sessionId = queryParams.get('session_id');
@@ -100,7 +99,6 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
               paidAt: data?.order?.paidAt || new Date().toISOString(),
             });
             setActivatedPlanId(planId);
-            setActivatedExpires(serverPeriodEnd || null);
             try { sessionStorage.removeItem(CHECKOUT_STASH_KEY); } catch { /* ignore */ }
             setLoading(false);
           }

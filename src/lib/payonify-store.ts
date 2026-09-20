@@ -116,13 +116,35 @@ export const PayonifyStore = {
     return record;
   },
 
-  // Subscriptions
+  // Subscriptions — one active row per userId (renewals replace, they don't stack rows)
   upsertSubscription: (sub: SubscriptionRecord) => {
-    subscriptionsMap.set(sub.id, sub);
-    return sub;
+    // Drop any prior active subscription for this user so getSubscriptionByUser stays unique.
+    for (const [id, existing] of subscriptionsMap.entries()) {
+      if (existing.userId === sub.userId && existing.status === 'active' && id !== sub.id) {
+        subscriptionsMap.set(id, {
+          ...existing,
+          status: 'canceled',
+          canceledAt: new Date().toISOString(),
+        });
+      }
+    }
+    // Stable id per user keeps renewals updating one record instead of leaking rows.
+    const stableId = sub.id?.startsWith('sub_user_')
+      ? sub.id
+      : `sub_user_${sub.userId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 64)}`;
+    const finalSub: SubscriptionRecord = { ...sub, id: stableId };
+    subscriptionsMap.set(stableId, finalSub);
+    return finalSub;
   },
   getSubscriptionByUser: (userId: string) => {
-    return Array.from(subscriptionsMap.values()).find((s) => s.userId === userId && s.status === 'active');
+    const actives = Array.from(subscriptionsMap.values()).filter(
+      (s) => s.userId === userId && s.status === 'active'
+    );
+    if (actives.length === 0) return undefined;
+    // Prefer the furthest period end if multiples somehow remain.
+    return actives.sort(
+      (a, b) => Date.parse(b.currentPeriodEnd) - Date.parse(a.currentPeriodEnd)
+    )[0];
   },
   listSubscriptions: () => Array.from(subscriptionsMap.values()),
 };

@@ -7,7 +7,7 @@ import { daysRemainingInPeriod, formatProExpiry, planPriceLabel } from '../lib/b
  * Daily Pro renewal reminders for the last 3 calendar days of a paid period.
  *
  * Fires once per local calendar day while:
- *   1 <= daysRemaining <= 3  (and Pro is still active)
+ *   0 <= daysRemaining <= 3  (and Pro is still active; 0 = expires later today)
  *
  * Delivers:
  *   - In-app bell + toast (always, if notifyBilling is on)
@@ -32,11 +32,20 @@ function localDayKey(d: Date = new Date()): string {
 
 function buildCopy(daysLeft: number, expiresLabel: string, planId: string | null) {
   const price = planPriceLabel(planId || 'pro_monthly');
-  if (daysLeft <= 1) {
+  if (daysLeft <= 0) {
+    return {
+      title: 'Pro expires today',
+      message: `Your G-Deck Pro period ends today${
+        expiresLabel ? ` (${expiresLabel})` : ''
+      }. Renew now (${price}) or you'll drop to Free (10 AI messages/month) when it lapses.`,
+      priority: 'urgent' as const,
+    };
+  }
+  if (daysLeft === 1) {
     return {
       title: 'Pro expires tomorrow',
       message: `Your G-Deck Pro period ends ${
-        expiresLabel ? `on ${expiresLabel}` : 'within a day'
+        expiresLabel ? `on ${expiresLabel}` : 'tomorrow'
       }. Renew today (${price}) so unlimited AI and every Pro feature stay on.`,
       priority: 'urgent' as const,
     };
@@ -71,7 +80,11 @@ export function shouldSendProRenewalReminder(opts: {
   if (!opts.isPro || !opts.proExpiresAt) return null;
 
   const daysLeft = daysRemainingInPeriod(opts.proExpiresAt, now);
-  if (daysLeft < 1 || daysLeft > windowDays) return null;
+  // Include expiry day (0 = later today) through windowDays (default 3).
+  if (daysLeft > windowDays) return null;
+  // daysRemainingInPeriod returns 0 both for "expired" and "later today"; caller
+  // already requires isPro, so 0 here means "expires later today".
+
 
   const dayKey = localDayKey(now);
   if (opts.lastNotifiedDay === dayKey) return null;
@@ -111,6 +124,13 @@ export const ProRenewalReminder: React.FC = () => {
       const expiresLabel = proExpiresLabel || formatProExpiry(proExpiresAt);
       const copy = buildCopy(decision.daysLeft, expiresLabel, proPlanId);
 
+      // Stamp the day key BEFORE notifying so React StrictMode double-invoke
+      // (and the 1-min interval) cannot double-send the same daily reminder.
+      lastFiredDayRef.current = decision.dayKey;
+      try {
+        localStorage.setItem(STORAGE_DAY, decision.dayKey);
+      } catch {}
+
       addNotification({
         title: copy.title,
         message: copy.message,
@@ -121,11 +141,6 @@ export const ProRenewalReminder: React.FC = () => {
         // tag collapses duplicate OS notifications for the same day
         tag: `gdeck-pro-renewal-${decision.dayKey}`,
       });
-
-      lastFiredDayRef.current = decision.dayKey;
-      try {
-        localStorage.setItem(STORAGE_DAY, decision.dayKey);
-      } catch {}
     };
 
     run();

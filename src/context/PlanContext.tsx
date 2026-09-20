@@ -384,12 +384,8 @@ export const PlanProvider: React.FC<{
     const thisMonth = currentAiQuotaMonth();
 
     if (isPro) {
-      setAiQueriesUsed((prev) => {
-        const next = prev + 1;
-        persistUsage(next, thisMonth);
-        return next;
-      });
-      setAiQuotaMonth(thisMonth);
+      // Pro is unlimited — do NOT touch the free monthly counter, otherwise a
+      // mid-period downgrade would inherit an inflated used count.
       return true;
     }
 

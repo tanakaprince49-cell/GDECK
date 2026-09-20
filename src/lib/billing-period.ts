@@ -50,14 +50,21 @@ export function isProPeriodExpired(expiresAt: string | null | undefined, now: Da
   return t <= now.getTime();
 }
 
-/** Days remaining (ceil). 0 if expired/missing. */
+/**
+ * Whole local calendar days from today until the expiry date (not a raw 24h ceil).
+ * Expires later today → 0; expires tomorrow → 1; expires in 3 calendar days → 3.
+ * 0 if expired/missing. Used for renewal reminders ("3 days before") and UI chips.
+ */
 export function daysRemainingInPeriod(expiresAt: string | null | undefined, now: Date = new Date()): number {
   if (!expiresAt) return 0;
-  const t = Date.parse(expiresAt);
-  if (!Number.isFinite(t)) return 0;
-  const ms = t - now.getTime();
-  if (ms <= 0) return 0;
-  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+  const end = new Date(expiresAt);
+  if (!Number.isFinite(end.getTime())) return 0;
+  // Already past the exact instant → expired.
+  if (end.getTime() <= now.getTime()) return 0;
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfEndDay = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+  const diffDays = Math.round((startOfEndDay.getTime() - startOfToday.getTime()) / (24 * 60 * 60 * 1000));
+  return Math.max(0, diffDays);
 }
 
 export function formatProExpiry(expiresAt: string | null | undefined): string {
