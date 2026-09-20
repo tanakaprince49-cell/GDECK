@@ -388,6 +388,14 @@ RULES:
     }
   });
 
+  // Explicit route for Privacy Policy page to ensure compliance crawlers and reviewers get immediate HTML
+  app.get("/privacy.html", (req, res) => {
+    const privacyPath = process.env.NODE_ENV !== "production"
+      ? path.join(process.cwd(), "public", "privacy.html")
+      : path.join(process.cwd(), "dist", "privacy.html");
+    res.sendFile(privacyPath);
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

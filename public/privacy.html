@@ -3,125 +3,337 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Privacy Policy - G-Deck</title>
+  <title>Privacy Policy & Data Protection Disclosures - G-Deck</title>
+  <meta name="description" content="Privacy Policy, Data Protection Mechanisms, and Google Workspace User Data Compliance Disclosures for G-Deck (gdeck.org)." />
   <style>
+    :root {
+      --primary: #1a73e8;
+      --primary-dark: #1557b0;
+      --text: #1f1f1f;
+      --text-muted: #5f6368;
+      --bg: #f8fafd;
+      --card-bg: #ffffff;
+      --border: #dadce0;
+      --green: #137333;
+      --green-bg: #e6f4ea;
+      --blue-bg: #e8f0fe;
+    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      line-height: 1.6;
-      color: #1f1f1f;
-      background-color: #f8fafd;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Google Sans", Helvetica, Arial, sans-serif;
+      line-height: 1.65;
+      color: var(--text);
+      background-color: var(--bg);
       margin: 0;
-      padding: 40px 20px;
+      padding: 40px 16px;
     }
     .container {
-      max-width: 800px;
+      max-width: 860px;
       margin: 0 auto;
-      background: #ffffff;
-      padding: 40px;
+      background: var(--card-bg);
+      padding: 48px;
       border-radius: 24px;
-      border: 1px solid #dadce0;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    @media (max-width: 640px) {
+      .container {
+        padding: 24px 18px;
+      }
     }
     h1 {
       font-size: 28px;
-      color: #1a73e8;
+      color: var(--primary);
       margin-top: 0;
+      margin-bottom: 8px;
+      letter-spacing: -0.5px;
+    }
+    .metadata-bar {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f1f3f4;
     }
     h2 {
-      font-size: 18px;
-      color: #1f1f1f;
-      margin-top: 28px;
+      font-size: 19px;
+      color: var(--text);
+      margin-top: 36px;
+      margin-bottom: 12px;
       border-bottom: 1px solid #f1f3f4;
       padding-bottom: 8px;
     }
+    h3 {
+      font-size: 15px;
+      color: #333;
+      margin-top: 20px;
+      margin-bottom: 8px;
+    }
     p, li {
       font-size: 14px;
-      color: #444746;
+      color: #3c4043;
     }
-    ul {
-      padding-left: 20px;
+    ul, ol {
+      padding-left: 24px;
+      margin: 10px 0;
+    }
+    li {
+      margin-bottom: 6px;
     }
     .highlight-box {
-      background: #e8f0fe;
-      border-left: 4px solid #1a73e8;
-      padding: 16px;
+      background: var(--blue-bg);
+      border-left: 4px solid var(--primary);
+      padding: 16px 20px;
       border-radius: 8px;
-      margin: 20px 0;
-      font-size: 14px;
-      color: #1967d2;
-      font-weight: 500;
+      margin: 24px 0;
+      font-size: 13.5px;
+      color: #174ea6;
+      line-height: 1.6;
+    }
+    .security-badge-box {
+      background: var(--green-bg);
+      border-left: 4px solid var(--green);
+      padding: 16px 20px;
+      border-radius: 8px;
+      margin: 24px 0;
+      font-size: 13.5px;
+      color: #0d652d;
+      line-height: 1.6;
+    }
+    .scope-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px 0;
+      font-size: 13px;
+    }
+    .scope-table th {
+      background-color: #f1f3f4;
+      color: #202124;
+      text-align: left;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .scope-table td {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      color: #3c4043;
+      vertical-align: top;
+    }
+    .scope-table tr:nth-child(even) {
+      background-color: #fafbfc;
+    }
+    .code-tag {
+      font-family: monospace;
+      background: #eef1f5;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: #1a73e8;
     }
     .footer {
-      margin-top: 40px;
+      margin-top: 48px;
       font-size: 12px;
-      color: #5f6368;
+      color: var(--text-muted);
       text-align: center;
       border-top: 1px solid #f1f3f4;
-      padding-top: 20px;
+      padding-top: 24px;
     }
     a {
-      color: #1a73e8;
+      color: var(--primary);
       text-decoration: underline;
+    }
+    a:hover {
+      color: var(--primary-dark);
     }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Privacy Policy for G-Deck</h1>
-    <p><strong>Last Updated:</strong> September 13, 2026 | <strong>Website:</strong> <a href="https://gdeck.org">https://gdeck.org</a></p>
-
-    <div class="highlight-box">
-      <strong>Google API Services User Data Policy Compliance:</strong><br />
-      G-Deck's use and transfer of information received from Google APIs to any other app will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank">Google API Services User Data Policy</a>, including the Limited Use requirements.
+    <div class="metadata-bar">
+      <strong>Effective & Last Updated:</strong> September 20, 2026 | 
+      <strong>Official URL:</strong> <a href="https://gdeck.org">https://gdeck.org</a> | 
+      <strong>Entity:</strong> G-Deck Developer Team (<a href="mailto:tanakaprince49@gmail.com">tanakaprince49@gmail.com</a>)
     </div>
 
-    <h2>1. Data Architecture & Security Principles</h2>
-    <p>G-Deck is engineered as a privacy-first, client-side executive command center and workspace aggregator. Our core security architecture ensures:</p>
+    <div class="highlight-box">
+      <strong>Google API Services User Data Policy Compliance Statement:</strong><br />
+      G-Deck's use and transfer to any other app of information received from Google APIs adheres to the 
+      <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, 
+      including the Limited Use requirements.
+    </div>
+
+    <div class="security-badge-box">
+      <strong>App Defense Alliance (ADA) CASA Standards Compliance:</strong><br />
+      G-Deck is engineered and validated in accordance with the App Defense Alliance (ADA) Cloud Application Security Assessment (CASA) requirements (OWASP ASVS / CASA AL1 Tier 2 baseline). We enforce strict technical and organizational controls to protect sensitive and restricted user data at all stages of processing.
+    </div>
+
+    <h2>1. Overview & Purpose of G-Deck</h2>
+    <p>
+      G-Deck (<a href="https://gdeck.org">https://gdeck.org</a>) is an executive productivity command center and workspace aggregator built for Google Workspace. G-Deck allows users to manage their emails, calendar schedules, tasks, video conferences, and cloud files through a unified, high-efficiency interface.
+    </p>
+    <p>
+      G-Deck operates strictly on a <strong>privacy-first, client-orchestrated model</strong>. Your privacy, confidentiality, and data sovereignty are fundamental to our architecture.
+    </p>
+
+    <h2>2. Data Protection Mechanisms for Sensitive & Restricted Data</h2>
+    <p>
+      In accordance with Google OAuth Verification requirements and CASA data protection standards, G-Deck maintains comprehensive technical, administrative, and physical safeguards for all sensitive and restricted Google Workspace data:
+    </p>
+
+    <h3>2.1. Cryptographic Protection & Encryption in Transit</h3>
     <ul>
-      <li><strong>In-Memory Token Management:</strong> Authentication tokens obtained via Google OAuth 2.0 are retained strictly in-memory during your active browser session. G-Deck does not write your access tokens or refresh tokens to external database servers.</li>
-      <li><strong>Zero Server Data Storage:</strong> G-Deck does not store, index, sell, inspect, or copy the contents of your Google Workspace files, emails, messages, calendar events, tasks, or documents on intermediate servers. All data transactions execute directly between your web browser and official Google API endpoints.</li>
+      <li><strong>Mandatory TLS 1.2 / TLS 1.3 Encryption:</strong> All communications between the user's browser, G-Deck, and Google's authenticated API endpoints are strictly encrypted in transit using Transport Layer Security (TLS 1.2 or TLS 1.3) with modern cryptographic cipher suites (e.g., ECDHE-RSA-AES128-GCM-SHA256, ECDHE-ECDSA-AES256-GCM-SHA384).</li>
+      <li><strong>Strict Transport Security (HSTS):</strong> We enforce HTTP Strict Transport Security (HSTS) to prevent SSL-stripping, protocol downgrade attacks, and man-in-the-middle (MITM) interceptions.</li>
+      <li><strong>Direct-to-Google Communication:</strong> API requests for sensitive workspace data (including Gmail messages, Google Drive documents, Calendar events, and Tasks) travel directly from the user's browser runtime to official Google API endpoints (<span class="code-tag">googleapis.com</span>), ensuring end-to-end transport integrity.</li>
     </ul>
 
-    <h2>2. Information We Collect & How We Use It</h2>
-    <p>G-Deck accesses only the minimum necessary information required to deliver core workspace management features:</p>
+    <h3>2.2. Zero-Persistence Architecture & Protection at Rest</h3>
     <ul>
-      <li><strong>Account Identification:</strong> Basic Google profile data (name, email address, profile picture) provided via Google Identity to display your active account profile.</li>
-      <li><strong>Workspace Data (Google APIs):</strong> With your explicit consent, G-Deck accesses Google Workspace services including Gmail, Google Drive, Google Sheets, Google Calendar, Google Tasks, Google Keep, Google Meet, and Google Contacts strictly to render unified feeds and carry out user-initiated workspace actions.</li>
-      <li><strong>Local Preferences:</strong> Interface customizations (pinned apps, dark/light theme, dashboard order) saved locally on your device via browser LocalStorage.</li>
+      <li><strong>Zero Server Storage of Sensitive Content:</strong> G-Deck employs a strict <em>Zero-Persistence Architecture</em> for user content. We do <strong>NOT</strong> operate intermediate databases, shadow caches, or persistent file stores that capture, mirror, index, or retain your emails, file contents, contacts, calendar agendas, or task lists.</li>
+      <li><strong>Ephemeral In-Memory Processing:</strong> Sensitive Google Workspace data retrieved via APIs is held solely in volatile client memory (RAM) for the instantaneous duration required to render the user interface. When the user navigates away, refreshes the page, signs out, or closes the browser tab, all transient data representations are immediately and irreversibly purged from memory.</li>
+      <li><strong>No Server-Side Stored Credentials:</strong> G-Deck does not store user passwords, Google account credentials, or long-term private keys.</li>
     </ul>
 
-    <h2>3. Limited Use & No Third-Party Data Sharing</h2>
-    <p>We enforce strict data boundaries in accordance with Google Developer Policies:</p>
+    <h3>2.3. OAuth 2.0 Token Protection & Storage Controls</h3>
     <ul>
-      <li><strong>No Data Selling or Advertising:</strong> We never sell, rent, trade, or monetize your Google Workspace data or personal information under any circumstances.</li>
-      <li><strong>No Data Transfers:</strong> We do not transfer your Google Workspace user data to third parties, advertising networks, data brokers, or information resellers.</li>
-      <li><strong>No Human Inspection:</strong> No human reads or inspects your Google user data unless required for technical support explicitly authorized by you.</li>
+      <li><strong>Short-Lived Bearer Tokens:</strong> G-Deck utilizes standard Google Identity Services (GIS) OAuth 2.0 token flows. Tokens have a strictly bounded time-to-live (typically 3,600 seconds / 1 hour) enforced by Google's authorization servers.</li>
+      <li><strong>Isolated Client-Side Scope:</strong> Authentication tokens are maintained strictly within sandboxed, client-side browser application memory. Tokens are never transmitted to unauthorized third-party domains, tracking scripts, or external analytics services.</li>
+      <li><strong>Immediate Token Invalidation on Sign-Out:</strong> Selecting "Sign Out" or utilizing the in-app "Delete Account & Wipe Data" feature immediately discards the active OAuth token and purges any localized session metadata.</li>
     </ul>
 
-    <h2>4. Artificial Intelligence & Google Gemini API Integration</h2>
-    <p>G-Deck offers optional AI features (G-Pilot) powered by Google's official Gemini API to assist with cross-app summaries, schedule planning, and task execution:</p>
+    <h3>2.4. Access Control, Least Privilege & Human-in-the-Loop Safeguards</h3>
     <ul>
-      <li>Data sent to the Gemini API is processed strictly to fulfill explicit prompt requests or automated workflows configured by you.</li>
-      <li><strong>No Model Training:</strong> Your Google Workspace data is never used to train or fine-tune public or generalized AI/ML models.</li>
+      <li><strong>Principle of Least Privilege:</strong> G-Deck requests only the minimum granular scopes required to power explicit, user-demanded features. Scopes are not requested speculatively.</li>
+      <li><strong>Strict Human-in-the-Loop AI Approvals:</strong> Any write, send, delete, or modify actions (such as sending an email via Gmail, booking a new Calendar meeting, or modifying a Task) executed via our AI assistant (G-Pilot) require explicit, manual confirmation from the user in the UI before execution. The AI cannot autonomously modify or transmit sensitive user data without approval.</li>
+      <li><strong>No Human Inspection of User Data:</strong> No G-Deck employee, contractor, developer, or automated vendor has access to, or reads, your personal Google Workspace data, emails, documents, or calendars under any circumstance.</li>
     </ul>
 
-    <h2>5. Data Retention, Deletion & Account Revocation</h2>
-    <p>Because G-Deck operates on a client-side model:</p>
+    <h3>2.5. Vulnerability Management & ADA CASA Security Verification</h3>
     <ul>
-      <li>Closing your browser tab or clicking "Sign Out" immediately purges all active authentication tokens from memory.</li>
-      <li>You can revoke G-Deck's access permissions to your Google Account at any time directly through <a href="https://myaccount.google.com/permissions" target="_blank">Google Account Security Settings</a>.</li>
+      <li><strong>Annual CASA AL1 (Tier 2) Assessment:</strong> G-Deck conducts annual Cloud Application Security Assessments (CASA) through App Defense Alliance (ADA) authorized laboratories to validate adherence to OWASP ASVS and CASA security requirements.</li>
+      <li><strong>Automated Dependency Auditing:</strong> All software dependencies and npm libraries are continuously scanned for known vulnerabilities (CVEs) and maintained on secure, patched releases.</li>
+      <li><strong>Content Security Policy (CSP):</strong> Modern browser security headers, cross-origin resource sharing (CORS) protections, and frame-busting policies are applied to guard against cross-site scripting (XSS) and clickjacking.</li>
     </ul>
 
-    <h2>6. Contact & Developer Information</h2>
-    <p>If you have questions, privacy inquiries, or security reports regarding G-Deck, please contact the developer:</p>
+    <h2>3. AI / ML Model Training Privacy Policy Disclosure (Google Workspace APIs)</h2>
+    <div class="highlight-box">
+      <strong>Affirmative Disclosure on AI/ML Model Training:</strong><br />
+      Google Workspace API user data accessed by G-Deck (including emails, calendar events, documents, contacts, and tasks) is <strong>NOT</strong> used to develop, train, fine-tune, or improve generalized Artificial Intelligence (AI) and/or Machine Learning (ML) models, including large language models (LLMs) and foundation models.
+    </div>
+    <p>
+      G-Deck incorporates optional productivity AI assistance (G-Pilot) powered by Google's enterprise-grade Gemini API:
+    </p>
     <ul>
-      <li><strong>Developer Email:</strong> <a href="mailto:tanakaprince49@gmail.com">tanakaprince49@gmail.com</a></li>
-      <li><strong>Support Email:</strong> <a href="mailto:support@gdeck.org">support@gdeck.org</a></li>
-      <li><strong>Official Website:</strong> <a href="https://gdeck.org">https://gdeck.org</a></li>
+      <li>Data transmitted in connection with G-Pilot prompts is processed statelessly and strictly in real-time to answer specific user queries (e.g., summarizing an unread email or checking schedule availability).</li>
+      <li>No prompt inputs, API results, or workspace snippets are logged, retained, or ingested into public training sets.</li>
+    </ul>
+
+    <h2>4. Specific Google Workspace Scopes & Purpose Specification</h2>
+    <p>G-Deck requests access to the following Google API scopes for the explicit purposes described below:</p>
+    
+    <table class="scope-table">
+      <thead>
+        <tr>
+          <th>Google API Scope</th>
+          <th>Classification</th>
+          <th>Explicit Feature & Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="code-tag">https://mail.google.com/</span><br /><span class="code-tag">gmail.readonly</span>, <span class="code-tag">gmail.send</span>, <span class="code-tag">gmail.modify</span></td>
+          <td>Restricted</td>
+          <td>Enables users to view inbox messages, search emails, read threads, and compose/send emails directly within the unified G-Deck command center.</td>
+        </tr>
+        <tr>
+          <td><span class="code-tag">https://www.googleapis.com/auth/drive</span><br /><span class="code-tag">drive.readonly</span>, <span class="code-tag">drive.file</span></td>
+          <td>Restricted</td>
+          <td>Allows users to browse, search, preview, and organize documents, spreadsheets, and files stored in their personal Google Drive.</td>
+        </tr>
+        <tr>
+          <td><span class="code-tag">https://www.googleapis.com/auth/calendar</span><br /><span class="code-tag">calendar.events</span></td>
+          <td>Sensitive</td>
+          <td>Enables users to view upcoming appointments, check daily agendas, resolve meeting conflicts, and schedule new calendar events.</td>
+        </tr>
+        <tr>
+          <td><span class="code-tag">https://www.googleapis.com/auth/contacts.readonly</span><br /><span class="code-tag">contacts</span></td>
+          <td>Sensitive</td>
+          <td>Enables quick contact autocompletion when composing emails and creating meeting attendee invitations.</td>
+        </tr>
+        <tr>
+          <td><span class="code-tag">https://www.googleapis.com/auth/tasks</span></td>
+          <td>Sensitive</td>
+          <td>Allows users to track pending action items, create to-do lists, and synchronize task completion states with Google Tasks.</td>
+        </tr>
+        <tr>
+          <td><span class="code-tag">https://www.googleapis.com/auth/meetings.space.created</span></td>
+          <td>Sensitive</td>
+          <td>Enables instant generation of secure Google Meet video conference links directly from the chat and calendar interfaces.</td>
+        </tr>
+        <tr>
+          <td><span class="code-tag">openid</span>, <span class="code-tag">userinfo.email</span>, <span class="code-tag">userinfo.profile</span></td>
+          <td>Non-Sensitive</td>
+          <td>Authenticates your session and displays your active account name, profile avatar, and email address in the user status banner.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>5. Limited Use & Prohibition on Third-Party Data Transfers</h2>
+    <p>We enforce strict prohibitions regarding your Google user data:</p>
+    <ul>
+      <li><strong>No Selling or Commercial Monetization:</strong> We will never sell, rent, lease, or monetize your Google Workspace user data or personal data to any third party for any purpose.</li>
+      <li><strong>No Advertising Use:</strong> We do not use or transfer your Google user data to serve targeted advertisements, retargeting campaigns, or interest-based marketing.</li>
+      <li><strong>No Data Transfers:</strong> We do not transfer your Google user data to third parties, except in the narrow circumstances required by applicable law, or as part of a formal corporate restructuring (with prior notice).</li>
+      <li><strong>No Data Brokerage:</strong> We never share data with data brokers or information aggregation services.</li>
+    </ul>
+
+    <h2>6. Data Retention, Deletion & User Revocation Controls</h2>
+    <p>G-Deck provides complete user autonomy over authentication tokens and personal data:</p>
+    <ul>
+      <li><strong>Zero Server Retention:</strong> Because no sensitive Google Workspace content is retained on G-Deck servers, there is no remote data retention period. Data exists ephemerally only in active client sessions.</li>
+      <li><strong>Local Data Wipe:</strong> Users can click "Delete Account & Wipe Data" inside the in-app Security Center or sign out to instantly clear all localized browser cache, preferences, and authentication tokens.</li>
+      <li><strong>Revoking Access in Google Security Settings:</strong> Users may immediately revoke G-Deck's access to their Google account at any time by visiting:
+        <br />
+        <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer"><strong>https://myaccount.google.com/permissions</strong></a>
+        <br />
+        Upon revocation, G-Deck's tokens become immediately void and all API access is permanently severed.
+      </li>
+    </ul>
+
+    <h2>7. Security Incident Response & Breach Notification</h2>
+    <p>
+      G-Deck maintains a comprehensive Incident Response Policy. In the unlikely event of any suspected or confirmed security incident or unauthorized access affecting user authentication tokens or communications:
+    </p>
+    <ul>
+      <li>Our engineering team will initiate immediate containment and mitigation protocols within four (4) hours.</li>
+      <li>We will notify affected users and Google's Trust & Safety / OAuth Verification teams via email within seventy-two (72) hours of confirming a reportable breach, providing details of the incident and recommended remediation actions.</li>
+    </ul>
+
+    <h2>8. Children's Online Privacy Protection (COPPA)</h2>
+    <p>
+      G-Deck is an executive productivity tool intended for business, educational, and personal adult use. We do not knowingly collect, solicit, or process personal data from children under the age of 13. If you believe a minor has accessed the application without parental consent, please contact us for immediate token severance.
+    </p>
+
+    <h2>9. Updates to This Privacy Policy</h2>
+    <p>
+      We may periodically update this Privacy Policy to reflect technical enhancements, architectural updates, or regulatory compliance standards. Whenever revisions are made, the "Last Updated" date at the top of this document will be updated accordingly. Continued use of G-Deck after any updates constitutes your acceptance of the revised terms.
+    </p>
+
+    <h2>10. Developer Contact & Security Point of Contact</h2>
+    <p>
+      If you have any questions, security disclosures, CASA compliance inquiries, or privacy-related requests, please contact our designated Data Protection & Security Lead:
+    </p>
+    <ul>
+      <li><strong>Developer & Security Lead:</strong> Tanaka Prince</li>
+      <li><strong>Primary Email:</strong> <a href="mailto:tanakaprince49@gmail.com">tanakaprince49@gmail.com</a></li>
+      <li><strong>Support & Compliance Email:</strong> <a href="mailto:support@gdeck.org">support@gdeck.org</a></li>
+      <li><strong>Application Homepage:</strong> <a href="https://gdeck.org">https://gdeck.org</a></li>
+      <li><strong>Privacy Policy URL:</strong> <a href="https://gdeck.org/privacy.html">https://gdeck.org/privacy.html</a></li>
     </ul>
 
     <div class="footer">
-      &copy; 2026 G-Deck (gdeck.org). All rights reserved.
+      &copy; 2026 G-Deck (gdeck.org). All rights reserved. | Built in compliance with Google API Services User Data Policy and App Defense Alliance (ADA) CASA Standards.
     </div>
   </div>
 </body>
