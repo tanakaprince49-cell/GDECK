@@ -424,6 +424,22 @@ export default function App() {
     activeToolMeta?.shortName ||
     activeToolMeta?.name ||
     (activeTab === 'chat' ? 'Chat' : activeTab);
+  /** Tools that ship their own top bar — no second "Gmail" chrome on mobile. */
+  const toolHasSelfChrome = [
+    'gmail',
+    'drive',
+    'calendar',
+    'chat',
+    'docs',
+    'sheets',
+    'slides',
+    'keep',
+    'tasks',
+    'meet',
+    'forms',
+    'contacts',
+    'messages',
+  ].includes(activeTab);
 
   const handleSignIn = async () => {
     setIsLoggingIn(true);
@@ -1211,11 +1227,10 @@ export default function App() {
               }`
         }
       >
-        {/* Mobile FULL-SCREEN tool chrome */}
-        {isFullscreen && (
+        {/* Mobile tool chrome — ONLY for tools without their own header (no "Gmail" strip) */}
+        {isFullscreen && !toolHasSelfChrome && (
           <div className="gdeck-mobile-tool-chrome" id="mobile-tool-topbar">
             <div className="gdeck-mobile-tool-bar">
-              {/* Back only — tools keep their own ☰ for sidebars (no double hamburger) */}
               <button
                 type="button"
                 onClick={goHome}

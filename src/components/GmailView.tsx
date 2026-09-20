@@ -600,36 +600,44 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
   });
 
   return (
-    <div id="gmail-view" className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-[#f6f8fc] rounded-2xl overflow-hidden border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-sm relative">
-      {/* AUTHENTIC GMAIL TOP SEARCH & LOGO BAR */}
-      <header className="h-14 sm:h-16 px-2 sm:px-6 bg-[#f6f8fc] border-b border-[#dadce0]/80 flex items-center justify-between gap-1.5 sm:gap-4 shrink-0 gdeck-dense-toolbar min-w-0">
-        <div className="flex items-center gap-1.5 sm:gap-3">
-          {/* Mobile hamburger menu toggle */}
-          <button
-            onClick={() => setIsMobileDrawerOpen(true)}
-            className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer md:hidden"
-            title="Open navigation menu"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-
+    <div id="gmail-view" className="flex flex-col h-full min-h-0 md:h-[calc(100dvh-5.5rem)] bg-[#f6f8fc] rounded-none md:rounded-2xl overflow-hidden border-0 md:border border-[#dadce0] font-['Google_Sans',Roboto,sans-serif] shadow-none md:shadow-sm relative">
+      {/* Gmail top bar — Back lives here on mobile (no separate app "GMAIL" strip) */}
+      <header className="h-12 sm:h-16 px-1.5 sm:px-6 bg-[#f6f8fc] border-b border-[#dadce0]/80 flex items-center justify-between gap-1 sm:gap-4 shrink-0 gdeck-dense-toolbar min-w-0">
+        <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
           {onBackToOverview && (
             <button
+              type="button"
               onClick={onBackToOverview}
-              className="hidden md:inline-flex p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
-              title="Back to Overview"
+              className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer"
+              title="Back to Home"
+              aria-label="Back to Home"
+              id="gmail-back-home-btn"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
           )}
-          <div className="flex items-center gap-2 cursor-pointer select-none" onClick={onBackToOverview}>
-            <GmailIcon className="w-7 h-7 sm:w-8 sm:h-8" />
-            <span className="text-[20px] sm:text-[22px] font-normal text-[#444746] tracking-tight hidden sm:inline">Gmail</span>
+          {/* Mobile hamburger menu toggle */}
+          <button
+            type="button"
+            onClick={() => setIsMobileDrawerOpen(true)}
+            className="p-2 text-[#444746] hover:text-[#1f1f1f] hover:bg-[#e8eaed] rounded-full transition-colors cursor-pointer md:hidden"
+            title="Open navigation menu"
+            aria-label="Open Gmail menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <div
+            className="hidden sm:flex items-center gap-2 cursor-pointer select-none"
+            onClick={onBackToOverview}
+          >
+            <GmailIcon className="w-8 h-8" />
+            <span className="text-[22px] font-normal text-[#444746] tracking-tight">Gmail</span>
           </div>
         </div>
 
-        {/* Real Gmail Search Box with Clear Button */}
-        <div className="flex-1 min-w-0 max-w-2xl mx-1 sm:mx-2">
+        {/* Mail search — full width */}
+        <div className="flex-1 min-w-0 mx-1 sm:mx-2 sm:max-w-2xl">
           <form onSubmit={handleSearch} className="relative flex items-center">
             <Search className="w-4 h-4 sm:w-5 sm:h-5 text-[#5f6368] absolute left-3.5 pointer-events-none" />
             <input
@@ -846,7 +854,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
       )}
 
       {/* MAIN TWO-PANE BODY */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden min-h-0">
         {/* AUTHENTIC GMAIL LEFT SIDEBAR DRAWER */}
         <aside className="w-60 shrink-0 p-3 flex flex-col justify-between hidden md:flex bg-[#f6f8fc]">
           <div className="space-y-4">
@@ -954,13 +962,13 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
         </aside>
 
         {/* RIGHT MAIN WHITE WORKSPACE AREA */}
-        <main className="flex-1 flex flex-col bg-white rounded-2xl m-2 overflow-hidden shadow-xs border border-[#dadce0]">
+        <main className="flex-1 flex flex-col bg-white rounded-none sm:rounded-2xl m-0 sm:m-2 overflow-hidden shadow-none sm:shadow-xs border-0 sm:border border-[#dadce0] min-h-0">
           {selectedMessage ? (
             /* AUTHENTIC READING THREAD VIEW */
             <div className="flex-1 flex flex-col overflow-hidden">
-              {/* Thread Action Toolbar */}
-              <div className="h-12 px-4 border-b border-[#dadce0] flex items-center justify-between bg-white shrink-0">
-                <div className="flex items-center gap-2">
+              {/* Thread Action Toolbar — wraps so Pro tools stay visible on phones */}
+              <div className="min-h-12 px-2 sm:px-4 py-2 border-b border-[#dadce0] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-white shrink-0">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                   <button
                     onClick={() => setSelectedMessage(null)}
                     className="p-2 text-[#5f6368] hover:text-[#1f1f1f] hover:bg-[#f0f4f9] rounded-full cursor-pointer"
@@ -1013,26 +1021,30 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto overflow-x-auto no-scrollbar pb-0.5">
                   {/* Pro Magic Action: 1-Click Email to Task & Event */}
                   <button
+                    type="button"
                     onClick={() => handleOpenMagicEmailToTask(selectedMessage)}
-                    className="px-3 py-1.5 text-xs font-semibold text-[#7e22ce] bg-[#faf5ff] hover:bg-[#f3e8ff] rounded-full border border-[#e9d5ff] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                    className="shrink-0 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold text-[#7e22ce] bg-[#faf5ff] hover:bg-[#f3e8ff] rounded-full border border-[#e9d5ff] inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
                     title="1-Click Convert email to scheduled Calendar event and Google Task"
+                    id="gmail-pro-email-to-task-btn"
                   >
-                    <Zap className="w-3.5 h-3.5 fill-current text-purple-600" />
-                    <span>Convert to Task & Event</span>
+                    <Zap className="w-3.5 h-3.5 fill-current text-purple-600 shrink-0" />
+                    <span className="whitespace-nowrap">Task & Event</span>
                     <ProBadge size="xs" featureTitle="1-Click Email to Task & Event" />
                   </button>
 
                   {/* Pro Magic Action: Deep Thread TL;DR */}
                   <button
+                    type="button"
                     onClick={() => handleOpenDeepSummary(selectedMessage)}
-                    className="px-3 py-1.5 text-xs font-semibold text-[#1a73e8] bg-[#f0f4f9] hover:bg-[#e8f0fe] rounded-full border border-[#dadce0] flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="shrink-0 px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-semibold text-[#1a73e8] bg-[#f0f4f9] hover:bg-[#e8f0fe] rounded-full border border-[#dadce0] inline-flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="Synthesize email thread highlights into executive bullets & action items"
+                    id="gmail-pro-thread-tldr-btn"
                   >
-                    <FileText className="w-3.5 h-3.5 text-[#1a73e8]" />
-                    <span>Thread TL;DR</span>
+                    <FileText className="w-3.5 h-3.5 text-[#1a73e8] shrink-0" />
+                    <span className="whitespace-nowrap">Thread TL;DR</span>
                     <ProBadge size="xs" featureTitle="Deep Email Thread Summarization" />
                   </button>
 
@@ -1068,11 +1080,11 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
               </div>
 
               {/* Thread Body Container */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                {/* Email Subject Title */}
-                <div className="flex items-start justify-between gap-4">
-                  <h1 className="text-xl font-medium text-[#1f1f1f] tracking-tight">
-                    {selectedMessage.subject || '(No Subject)'}
+              <div className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-4 sm:space-y-6 min-h-0">
+                {/* Email Subject Title — always fully visible */}
+                <div className="flex items-start justify-between gap-3">
+                  <h1 className="text-base sm:text-xl font-semibold text-[#1f1f1f] tracking-tight break-words whitespace-normal leading-snug min-w-0 flex-1">
+                    {selectedMessage.subject?.trim() ? selectedMessage.subject : '(No Subject)'}
                   </h1>
                   <span className="text-xs text-[#5f6368] bg-[#f0f4f9] px-2.5 py-1 rounded-full font-medium shrink-0 capitalize">
                     {activeFolder}
@@ -1231,6 +1243,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                         <button
                           type="button"
                           onClick={() => handleOpenTonePolish('reply')}
+                          id="gmail-pro-tone-btn"
                           className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-full border border-purple-200 flex items-center gap-1 transition-colors cursor-pointer ml-1"
                           title="Tone & Polish Studio (Executive, Formal, Casual)"
                         >
@@ -1371,7 +1384,7 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                         key={msg.id}
                         id={`gmail-row-${msg.id}`}
                         onClick={() => handleOpenMessage(msg)}
-                        className={`group flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 hover:shadow-xs cursor-pointer transition-all ${
+                        className={`group flex items-start sm:items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3 sm:py-2.5 hover:shadow-xs cursor-pointer transition-all min-h-[3.75rem] sm:min-h-0 ${
                           isChecked
                             ? 'bg-[#c2e7ff]/30'
                             : isUnread
@@ -1397,19 +1410,29 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                           />
                         </button>
 
-                        {/* Sender */}
-                        <div className={`w-24 sm:w-44 shrink-0 truncate text-xs ${isUnread ? 'font-bold text-[#1f1f1f]' : 'font-medium text-[#444746]'}`}>
-                          {msg.from?.split('<')[0]?.trim() || msg.from}
-                        </div>
-
-                        {/* Subject + Snippet */}
-                        <div className="flex-1 min-w-0 flex items-center gap-1.5 sm:gap-2 truncate text-xs">
-                          <span className={`truncate ${isUnread ? 'font-bold text-[#1f1f1f]' : 'font-medium text-[#1f1f1f]'}`}>
-                            {msg.subject || '(No Subject)'}
-                          </span>
-                          <span className="text-[#5f6368] truncate font-normal hidden sm:inline">
-                            - {msg.snippet}
-                          </span>
+                        {/* Sender + subject (stacked on mobile so subject is never clipped) */}
+                        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-3">
+                          <div
+                            className={`sm:w-44 sm:shrink-0 truncate text-xs ${
+                              isUnread ? 'font-bold text-[#1f1f1f]' : 'font-medium text-[#444746]'
+                            }`}
+                          >
+                            {msg.from?.split('<')[0]?.trim() || msg.from || 'Unknown'}
+                          </div>
+                          <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-2 text-xs">
+                            <span
+                              className={`block w-full sm:w-auto sm:max-w-[55%] truncate ${
+                                isUnread ? 'font-bold text-[#1f1f1f]' : 'font-semibold text-[#1f1f1f]'
+                              }`}
+                              title={msg.subject || '(No Subject)'}
+                            >
+                              {msg.subject?.trim() ? msg.subject : '(No Subject)'}
+                            </span>
+                            <span className="text-[#5f6368] truncate font-normal text-[11px] sm:text-xs">
+                              <span className="hidden sm:inline">— </span>
+                              {msg.snippet || ''}
+                            </span>
+                          </div>
                         </div>
 
                         {/* Attachment indicator if any */}
@@ -1418,11 +1441,11 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                         )}
 
                         {/* Date on Right & Quick Hover Actions */}
-                        <div className="shrink-0 flex items-center gap-2">
-                          <span className={`group-hover:hidden text-[11px] ${isUnread ? 'font-bold text-[#1f1f1f]' : 'font-medium text-[#5f6368]'}`}>
+                        <div className="shrink-0 flex flex-col sm:flex-row items-end sm:items-center gap-1 sm:gap-2 self-start sm:self-auto pt-0.5 sm:pt-0">
+                          <span className={`text-[11px] whitespace-nowrap ${isUnread ? 'font-bold text-[#1f1f1f]' : 'font-medium text-[#5f6368]'}`}>
                             {msg.date ? new Date(msg.date).toLocaleDateString([], { month: 'short', day: 'numeric' }) : ''}
                           </span>
-                          <div className="hidden group-hover:flex items-center gap-1">
+                          <div className="hidden sm:group-hover:flex items-center gap-1">
                             {activeFolder === 'trash' ? (
                               <button
                                 onClick={(e) => {

@@ -630,7 +630,7 @@ export async function listGmailMessages(
         labelIds,
       };
     } catch {
-      return { id: item.id, threadId: '', snippet: '' };
+      return { id: item.id, threadId: '', snippet: '', subject: '(Failed to load)', from: '' };
     }
   });
 

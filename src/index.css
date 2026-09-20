@@ -561,3 +561,10 @@ html.gdeck-mobile-tool-open body {
     min-height: 48px;
   }
 }
+
+
+/* Self-chrome tools (Gmail etc.): body is the entire viewport under safe-area */
+html.gdeck-mobile-tool-open .gdeck-mobile-tool-mode > .gdeck-mobile-tool-body {
+  flex: 1 1 auto;
+  min-height: 0;
+}
