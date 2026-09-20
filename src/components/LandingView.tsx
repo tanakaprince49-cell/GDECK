@@ -22,6 +22,13 @@ interface LandingViewProps {
   onSignIn: () => void;
   isLoggingIn: boolean;
   authError: string | null;
+  /** True while Firebase is restoring a previous session after refresh. */
+  isRestoring?: boolean;
+  /** True when we remember a prior session (profile / refresh token / prefs). */
+  isReturningUser?: boolean;
+  returningName?: string | null;
+  returningEmail?: string | null;
+  returningPhoto?: string | null;
 }
 
 const REVIEWS = [
@@ -49,8 +56,98 @@ export const LandingView: React.FC<LandingViewProps> = ({
   onSignIn,
   isLoggingIn,
   authError,
+  isRestoring = false,
+  isReturningUser = false,
+  returningName = null,
+  returningEmail = null,
+  returningPhoto = null,
 }) => {
   const [hoveredTool, setHoveredTool] = React.useState<ToolDefinition | null>(null);
+
+  // Soft reconnect card for returning users (refresh lost the short-lived access token).
+  if (isReturningUser || isRestoring) {
+    const label = returningName || returningEmail || 'your Google account';
+    return (
+      <div className="w-full max-w-lg mx-auto py-10 sm:py-16 px-4 animate-in fade-in duration-300">
+        <section className="bg-white rounded-3xl border border-[#dadce0] p-6 sm:p-8 shadow-[0_1px_3px_0_rgba(60,64,67,0.12),0_4px_8px_3px_rgba(60,64,67,0.06)] text-center space-y-5">
+          <div className="flex flex-col items-center gap-3">
+            {returningPhoto ? (
+              <img
+                src={returningPhoto}
+                alt=""
+                referrerPolicy="no-referrer"
+                className="w-16 h-16 rounded-full object-cover border border-[#dadce0] shadow-sm"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-[#1a73e8] text-white flex items-center justify-center text-2xl font-bold">
+                {(returningName || returningEmail || 'G')[0].toUpperCase()}
+              </div>
+            )}
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-[#1f1f1f] tracking-tight">
+                {isRestoring ? 'Restoring your session…' : 'Welcome back'}
+              </h1>
+              <p className="text-sm text-[#5f6368] mt-1">
+                {isRestoring
+                  ? 'Checking your Google Workspace connection. Your pins, Pro plan, and chat history stay on this device.'
+                  : (
+                    <>
+                      Continue as <span className="font-semibold text-[#1f1f1f]">{label}</span>
+                      {returningEmail && returningName ? (
+                        <span className="block text-xs mt-0.5">{returningEmail}</span>
+                      ) : null}
+                    </>
+                  )}
+              </p>
+            </div>
+          </div>
+
+          {authError && (
+            <div className="flex items-start gap-2 text-left text-xs text-[#b06000] bg-[#fef7e0] border border-[#f0e0b0] rounded-2xl px-3.5 py-2.5">
+              <span className="font-medium leading-relaxed">{authError}</span>
+            </div>
+          )}
+
+          {!isRestoring && (
+            <p className="text-xs text-[#5f6368] leading-relaxed">
+              Your account data on this device was <span className="font-semibold text-[#1f1f1f]">not erased</span>.
+              Google access tokens expire about every hour — one reconnect restores Workspace silently for future refreshes.
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onSignIn}
+            disabled={isLoggingIn || isRestoring}
+            className="w-full inline-flex items-center justify-center gap-2.5 px-5 py-3 rounded-full bg-[#1a73e8] hover:bg-[#1557b0] disabled:opacity-70 text-white text-sm font-bold shadow-sm transition-colors cursor-pointer"
+            id="landing-reconnect-btn"
+          >
+            {isRestoring ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Restoring…
+              </>
+            ) : isLoggingIn ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                Connecting…
+              </>
+            ) : (
+              <>
+                <GoogleLogo className="w-5 h-5" />
+                Reconnect Google Workspace
+                <ArrowRight className="w-4 h-4" />
+              </>
+            )}
+          </button>
+
+          <p className="text-[11px] text-[#80868b]">
+            Prefs, Pro status, pins, Keep notes, and G-Pilot history stay local unless you delete your account.
+          </p>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-16 py-6 sm:py-10 animate-in fade-in duration-300">

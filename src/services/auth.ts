@@ -38,9 +38,11 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const auth = getAuth(app);
 
 /** Keep Firebase Auth in localStorage/IndexedDB so the Google account survives refresh forever. */
-const persistenceReady: Promise<void> = setPersistence(auth, browserLocalPersistence).catch((err) => {
-  console.warn('[gdeck-auth] setPersistence failed, falling back to default:', err);
-});
+const persistenceReady: Promise<void> = setPersistence(auth, browserLocalPersistence)
+  .then(() => undefined)
+  .catch((err) => {
+    console.warn('[gdeck-auth] setPersistence failed, falling back to default:', err);
+  });
 
 const provider = new GoogleAuthProvider();
 WORKSPACE_SCOPES.forEach((scope) => {
@@ -51,6 +53,7 @@ const TOKEN_STORAGE_KEY = 'gdeck_workspace_token';
 const TOKEN_EXPIRES_KEY = 'gdeck_workspace_token_expires_at';
 const REFRESH_TOKEN_KEY = 'gdeck_google_refresh_token';
 const TOKEN_TIME_KEY = 'gdeck_workspace_token_timestamp'; // legacy
+const PROFILE_KEY = 'gdeck_user_profile';
 /** Refresh a few minutes before Google's ~1h access-token expiry. */
 const EXPIRY_SKEW_MS = 5 * 60 * 1000;
 /** Absolute fallback age if expires_at is missing (Google access tokens ≈ 3600s). */
@@ -58,6 +61,19 @@ const MAX_TOKEN_AGE_MS = 55 * 60 * 1000;
 
 let isSigningIn = false;
 let refreshInFlight: Promise<string | null> | null = null;
+
+export type AuthFailureReason =
+  | 'signed_out'
+  | 'workspace_token_missing'
+  | 'refresh_failed'
+  | 'restoring';
+
+export type StoredUserProfile = {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  photoURL: string | null;
+};
 
 type StoredTokenBundle = {
   accessToken: string | null;
@@ -106,35 +122,113 @@ function persistTokenBundle(accessToken: string, expiresAtMs: number, refreshTok
   if (refreshToken) cachedRefreshToken = refreshToken;
 }
 
-function clearTokenStorage(keepRefresh = false) {
+/** Clear access token only; keep refresh token so silent restore still works. */
+function clearAccessTokenOnly() {
   cachedAccessToken = null;
   cachedExpiresAt = null;
   try {
     localStorage.removeItem(TOKEN_STORAGE_KEY);
     localStorage.removeItem(TOKEN_EXPIRES_KEY);
     localStorage.removeItem(TOKEN_TIME_KEY);
-    if (!keepRefresh) {
-      localStorage.removeItem(REFRESH_TOKEN_KEY);
-      cachedRefreshToken = null;
-    }
   } catch {}
 }
+
+/** Full wipe of OAuth tokens (logout / delete account). */
+function clearAllTokenStorage() {
+  cachedAccessToken = null;
+  cachedExpiresAt = null;
+  cachedRefreshToken = null;
+  try {
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_EXPIRES_KEY);
+    localStorage.removeItem(TOKEN_TIME_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
+  } catch {}
+}
+
+/**
+ * Keys that belong to the user's product data / prefs — NEVER wiped on
+ * sign-out or token expiry. Only delete-account may clear these.
+ */
+export const GDECK_USER_DATA_KEYS = [
+  'gdeck_onboarding',
+  'gdeck_onboarding_completed',
+  'gdeck_pinned_tools',
+  'gdeck_plan_tier',
+  'gdeck_pro_expires_at',
+  'gdeck_pro_plan_id',
+  'gdeck_pro_order_id',
+  'gdeck_ai_queries_used',
+  'gdeck_ai_queries_month',
+  'gdeck_notifications',
+  'gdeck_notification_settings',
+  'gdeck_last_notified_gmail_id',
+  'gdeck_last_notified_cal_id',
+  'gdeck_pro_renewal_notified_day',
+  'gdeck-theme',
+  'gpilot_memory',
+  'gpilot_chat_messages_history_v1',
+  'gpilot_api_context_history_v1',
+  'google_keep_notes',
+  'google_messages_threads',
+  'google_forms_questions_v2',
+  'google_forms_responses_v2',
+  'google_slides_deck_v2',
+  PROFILE_KEY,
+] as const;
 
 function isAccessTokenFresh(expiresAt: number | null, accessToken: string | null): boolean {
   if (!accessToken) return false;
   if (expiresAt && Number.isFinite(expiresAt)) {
     return Date.now() < expiresAt - EXPIRY_SKEW_MS;
   }
-  // No expiry recorded — treat as stale so we refresh rather than send a dead token.
+  // No expiry recorded — allow a short grace if we have a legacy timestamp.
+  try {
+    const timeStr = localStorage.getItem(TOKEN_TIME_KEY);
+    if (timeStr) {
+      const issued = parseInt(timeStr, 10);
+      if (Number.isFinite(issued) && Date.now() - issued < MAX_TOKEN_AGE_MS) {
+        return true;
+      }
+    }
+  } catch {}
   return false;
 }
 
 const initialBundle = readStoredBundle();
-let cachedAccessToken: string | null = isAccessTokenFresh(initialBundle.expiresAt, initialBundle.accessToken)
-  ? initialBundle.accessToken
-  : initialBundle.accessToken; // keep around for refresh attempt even if stale
+let cachedAccessToken: string | null = initialBundle.accessToken;
 let cachedExpiresAt: number | null = initialBundle.expiresAt;
 let cachedRefreshToken: string | null = initialBundle.refreshToken;
+
+export function persistUserProfile(user: User | StoredUserProfile) {
+  try {
+    const profile: StoredUserProfile = {
+      uid: user.uid,
+      email: user.email ?? null,
+      displayName: user.displayName ?? null,
+      photoURL: user.photoURL ?? null,
+    };
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(profile));
+  } catch {
+    /* private mode */
+  }
+}
+
+export function readStoredUserProfile(): StoredUserProfile | null {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (p && typeof p.uid === 'string') return p as StoredUserProfile;
+  } catch {}
+  return null;
+}
+
+function clearUserProfile() {
+  try {
+    localStorage.removeItem(PROFILE_KEY);
+  } catch {}
+}
 
 function extractGoogleOAuthFromResult(result: UserCredential): {
   accessToken: string | null;
@@ -174,6 +268,7 @@ async function refreshAccessTokenWithGoogle(refreshToken: string): Promise<{
   accessToken: string;
   expiresInSec: number;
   refreshToken?: string;
+  fatal?: boolean;
 } | null> {
   const clientId =
     (firebaseConfig as any).oAuthClientId ||
@@ -196,13 +291,20 @@ async function refreshAccessTokenWithGoogle(refreshToken: string): Promise<{
           refreshToken: data.refreshToken || undefined,
         };
       }
+    } else {
+      const data = await res.json().catch(() => ({}));
+      const code = String(data?.code || data?.error || '');
+      // invalid_grant = refresh token revoked / wrong client — need consent again
+      if (code.includes('invalid_grant') || res.status === 400) {
+        console.warn('[gdeck-auth] refresh rejected by server:', code || res.status);
+        return { accessToken: '', expiresInSec: 0, fatal: true };
+      }
     }
   } catch {
     /* fall through */
   }
 
   // 2) Direct Google token endpoint with public client id (no secret).
-  // Works when the OAuth client is configured to allow it; otherwise server route is required.
   if (!clientId) return null;
   try {
     const body = new URLSearchParams({
@@ -218,6 +320,9 @@ async function refreshAccessTokenWithGoogle(refreshToken: string): Promise<{
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.access_token) {
       console.warn('[gdeck-auth] Google refresh failed:', data?.error || res.status);
+      if (data?.error === 'invalid_grant') {
+        return { accessToken: '', expiresInSec: 0, fatal: true };
+      }
       return null;
     }
     return {
@@ -253,9 +358,11 @@ export async function ensureFreshAccessToken(): Promise<string | null> {
     return stored.accessToken;
   }
 
+  // Keep stale access around only until refresh succeeds; always prefer refresh.
   const refreshToken = stored.refreshToken || cachedRefreshToken;
   if (!refreshToken) {
-    return null;
+    // No offline refresh — cannot silently restore after ~1h.
+    return isAccessTokenFresh(stored.expiresAt, stored.accessToken) ? stored.accessToken : null;
   }
 
   if (refreshInFlight) return refreshInFlight;
@@ -263,8 +370,13 @@ export async function ensureFreshAccessToken(): Promise<string | null> {
   refreshInFlight = (async () => {
     const renewed = await refreshAccessTokenWithGoogle(refreshToken);
     if (!renewed?.accessToken) {
-      // Refresh token dead/revoked — clear access only; keep trying interactive sign-in next.
-      clearTokenStorage(true);
+      if (renewed?.fatal) {
+        // Dead refresh token — drop it so next sign-in forces consent.
+        clearAllTokenStorage();
+      } else {
+        // Transient failure — keep refresh token, drop dead access.
+        clearAccessTokenOnly();
+      }
       return null;
     }
     const expiresAtMs = Date.now() + renewed.expiresInSec * 1000;
@@ -277,56 +389,122 @@ export async function ensureFreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
+export const hasStoredRefreshToken = (): boolean => {
+  try {
+    return !!(cachedRefreshToken || localStorage.getItem(REFRESH_TOKEN_KEY));
+  } catch {
+    return false;
+  }
+};
+
+export const hasStoredSessionHint = (): boolean => {
+  try {
+    return !!(
+      localStorage.getItem(REFRESH_TOKEN_KEY) ||
+      localStorage.getItem(TOKEN_STORAGE_KEY) ||
+      localStorage.getItem(PROFILE_KEY) ||
+      localStorage.getItem('gdeck_onboarding_completed')
+    );
+  } catch {
+    return false;
+  }
+};
+
 export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
-  onAuthFailure?: (reason?: string) => void
+  onAuthFailure?: (reason?: AuthFailureReason, user?: User | null) => void
 ) => {
   let unsub = () => {};
+  let cancelled = false;
+  // After authStateReady, the first callback is authoritative. Before that,
+  // Firebase may emit a transient null that must NOT wipe stored refresh tokens.
+  let authReady = false;
 
-  persistenceReady.then(() => {
+  (async () => {
+    await persistenceReady;
+    try {
+      // Wait until Firebase has restored the user from IndexedDB (critical on refresh).
+      await auth.authStateReady();
+    } catch {
+      /* older SDKs */
+    }
+    authReady = true;
+    if (cancelled) return;
+
+    // Handle the already-restored user immediately (don't wait for a second event).
+    const bootUser = auth.currentUser;
+    if (bootUser) {
+      persistUserProfile(bootUser);
+      try {
+        const token = await ensureFreshAccessToken();
+        if (cancelled) return;
+        if (token) {
+          if (onAuthSuccess) onAuthSuccess(bootUser, token);
+        } else if (onAuthFailure) {
+          onAuthFailure('workspace_token_missing', bootUser);
+        }
+      } catch (err) {
+        console.warn('[gdeck-auth] boot ensureFreshAccessToken error:', err);
+        if (!cancelled && onAuthFailure) onAuthFailure('refresh_failed', bootUser);
+      }
+    } else if (!cancelled) {
+      // Truly no Firebase user after restore completed.
+      // Keep local prefs + any offline refresh token so "Reconnect" still works
+      // without looking like a brand-new account. Only wipe on explicit logout.
+      if (onAuthFailure) onAuthFailure('signed_out', null);
+    }
+
     unsub = onAuthStateChanged(auth, async (user: User | null) => {
+      if (!authReady) return; // shouldn't happen; belt-and-suspenders
+
       if (!user) {
-        // Only clear tokens when Firebase itself has no user (explicit logout / never signed in).
-        clearTokenStorage(false);
-        if (onAuthFailure) onAuthFailure('signed_out');
+        // Don't wipe tokens mid-popup; Firebase briefly reports null during some flows.
+        if (isSigningIn) {
+          return;
+        }
+        // Signed out after a prior session. Do NOT clear refresh token / profile here —
+        // logout() already does a controlled wipe. Accidental nulls must not erase session.
+        if (onAuthFailure) onAuthFailure('signed_out', null);
         return;
       }
 
-      // Firebase user restored from persistence — stay signed in; refresh Google API token silently.
+      persistUserProfile(user);
+
+      // Firebase user restored — try silent Workspace token refresh.
       try {
         const token = await ensureFreshAccessToken();
         if (token) {
           if (onAuthSuccess) onAuthSuccess(user, token);
           return;
         }
-        // Firebase session OK but no Google API token yet (first load after deploy / expired refresh).
-        // Do NOT wipe the Firebase user — UI can show "Reconnect Workspace" while still knowing who they are.
-        if (onAuthFailure) onAuthFailure('workspace_token_missing');
+        // Firebase session OK but no Google API token yet.
+        // Do NOT wipe the Firebase user or local prefs — UI shows reconnect chrome.
+        if (onAuthFailure) onAuthFailure('workspace_token_missing', user);
       } catch (err) {
         console.warn('[gdeck-auth] ensureFreshAccessToken error:', err);
-        if (onAuthFailure) onAuthFailure('refresh_failed');
+        if (onAuthFailure) onAuthFailure('refresh_failed', user);
       }
     });
-  });
+  })();
 
   return () => {
+    cancelled = true;
     try {
       unsub();
     } catch {}
   };
 };
 
-export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+async function runGooglePopup(forceConsent: boolean): Promise<{ user: User; accessToken: string }> {
   await persistenceReady;
+  isSigningIn = true;
   try {
-    isSigningIn = true;
-
-    // Offline access so we can refresh the Workspace token without another popup.
-    // prompt: consent the first time we don't have a refresh token; otherwise select_account.
     const hasRefresh = !!(cachedRefreshToken || readStoredBundle().refreshToken);
+    // Always request offline access. Force consent when we still need a refresh token.
     provider.setCustomParameters({
       access_type: 'offline',
-      prompt: hasRefresh ? 'select_account' : 'consent',
+      prompt: forceConsent || !hasRefresh ? 'consent' : 'select_account',
+      include_granted_scopes: 'true',
     });
 
     const result = await signInWithPopup(auth, provider);
@@ -335,50 +513,45 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
       throw new Error('No Google OAuth access token was returned.');
     }
 
+    const priorRefresh = cachedRefreshToken || readStoredBundle().refreshToken;
+    const refreshToStore = extracted.refreshToken || priorRefresh || null;
     const expiresAtMs = Date.now() + extracted.expiresInSec * 1000;
-    persistTokenBundle(
-      extracted.accessToken,
-      expiresAtMs,
-      extracted.refreshToken || cachedRefreshToken || readStoredBundle().refreshToken
-    );
+    persistTokenBundle(extracted.accessToken, expiresAtMs, refreshToStore);
+    persistUserProfile(result.user);
 
-    if (!extracted.refreshToken && !readStoredBundle().refreshToken) {
+    if (!refreshToStore) {
       console.warn(
-        '[gdeck-auth] No Google refresh token returned. Stay-signed-in across hour boundaries needs a one-time consent popup (access_type=offline).'
+        '[gdeck-auth] No Google refresh token returned. Stay-signed-in across refresh needs one consent pass (access_type=offline).'
       );
     }
 
     return { user: result.user, accessToken: extracted.accessToken };
+  } finally {
+    isSigningIn = false;
+  }
+}
+
+export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+  try {
+    // First-time or missing refresh → force consent so we capture offline refresh token.
+    const hasRefresh = hasStoredRefreshToken();
+    return await runGooglePopup(!hasRefresh);
   } catch (error: any) {
     console.error('Workspace Google sign in error:', error);
     throw error;
-  } finally {
-    isSigningIn = false;
   }
 };
 
 /**
  * Interactive reconnect when silent refresh fails but Firebase user may still exist.
- * Forces consent once so we capture a refresh token.
+ * Forces consent once so we capture a refresh token for future silent restores.
  */
 export const reconnectWorkspace = async (): Promise<{ user: User; accessToken: string } | null> => {
-  await persistenceReady;
   try {
-    isSigningIn = true;
-    provider.setCustomParameters({
-      access_type: 'offline',
-      prompt: 'consent',
-    });
-    const result = await signInWithPopup(auth, provider);
-    const extracted = extractGoogleOAuthFromResult(result);
-    if (!extracted.accessToken) {
-      throw new Error('No Google OAuth access token was returned.');
-    }
-    const expiresAtMs = Date.now() + extracted.expiresInSec * 1000;
-    persistTokenBundle(extracted.accessToken, expiresAtMs, extracted.refreshToken);
-    return { user: result.user, accessToken: extracted.accessToken };
-  } finally {
-    isSigningIn = false;
+    return await runGooglePopup(true);
+  } catch (error: any) {
+    console.error('Workspace reconnect error:', error);
+    throw error;
   }
 };
 
@@ -391,12 +564,13 @@ export const setAccessTokenInMemory = (token: string | null) => {
     // Unknown expiry — mark ~55 min so we refresh soon rather than assume forever.
     persistTokenBundle(token, Date.now() + MAX_TOKEN_AGE_MS, cachedRefreshToken);
   } else {
-    clearTokenStorage(true);
+    clearAccessTokenOnly();
   }
 };
 
 export const clearTokenAndPromptReauth = () => {
-  clearTokenStorage(true);
+  // Keep refresh token — silent restore may still succeed.
+  clearAccessTokenOnly();
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('gdeck_auth_expired', {
@@ -408,8 +582,12 @@ export const clearTokenAndPromptReauth = () => {
 
 export const logout = async () => {
   await persistenceReady;
-  await signOut(auth);
-  clearTokenStorage(false);
+  try {
+    await signOut(auth);
+  } catch {}
+  clearAllTokenStorage();
+  clearUserProfile();
+  // Intentionally do NOT clear GDECK_USER_DATA_KEYS — pins, Pro, chat, onboarding stay.
 };
 
 export const deleteAccountPermanently = async () => {
@@ -458,8 +636,10 @@ export const deleteAccountPermanently = async () => {
     await signOut(auth);
   } catch {}
 
-  clearTokenStorage(false);
+  clearAllTokenStorage();
+  clearUserProfile();
 
+  // Only delete-account wipes product data.
   try {
     localStorage.clear();
     sessionStorage.clear();

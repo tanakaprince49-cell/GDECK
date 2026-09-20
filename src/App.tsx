@@ -33,6 +33,10 @@ import {
   ensureFreshAccessToken,
   logout,
   deleteAccountPermanently,
+  hasStoredSessionHint,
+  hasStoredRefreshToken,
+  readStoredUserProfile,
+  type StoredUserProfile,
 } from './services/auth';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DeleteAccountModal } from './components/DeleteAccountModal';
@@ -91,9 +95,15 @@ export default function App() {
       return null;
     }
   });
+  // Soft-session: remember who was signed in so refresh doesn't look like a wiped account.
+  const [storedProfile, setStoredProfile] = useState<StoredUserProfile | null>(() =>
+    readStoredUserProfile()
+  );
+  const [authRestoring, setAuthRestoring] = useState<boolean>(() => hasStoredSessionHint());
   const [needsAuth, setNeedsAuth] = useState<boolean>(() => {
     try {
-      return !localStorage.getItem('gdeck_workspace_token');
+      // Only force landing when there is truly no prior session.
+      return !hasStoredSessionHint() && !localStorage.getItem('gdeck_workspace_token');
     } catch {
       return true;
     }
@@ -253,27 +263,52 @@ export default function App() {
   useEffect(() => {
     // Firebase Auth is persisted locally — on refresh we restore the user and
     // silently refresh the Google Workspace access token (no popup).
+    // Local prefs (pins, Pro, onboarding, G-Pilot history) are NEVER cleared here.
     const unsubscribe = initAuth(
       (currentUser, currentToken) => {
         setUser(currentUser);
+        setStoredProfile({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          displayName: currentUser.displayName,
+          photoURL: currentUser.photoURL,
+        });
         setToken(currentToken);
         setNeedsAuth(false);
+        setAuthRestoring(false);
         setAuthError(null);
       },
-      (reason) => {
+      (reason, maybeUser) => {
         if (reason === 'signed_out') {
           setUser(null);
           setToken(null);
+          setAuthRestoring(false);
+          // Keep storedProfile if still on device so refresh shows "Welcome back"
+          // instead of a brand-new landing. Explicit logout clears profile itself.
+          const remembered = readStoredUserProfile();
+          setStoredProfile(remembered);
           setNeedsAuth(true);
           return;
         }
         // Firebase user still present but Workspace token missing/expired —
-        // keep the user object so we don't look "logged out"; try silent refresh,
-        // and only then ask them to reconnect Workspace (one click, not full logout).
+        // keep identity; show soft reconnect instead of "new account" landing.
+        if (maybeUser) {
+          setUser(maybeUser);
+          setStoredProfile({
+            uid: maybeUser.uid,
+            email: maybeUser.email,
+            displayName: maybeUser.displayName,
+            photoURL: maybeUser.photoURL,
+          });
+        } else {
+          setStoredProfile(readStoredUserProfile());
+        }
+        setToken(null);
+        setAuthRestoring(false);
         setNeedsAuth(true);
         setAuthError(
           reason === 'workspace_token_missing' || reason === 'refresh_failed'
-            ? 'Your Google Workspace session needs a quick reconnect. Tap Sign in once — you stay signed in after that.'
+            ? 'Welcome back — tap Reconnect once to restore your Workspace session. Your pins, Pro plan, and chat history are still here.'
             : null
         );
       }
@@ -286,18 +321,20 @@ export default function App() {
         if (fresh) {
           setToken(fresh);
           setNeedsAuth(false);
+          setAuthRestoring(false);
           setAuthError(null);
           return;
         }
       } catch {
         /* fall through */
       }
-      // Recoverable: keep Firebase user if any, prompt reconnect without wiping session.
+      // Recoverable: keep Firebase user + local prefs, prompt reconnect only.
       setToken(null);
       setNeedsAuth(true);
+      setAuthRestoring(false);
       setAuthError(
         e?.detail?.message ||
-          'Your Google Workspace access expired. Sign in once to refresh — you will stay signed in.'
+          'Your Google Workspace access expired. Reconnect once — you stay signed in after that. Nothing on this device was erased.'
       );
     };
 
@@ -323,6 +360,7 @@ export default function App() {
         if (fresh) {
           setToken(fresh);
           setNeedsAuth(false);
+          setAuthRestoring(false);
           setAuthError(null);
         }
       } catch {
@@ -331,11 +369,17 @@ export default function App() {
     };
     document.addEventListener('visibilitychange', onVis);
 
+    // Safety: stop the "restoring" spinner after a few seconds even if Firebase is slow.
+    const restoreTimeout = window.setTimeout(() => {
+      setAuthRestoring(false);
+    }, 8000);
+
     return () => {
       unsubscribe();
       window.removeEventListener('gdeck_auth_expired', handleAuthExpired);
       window.clearInterval(refreshTimer);
       document.removeEventListener('visibilitychange', onVis);
+      window.clearTimeout(restoreTimeout);
     };
   }, []);
 
@@ -385,13 +429,23 @@ export default function App() {
     setIsLoggingIn(true);
     setAuthError(null);
     try {
-      // Prefer a consent pass when we already know the Firebase user but lost the
-      // Workspace refresh token — captures offline access for stay-signed-in.
-      const result = user ? await reconnectWorkspace() : await googleSignIn();
+      // Prefer a consent pass when we already know the Firebase user OR we still
+      // have a remembered profile but lost the Workspace refresh token — captures
+      // offline access so the next page refresh stays signed in silently.
+      const shouldReconnect =
+        !!user || !!storedProfile || hasStoredRefreshToken() || hasStoredSessionHint();
+      const result = shouldReconnect ? await reconnectWorkspace() : await googleSignIn();
       if (result) {
         setUser(result.user);
+        setStoredProfile({
+          uid: result.user.uid,
+          email: result.user.email,
+          displayName: result.user.displayName,
+          photoURL: result.user.photoURL,
+        });
         setToken(result.accessToken);
         setNeedsAuth(false);
+        setAuthRestoring(false);
         setAuthError(null);
       }
     } catch (err: any) {
@@ -413,9 +467,12 @@ export default function App() {
       await logout();
       setUser(null);
       setToken(null);
+      setStoredProfile(null);
       setNeedsAuth(true);
+      setAuthRestoring(false);
       setShowLogoutConfirm(false);
       setShowProfileMenu(false);
+      // Prefs (pins, Pro, onboarding, chat) intentionally stay on device.
     } catch (err) {
       console.error('Logout error:', err);
     }
@@ -424,13 +481,22 @@ export default function App() {
   const handleAccountDeletedSuccess = () => {
     setUser(null);
     setToken(null);
+    setStoredProfile(null);
     setNeedsAuth(true);
+    setAuthRestoring(false);
     setShowDeleteAccountModal(false);
     setShowProfileMenu(false);
     setMobileMenuOpen(false);
     setShowOnboarding(false);
+    setOnboardingPrefs(null);
     setAccountDeletedBanner(true);
   };
+
+  const displayName =
+    user?.displayName || storedProfile?.displayName || onboardingPrefs?.userName || null;
+  const displayEmail = user?.email || storedProfile?.email || null;
+  const displayPhoto = user?.photoURL || storedProfile?.photoURL || null;
+  const isReturningUser = !!(user || storedProfile || hasStoredSessionHint());
 
   const handleCompleteOnboarding = (prefs: OnboardingPreferences) => {
     setOnboardingPrefs(prefs);
@@ -729,16 +795,16 @@ export default function App() {
                     className="p-0.5 sm:p-1 rounded-full hover:ring-4 hover:ring-[#e8f0fe] transition-all cursor-pointer flex items-center gap-2"
                     title="Google Account"
                   >
-                    {user.photoURL ? (
+                    {displayPhoto ? (
                       <img
-                        src={user.photoURL}
-                        alt={user.displayName || 'Google Account'}
+                        src={displayPhoto}
+                        alt={displayName || 'Google Account'}
                         referrerPolicy="no-referrer"
                         className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover border border-[#dadce0]"
                       />
                     ) : (
                       <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#1a73e8] text-white flex items-center justify-center text-xs font-bold">
-                        {user.displayName ? user.displayName[0].toUpperCase() : 'G'}
+                        {(displayName || displayEmail || 'G')[0].toUpperCase()}
                       </div>
                     )}
                   </button>
@@ -747,23 +813,23 @@ export default function App() {
                   {showProfileMenu && (
                     <div className="fixed sm:absolute top-14 sm:top-auto left-4 right-4 sm:left-auto sm:right-0 sm:mt-2 w-auto sm:w-80 max-w-sm ml-auto rounded-3xl bg-white border border-[#dadce0] shadow-[0_4px_24px_rgba(60,64,67,0.2)] p-4 z-50 animate-in fade-in slide-in-from-top-2">
                       <div className="flex flex-col items-center text-center pb-4 border-b border-[#f1f3f4]">
-                        {user.photoURL ? (
+                        {displayPhoto ? (
                           <img
-                            src={user.photoURL}
+                            src={displayPhoto}
                             alt="User"
                             referrerPolicy="no-referrer"
                             className="w-14 h-14 rounded-full object-cover border border-[#dadce0] mb-2"
                           />
                         ) : (
                           <div className="w-14 h-14 rounded-full bg-[#1a73e8] text-white flex items-center justify-center text-lg font-bold mb-2">
-                            {user.displayName ? user.displayName[0].toUpperCase() : 'G'}
+                            {(displayName || displayEmail || 'G')[0].toUpperCase()}
                           </div>
                         )}
                         <p className="text-sm font-bold text-[#1f1f1f]">
-                          {user.displayName || 'Google User'}
+                          {displayName || 'Google User'}
                         </p>
                         <p className="text-xs text-[#5f6368] truncate max-w-[220px]">
-                          {user.email}
+                          {displayEmail}
                         </p>
                         <span className="mt-2 text-[10px] font-semibold text-[#188038] bg-[#e6f4ea] px-2.5 py-0.5 rounded-full border border-[#ceead6] flex items-center gap-1">
                           <ShieldCheck className="w-3 h-3" /> Connected via OAuth
@@ -1081,7 +1147,7 @@ export default function App() {
             </div>
             {user && (
               <div className="p-4 border-t border-[#dadce0] space-y-2 shrink-0">
-                <p className="text-xs text-[#5f6368] truncate px-1">{user.email}</p>
+                <p className="text-xs text-[#5f6368] truncate px-1">{displayEmail}</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -1168,11 +1234,16 @@ export default function App() {
             }}
           />
         ) : needsAuth || !token ? (
-          /* High-Converting SEO Landing Screen */
+          /* Returning users see soft reconnect; brand-new visitors see full landing */
           <LandingView
             onSignIn={handleSignIn}
             isLoggingIn={isLoggingIn}
             authError={authError}
+            isRestoring={authRestoring && isReturningUser}
+            isReturningUser={isReturningUser}
+            returningName={displayName}
+            returningEmail={displayEmail}
+            returningPhoto={displayPhoto}
           />
         ) : (
           /* Active Views */
@@ -1201,7 +1272,7 @@ export default function App() {
             {activeTab === 'overview' && (
               <OverviewView
                 token={token}
-                userName={user?.displayName || null}
+                userName={displayName}
                 onNavigateTab={(tab) => setActiveTab(tab)}
                 anchorTools={onboardingPrefs?.anchorTools}
                 userRole={onboardingPrefs?.role}
@@ -1241,7 +1312,7 @@ export default function App() {
                 focusTarget={omniFocus}
                 onFocusHandled={() => setOmniFocus(null)}
 
-                userName={user?.displayName || 'Tanaka Prince'}
+                userName={displayName || undefined}
                 userEmail={user?.email || 'tanakaprince49@gmail.com'}
                 userPhoto={user?.photoURL || undefined}
               />
@@ -1268,7 +1339,7 @@ export default function App() {
               <SlidesView
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
-                userName={user?.displayName || 'Tanaka Prince'}
+                userName={displayName || undefined}
                 userEmail={user?.email || 'tanakaprince49@gmail.com'}
                 userPhoto={user?.photoURL || undefined}
               />
@@ -1278,7 +1349,7 @@ export default function App() {
               <FormsView
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
-                userName={user?.displayName || 'Tanaka Prince'}
+                userName={displayName || undefined}
                 userEmail={user?.email || 'tanakaprince49@gmail.com'}
                 userPhoto={user?.photoURL || undefined}
               />
@@ -1311,7 +1382,7 @@ export default function App() {
               <ChatView
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
-                userName={user?.displayName || 'Tanaka Prince'}
+                userName={displayName || undefined}
                 userEmail={user?.email || 'tanakaprince49@gmail.com'}
                 userPhoto={user?.photoURL || undefined}
               />
@@ -1345,7 +1416,7 @@ export default function App() {
                   return (
                     <WorkspaceAppView
                       tool={matchedTool}
-                      userEmail={user?.email}
+                      userEmail={displayEmail}
                       onBackToOverview={() => setActiveTab('overview')}
                     />
                   );
@@ -1427,14 +1498,14 @@ export default function App() {
         isOpen={showDeleteAccountModal}
         onClose={() => setShowDeleteAccountModal(false)}
         onSuccess={handleAccountDeletedSuccess}
-        userEmail={user?.email}
+        userEmail={displayEmail}
       />
 
       {/* Security & Privacy Center Modal */}
       <SecurityCenterModal
         isOpen={showSecurityCenter}
         onClose={() => setShowSecurityCenter(false)}
-        userEmail={user?.email}
+        userEmail={displayEmail}
         onOpenPrivacyPolicy={() => setActiveTab('privacy')}
         onOpenDeleteAccount={() => setShowDeleteAccountModal(true)}
       />
@@ -1480,7 +1551,7 @@ export default function App() {
         onSavePreferences={handleCompleteOnboarding}
         onOpenDeleteAccount={() => setShowDeleteAccountModal(true)}
         onSignOut={() => setShowLogoutConfirm(true)}
-        userEmail={user?.email}
+        userEmail={displayEmail}
         currentPreferences={onboardingPrefs}
       />
 
