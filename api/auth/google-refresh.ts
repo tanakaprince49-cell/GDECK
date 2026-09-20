@@ -80,9 +80,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!googleRes.ok || !data.access_token) {
       console.warn('[google-refresh] upstream error:', data?.error, data?.error_description);
-      return res.status(googleRes.status === 400 ? 400 : 502).json({
+      // Pass Google's error code through unchanged so the client can tell
+      // invalid_grant (fatal — re-consent) from invalid_client / missing secret
+      // (transient — keep the refresh token, do NOT bounce the user to privacy).
+      const code = String(data?.error || 'refresh_failed');
+      const status =
+        code === 'invalid_grant' ? 400 : googleRes.status === 400 ? 400 : 502;
+      return res.status(status).json({
         error: data?.error_description || data?.error || 'Failed to refresh Google access token',
-        code: data?.error || 'refresh_failed',
+        code,
       });
     }
 

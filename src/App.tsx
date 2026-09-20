@@ -135,6 +135,7 @@ export default function App() {
     accounts,
     activeAccount,
     switchAccount,
+    bindPlanUser,
   } = usePlan();
 
   const [omniSearchOpen, setOmniSearchOpen] = useState<boolean>(false);
@@ -273,6 +274,12 @@ export default function App() {
           displayName: currentUser.displayName,
           photoURL: currentUser.photoURL,
         });
+        // Re-bind Pro entitlement to this Google email (ledger restore).
+        try {
+          bindPlanUser(currentUser.email, currentUser.displayName);
+        } catch {
+          /* PlanProvider may not expose yet in rare edge cases */
+        }
         setToken(currentToken);
         setNeedsAuth(false);
         setAuthRestoring(false);
@@ -285,13 +292,20 @@ export default function App() {
           setAuthRestoring(false);
           // Keep storedProfile if still on device so refresh shows "Welcome back"
           // instead of a brand-new landing. Explicit logout clears profile itself.
+          // Pro ledger is NEVER cleared here — paid period stays on device.
           const remembered = readStoredUserProfile();
           setStoredProfile(remembered);
+          if (remembered?.email) {
+            try {
+              bindPlanUser(remembered.email, remembered.displayName);
+            } catch {}
+          }
           setNeedsAuth(true);
           return;
         }
         // Firebase user still present but Workspace token missing/expired —
         // keep identity; show soft reconnect instead of "new account" landing.
+        // Do NOT clear Pro / onboarding / pins.
         if (maybeUser) {
           setUser(maybeUser);
           setStoredProfile({
@@ -300,15 +314,24 @@ export default function App() {
             displayName: maybeUser.displayName,
             photoURL: maybeUser.photoURL,
           });
+          try {
+            bindPlanUser(maybeUser.email, maybeUser.displayName);
+          } catch {}
         } else {
-          setStoredProfile(readStoredUserProfile());
+          const remembered = readStoredUserProfile();
+          setStoredProfile(remembered);
+          if (remembered?.email) {
+            try {
+              bindPlanUser(remembered.email, remembered.displayName);
+            } catch {}
+          }
         }
         setToken(null);
         setAuthRestoring(false);
         setNeedsAuth(true);
         setAuthError(
           reason === 'workspace_token_missing' || reason === 'refresh_failed'
-            ? 'Welcome back — tap Reconnect once to restore your Workspace session. Your pins, Pro plan, and chat history are still here.'
+            ? 'Welcome back — tap Reconnect once to restore your Workspace session. Your pins, Pro plan, and chat history are still here. You will NOT see the privacy policy again.'
             : null
         );
       }
@@ -328,30 +351,34 @@ export default function App() {
       } catch {
         /* fall through */
       }
-      // Recoverable: keep Firebase user + local prefs, prompt reconnect only.
+      // Recoverable: keep Firebase user + local prefs + Pro, prompt soft reconnect only.
+      // NEVER clear onboarding / Pro / profile here — that was the "sign up again" bug.
       setToken(null);
       setNeedsAuth(true);
       setAuthRestoring(false);
       setAuthError(
         e?.detail?.message ||
-          'Your Google Workspace access expired. Reconnect once — you stay signed in after that. Nothing on this device was erased.'
+          'Workspace access needs a quick reconnect. Your Pro plan, pins, and chat stay on this device — no privacy policy again.'
       );
     };
 
     window.addEventListener('gdeck_auth_expired', handleAuthExpired);
 
-    // Proactively refresh the access token every ~45 minutes while the tab is open.
+    // Proactively refresh well before Google's ~60 min access-token expiry.
+    // 20 min cadence + visibility handler keeps Pro users from ever seeing landing.
     const refreshTimer = window.setInterval(async () => {
       try {
         const fresh = await ensureFreshAccessToken();
         if (fresh) {
           setToken(fresh);
           setNeedsAuth(false);
+          setAuthRestoring(false);
+          setAuthError(null);
         }
       } catch {
-        /* ignore */
+        /* ignore — never wipe session on a failed background tick */
       }
-    }, 45 * 60 * 1000);
+    }, 20 * 60 * 1000);
 
     const onVis = async () => {
       if (document.visibilityState !== 'visible') return;
@@ -445,12 +472,11 @@ export default function App() {
     setIsLoggingIn(true);
     setAuthError(null);
     try {
-      // Prefer a consent pass when we already know the Firebase user OR we still
-      // have a remembered profile but lost the Workspace refresh token — captures
-      // offline access so the next page refresh stays signed in silently.
-      const shouldReconnect =
+      // Returning users / soft-session: reconnect WITHOUT the privacy consent wall.
+      // Brand-new visitors: googleSignIn (consent only if no refresh token on device).
+      const isKnown =
         !!user || !!storedProfile || hasStoredRefreshToken() || hasStoredSessionHint();
-      const result = shouldReconnect ? await reconnectWorkspace() : await googleSignIn();
+      const result = isKnown ? await reconnectWorkspace() : await googleSignIn();
       if (result) {
         setUser(result.user);
         setStoredProfile({
@@ -459,6 +485,9 @@ export default function App() {
           displayName: result.user.displayName,
           photoURL: result.user.photoURL,
         });
+        try {
+          bindPlanUser(result.user.email, result.user.displayName);
+        } catch {}
         setToken(result.accessToken);
         setNeedsAuth(false);
         setAuthRestoring(false);
@@ -466,7 +495,7 @@ export default function App() {
       }
     } catch (err: any) {
       console.error('Sign-in error:', err);
-      if (err.code === 'auth/popup-closed-by-user') {
+      if (err.code === 'auth/popup-closed-by-user' || err.code === 'auth/cancelled-popup-request') {
         setAuthError('Sign in popup was closed before completing authorization.');
       } else if (err.code === 'auth/popup-blocked') {
         setAuthError('Pop-up was blocked. Allow pop-ups for G-Deck and try again.');
@@ -480,15 +509,32 @@ export default function App() {
 
   const handleConfirmLogout = async () => {
     try {
+      // Capture email BEFORE logout so Pro ledger stays bound to this account.
+      const emailBefore = user?.email || storedProfile?.email || displayEmail;
+      const nameBefore = user?.displayName || storedProfile?.displayName || displayName;
       await logout();
       setUser(null);
       setToken(null);
-      setStoredProfile(null);
+      // Keep a lightweight profile hint so "Welcome back" works and Pro restores
+      // when they sign in again. Full wipe only happens on Delete Account.
+      if (emailBefore) {
+        setStoredProfile({
+          uid: storedProfile?.uid || user?.uid || 'local',
+          email: emailBefore,
+          displayName: nameBefore || null,
+          photoURL: displayPhoto || null,
+        });
+        try {
+          bindPlanUser(emailBefore, nameBefore);
+        } catch {}
+      } else {
+        setStoredProfile(null);
+      }
       setNeedsAuth(true);
       setAuthRestoring(false);
       setShowLogoutConfirm(false);
       setShowProfileMenu(false);
-      // Prefs (pins, Pro, onboarding, chat) intentionally stay on device.
+      // Prefs (pins, Pro ledger, onboarding, chat) intentionally stay on device.
     } catch (err) {
       console.error('Logout error:', err);
     }

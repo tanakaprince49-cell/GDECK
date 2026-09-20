@@ -74,6 +74,11 @@ export interface PlanContextType {
    */
   upgradeToPro: (opts?: ActivateProOptions | string) => void;
   activatePro: (opts?: ActivateProOptions) => void;
+  /**
+   * Bind the signed-in Google identity so Pro can be restored from the
+   * per-email ledger after a temporary logout / token refresh.
+   */
+  bindPlanUser: (email: string | null | undefined, name?: string | null) => void;
   readonly isProductionBuild: boolean;
   downgradeToFree: (reason?: 'expired' | 'manual') => void;
   /** Development only: a no-op in production builds. */
@@ -101,6 +106,71 @@ const STORAGE_TIER = 'gdeck_plan_tier';
 const STORAGE_PRO_EXPIRES = 'gdeck_pro_expires_at';
 const STORAGE_PRO_PLAN = 'gdeck_pro_plan_id';
 const STORAGE_PRO_ORDER = 'gdeck_pro_order_id';
+/** Email the current Pro entitlement is locked to — survives sign-out so Pro is not lost. */
+const STORAGE_PRO_EMAIL = 'gdeck_pro_email';
+/** Per-email entitlement ledger so re-login on the same device restores paid Pro. */
+const STORAGE_PRO_LEDGER = 'gdeck_pro_ledger_v1';
+
+type ProLedgerEntry = {
+  tier: 'pro';
+  planId: string;
+  expiresAt: string;
+  orderId?: string;
+  updatedAt: string;
+};
+
+function normalizeEmail(email: string | null | undefined): string | null {
+  if (!email || typeof email !== 'string') return null;
+  const e = email.trim().toLowerCase();
+  return e.includes('@') ? e : null;
+}
+
+function readProLedger(): Record<string, ProLedgerEntry> {
+  try {
+    const raw = localStorage.getItem(STORAGE_PRO_LEDGER);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeProLedger(ledger: Record<string, ProLedgerEntry>) {
+  try {
+    localStorage.setItem(STORAGE_PRO_LEDGER, JSON.stringify(ledger));
+  } catch {
+    /* private mode */
+  }
+}
+
+function upsertLedgerEntry(
+  email: string | null | undefined,
+  planId: string,
+  expiresAt: string,
+  orderId?: string
+) {
+  const key = normalizeEmail(email);
+  if (!key) return;
+  const ledger = readProLedger();
+  ledger[key] = {
+    tier: 'pro',
+    planId,
+    expiresAt,
+    orderId,
+    updatedAt: new Date().toISOString(),
+  };
+  writeProLedger(ledger);
+}
+
+function readLedgerEntry(email: string | null | undefined): ProLedgerEntry | null {
+  const key = normalizeEmail(email);
+  if (!key) return null;
+  const entry = readProLedger()[key];
+  if (!entry || entry.tier !== 'pro' || !entry.expiresAt) return null;
+  if (isProPeriodExpired(entry.expiresAt)) return null;
+  return entry;
+}
 
 /** Calendar-month key in the user's local timezone (YYYY-MM). */
 export function currentAiQuotaMonth(d: Date = new Date()): string {
@@ -136,19 +206,47 @@ function persistUsage(used: number, month: string) {
   }
 }
 
-function readStoredPro(): {
+function readStoredPro(preferredEmail?: string | null): {
   tier: PlanTier;
   expiresAt: string | null;
   planId: string | null;
   expired: boolean;
+  email: string | null;
 } {
   try {
     const rawTier = localStorage.getItem(STORAGE_TIER);
     const expiresAt = localStorage.getItem(STORAGE_PRO_EXPIRES);
     const planId = localStorage.getItem(STORAGE_PRO_PLAN);
+    const boundEmail = normalizeEmail(localStorage.getItem(STORAGE_PRO_EMAIL));
+    const pref = normalizeEmail(preferredEmail);
+
+    // Prefer a still-valid per-email ledger entry (survives logout / token wipe).
+    const ledgerHit =
+      readLedgerEntry(pref) ||
+      readLedgerEntry(boundEmail) ||
+      null;
+    if (ledgerHit) {
+      // Hydrate the active slot from the ledger so UI boots as Pro immediately.
+      try {
+        localStorage.setItem(STORAGE_TIER, 'pro');
+        localStorage.setItem(STORAGE_PRO_PLAN, ledgerHit.planId);
+        localStorage.setItem(STORAGE_PRO_EXPIRES, ledgerHit.expiresAt);
+        if (ledgerHit.orderId) localStorage.setItem(STORAGE_PRO_ORDER, ledgerHit.orderId);
+        if (pref || boundEmail) {
+          localStorage.setItem(STORAGE_PRO_EMAIL, pref || boundEmail || '');
+        }
+      } catch {}
+      return {
+        tier: 'pro',
+        expiresAt: ledgerHit.expiresAt,
+        planId: ledgerHit.planId || 'pro_monthly',
+        expired: false,
+        email: pref || boundEmail,
+      };
+    }
 
     if (rawTier !== 'pro') {
-      return { tier: 'free', expiresAt: null, planId: null, expired: false };
+      return { tier: 'free', expiresAt: null, planId: null, expired: false, email: boundEmail };
     }
 
     // Legacy Pro with no expiry: treat as already lapsed so they must re-pay.
@@ -164,21 +262,36 @@ function readStoredPro(): {
         expiresAt: expiresAt || null,
         planId: planId || 'pro_monthly',
         expired: true,
+        email: boundEmail,
       };
     }
 
-    return { tier: 'pro', expiresAt, planId: planId || 'pro_monthly', expired: false };
+    return {
+      tier: 'pro',
+      expiresAt,
+      planId: planId || 'pro_monthly',
+      expired: false,
+      email: boundEmail,
+    };
   } catch {
-    return { tier: 'free', expiresAt: null, planId: null, expired: false };
+    return { tier: 'free', expiresAt: null, planId: null, expired: false, email: null };
   }
 }
 
-function persistProActive(planId: string, expiresAt: string, orderId?: string) {
+function persistProActive(
+  planId: string,
+  expiresAt: string,
+  orderId?: string,
+  email?: string | null
+) {
   try {
     localStorage.setItem(STORAGE_TIER, 'pro');
     localStorage.setItem(STORAGE_PRO_PLAN, planId);
     localStorage.setItem(STORAGE_PRO_EXPIRES, expiresAt);
     if (orderId) localStorage.setItem(STORAGE_PRO_ORDER, orderId);
+    const e = normalizeEmail(email);
+    if (e) localStorage.setItem(STORAGE_PRO_EMAIL, e);
+    upsertLedgerEntry(email, planId, expiresAt, orderId);
   } catch {
     /* private mode */
   }
@@ -189,6 +302,8 @@ function clearProStorage(keepLastPlan = true) {
     localStorage.setItem(STORAGE_TIER, 'free');
     localStorage.removeItem(STORAGE_PRO_EXPIRES);
     localStorage.removeItem(STORAGE_PRO_ORDER);
+    // Keep STORAGE_PRO_EMAIL + ledger so the same Google account can restore Pro
+    // after a temporary sign-out without paying again during an active period.
     if (!keepLastPlan) localStorage.removeItem(STORAGE_PRO_PLAN);
   } catch {
     /* private mode */
@@ -201,12 +316,33 @@ export const PlanProvider: React.FC<{
   children: ReactNode;
   userEmail?: string | null;
   userName?: string | null;
-}> = ({ children, userEmail, userName }) => {
-  const initialPro = readStoredPro();
+}> = ({ children, userEmail: userEmailProp, userName: userNameProp }) => {
+  // Identity can arrive via props OR via bindPlanUser() from App after Google auth.
+  // Start from any stored profile email so a refresh restores Pro before auth finishes.
+  const [boundEmail, setBoundEmail] = useState<string | null>(() => {
+    const fromProp = normalizeEmail(userEmailProp);
+    if (fromProp) return fromProp;
+    try {
+      const raw = localStorage.getItem('gdeck_user_profile');
+      if (raw) {
+        const p = JSON.parse(raw);
+        return normalizeEmail(p?.email);
+      }
+    } catch {}
+    return normalizeEmail(localStorage.getItem(STORAGE_PRO_EMAIL));
+  });
+  const [boundName, setBoundName] = useState<string | null>(() => userNameProp || null);
+
+  const userEmail = normalizeEmail(userEmailProp) || boundEmail;
+  const userName = userNameProp || boundName;
+
+  const initialPro = readStoredPro(userEmail);
 
   // Paid plans only: Pro is granted only after a verified Payonify payment and
   // lasts exactly one billing interval (month or year). Legacy bare 'pro' flags
   // without an expiry are treated as expired and must re-pay.
+  // Entitlement is bound to the Google email + local ledger so a temporary
+  // logout / token refresh NEVER strips a paid period.
   const [tier, setTierState] = useState<PlanTier>(initialPro.tier);
   const [proExpiresAt, setProExpiresAt] = useState<string | null>(
     initialPro.tier === 'pro' ? initialPro.expiresAt : null
@@ -246,7 +382,9 @@ export const PlanProvider: React.FC<{
   const [prioritySyncActive, setPrioritySyncActive] = useState<boolean>(true);
   const [syncLatencyMs, setSyncLatencyMs] = useState<number>(42);
 
-  // Sync user updates to accounts
+  // Sync user updates to accounts + restore Pro from the per-email ledger.
+  // This is the fix for "I signed back in and lost Pro" — paid periods live in
+  // gdeck_pro_ledger_v1 keyed by email and are re-applied on every identity change.
   useEffect(() => {
     if (userEmail) {
       setAccounts((prev) =>
@@ -256,6 +394,40 @@ export const PlanProvider: React.FC<{
             : acc
         )
       );
+    }
+
+    const email = normalizeEmail(userEmail);
+    if (!email) return;
+
+    // 1) Active local Pro with no email binding yet → bind it to this account.
+    try {
+      const rawTier = localStorage.getItem(STORAGE_TIER);
+      const expiresAt = localStorage.getItem(STORAGE_PRO_EXPIRES);
+      const planId = localStorage.getItem(STORAGE_PRO_PLAN) || 'pro_monthly';
+      const orderId = localStorage.getItem(STORAGE_PRO_ORDER) || undefined;
+      if (rawTier === 'pro' && expiresAt && !isProPeriodExpired(expiresAt)) {
+        const bound = normalizeEmail(localStorage.getItem(STORAGE_PRO_EMAIL));
+        if (!bound || bound === email) {
+          persistProActive(planId, expiresAt, orderId, email);
+          setTierState('pro');
+          setProPlanId(planId);
+          setProExpiresAt(expiresAt);
+          setNeedsRenewal(false);
+          return;
+        }
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // 2) Restore from ledger for this email (after logout / device refresh).
+    const entry = readLedgerEntry(email);
+    if (entry) {
+      persistProActive(entry.planId, entry.expiresAt, entry.orderId, email);
+      setTierState('pro');
+      setProPlanId(entry.planId);
+      setProExpiresAt(entry.expiresAt);
+      setNeedsRenewal(false);
     }
   }, [userEmail, userName]);
 
@@ -413,6 +585,12 @@ export const PlanProvider: React.FC<{
     return true;
   }, [isPro, aiQueriesUsed, aiQuotaMonth, openAiLimitPaywall]);
 
+  const bindPlanUser = useCallback((email: string | null | undefined, name?: string | null) => {
+    const e = normalizeEmail(email);
+    if (e) setBoundEmail(e);
+    if (name) setBoundName(name);
+  }, []);
+
   const activatePro = useCallback(
     (opts?: ActivateProOptions) => {
       const planId = opts?.planId || 'pro_monthly';
@@ -438,10 +616,19 @@ export const PlanProvider: React.FC<{
       setProPlanId(planId);
       setProExpiresAt(expiresAt);
       setNeedsRenewal(false);
-      persistProActive(planId, expiresAt, opts?.orderId);
+      // Bind entitlement to the signed-in Google email + durable ledger.
+      let emailForLedger = normalizeEmail(userEmail) || boundEmail;
+      if (!emailForLedger) {
+        try {
+          emailForLedger = normalizeEmail(localStorage.getItem(STORAGE_PRO_EMAIL));
+        } catch {
+          emailForLedger = null;
+        }
+      }
+      persistProActive(planId, expiresAt, opts?.orderId, emailForLedger);
       closeUpgradeModal();
     },
-    [closeUpgradeModal, proExpiresAt]
+    [closeUpgradeModal, proExpiresAt, userEmail, boundEmail]
   );
 
   // Back-compat: upgradeToPro() or upgradeToPro('pro_annual') or upgradeToPro({ planId })
@@ -568,6 +755,7 @@ export const PlanProvider: React.FC<{
         upgradeModalContext,
         upgradeToPro,
         activatePro,
+        bindPlanUser,
         downgradeToFree,
         setMockPlan,
         isProductionBuild,

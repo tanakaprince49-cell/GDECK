@@ -221,9 +221,12 @@ async function startServer() {
       });
       const data: any = await googleRes.json().catch(() => ({}));
       if (!googleRes.ok || !data.access_token) {
-        return res.status(googleRes.status === 400 ? 400 : 502).json({
+        // Preserve Google's error code so the client only treats invalid_grant as fatal.
+        const code = String(data?.error || "refresh_failed");
+        const status = code === "invalid_grant" ? 400 : googleRes.status === 400 ? 400 : 502;
+        return res.status(status).json({
           error: data?.error_description || data?.error || "Failed to refresh Google access token",
-          code: data?.error || "refresh_failed",
+          code,
         });
       }
       return res.json({

@@ -161,6 +161,8 @@ export const GDECK_USER_DATA_KEYS = [
   'gdeck_pro_expires_at',
   'gdeck_pro_plan_id',
   'gdeck_pro_order_id',
+  'gdeck_pro_email',
+  'gdeck_pro_ledger_v1',
   'gdeck_ai_queries_used',
   'gdeck_ai_queries_month',
   'gdeck_notifications',
@@ -267,6 +269,20 @@ function extractGoogleOAuthFromResult(result: UserCredential): {
  * Tries same-origin `/api/auth/google-refresh` first (has client secret when configured),
  * then a public client_id-only request (works for some OAuth client types).
  */
+function isFatalOAuthError(code: string, description?: string): boolean {
+  const c = (code || '').toLowerCase();
+  const d = (description || '').toLowerCase();
+  // ONLY these mean the stored refresh token is dead and must be re-consented.
+  // Never treat invalid_client / missing secret / 5xx / network as fatal — those
+  // must keep the refresh token so Pro users are not bounced into Google consent.
+  return (
+    c === 'invalid_grant' ||
+    d.includes('token has been expired or revoked') ||
+    d.includes('token has been revoked') ||
+    d.includes('invalid_grant')
+  );
+}
+
 async function refreshAccessTokenWithGoogle(refreshToken: string): Promise<{
   accessToken: string;
   expiresInSec: number;
@@ -297,11 +313,13 @@ async function refreshAccessTokenWithGoogle(refreshToken: string): Promise<{
     } else {
       const data = await res.json().catch(() => ({}));
       const code = String(data?.code || data?.error || '');
-      // invalid_grant = refresh token revoked / wrong client — need consent again
-      if (code.includes('invalid_grant') || res.status === 400) {
-        console.warn('[gdeck-auth] refresh rejected by server:', code || res.status);
+      const desc = String(data?.error || data?.message || '');
+      if (isFatalOAuthError(code, desc)) {
+        console.warn('[gdeck-auth] refresh fatal (invalid_grant):', code || res.status);
         return { accessToken: '', expiresInSec: 0, fatal: true };
       }
+      // Transient / config errors (missing secret, invalid_client, 5xx): keep token, try direct.
+      console.warn('[gdeck-auth] server refresh non-fatal:', code || res.status, desc);
     }
   } catch {
     /* fall through */
@@ -322,10 +340,12 @@ async function refreshAccessTokenWithGoogle(refreshToken: string): Promise<{
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.access_token) {
-      console.warn('[gdeck-auth] Google refresh failed:', data?.error || res.status);
-      if (data?.error === 'invalid_grant') {
+      const errCode = String(data?.error || res.status);
+      console.warn('[gdeck-auth] Google refresh failed:', errCode, data?.error_description);
+      if (isFatalOAuthError(errCode, data?.error_description)) {
         return { accessToken: '', expiresInSec: 0, fatal: true };
       }
+      // invalid_client / unauthorized_client / network → keep refresh token
       return null;
     }
     return {
@@ -374,8 +394,15 @@ export async function ensureFreshAccessToken(): Promise<string | null> {
     const renewed = await refreshAccessTokenWithGoogle(refreshToken);
     if (!renewed?.accessToken) {
       if (renewed?.fatal) {
-        // Dead refresh token — drop it so next sign-in forces consent.
-        clearAllTokenStorage();
+        // ONLY wipe access on fatal invalid_grant. Keep the dead refresh
+        // marker so UI can offer reconnect — but do NOT clear profile/prefs/Pro.
+        // Clearing refresh forces the next popup to prompt=consent (privacy again).
+        // We still drop the unusable refresh so we don't spin on it forever.
+        try {
+          localStorage.removeItem(REFRESH_TOKEN_KEY);
+        } catch {}
+        cachedRefreshToken = null;
+        clearAccessTokenOnly();
       } else {
         // Transient failure — keep refresh token, drop dead access.
         clearAccessTokenOnly();
@@ -383,6 +410,7 @@ export async function ensureFreshAccessToken(): Promise<string | null> {
       return null;
     }
     const expiresAtMs = Date.now() + renewed.expiresInSec * 1000;
+    // Always re-persist the refresh token we used (or the rotated one Google returned).
     persistTokenBundle(renewed.accessToken, expiresAtMs, renewed.refreshToken || refreshToken);
     return renewed.accessToken;
   })().finally(() => {
@@ -498,17 +526,35 @@ export const initAuth = (
   };
 };
 
-async function runGooglePopup(forceConsent: boolean): Promise<{ user: User; accessToken: string }> {
+/**
+ * Interactive Google popup.
+ * - ALWAYS requests access_type=offline so Google can issue a long-lived refresh token.
+ * - prompt=consent ONLY when we have never captured a refresh token for this device
+ *   (first install / after explicit logout that cleared it / fatal invalid_grant).
+ * - Returning users get prompt=none first (silent), then select_account — NEVER the
+ *   full privacy/scopes consent wall again. That wall is what made Pro users feel
+ *   "logged out and signed up again".
+ */
+async function runGooglePopup(mode: 'first' | 'silent' | 'account' | 'consent'): Promise<{
+  user: User;
+  accessToken: string;
+}> {
   await persistenceReady;
   isSigningIn = true;
   try {
-    const hasRefresh = !!(cachedRefreshToken || readStoredBundle().refreshToken);
-    // Always request offline access. Force consent when we still need a refresh token.
-    provider.setCustomParameters({
+    const params: Record<string, string> = {
       access_type: 'offline',
-      prompt: forceConsent || !hasRefresh ? 'consent' : 'select_account',
       include_granted_scopes: 'true',
-    });
+    };
+    if (mode === 'first' || mode === 'consent') {
+      params.prompt = 'consent';
+    } else if (mode === 'silent') {
+      params.prompt = 'none';
+    } else {
+      // 'account' — pick account, do NOT re-show privacy/scopes.
+      params.prompt = 'select_account';
+    }
+    provider.setCustomParameters(params);
 
     const result = await signInWithPopup(auth, provider);
     const extracted = extractGoogleOAuthFromResult(result);
@@ -524,7 +570,7 @@ async function runGooglePopup(forceConsent: boolean): Promise<{ user: User; acce
 
     if (!refreshToStore) {
       console.warn(
-        '[gdeck-auth] No Google refresh token returned. Stay-signed-in across refresh needs one consent pass (access_type=offline).'
+        '[gdeck-auth] No Google refresh token returned. One offline consent pass is needed for silent restores.'
       );
     }
 
@@ -536,9 +582,10 @@ async function runGooglePopup(forceConsent: boolean): Promise<{ user: User; acce
 
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {
-    // First-time or missing refresh → force consent so we capture offline refresh token.
+    // Brand-new device with no offline refresh → one consent to capture it forever.
+    // Everyone else: select_account only (no privacy wall).
     const hasRefresh = hasStoredRefreshToken();
-    return await runGooglePopup(!hasRefresh);
+    return await runGooglePopup(hasRefresh ? 'account' : 'first');
   } catch (error: any) {
     console.error('Workspace Google sign in error:', error);
     throw error;
@@ -546,16 +593,59 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 /**
- * Interactive reconnect when silent refresh fails but Firebase user may still exist.
- * Forces consent once so we capture a refresh token for future silent restores.
+ * Interactive reconnect when silent refresh fails but the user is known.
+ * Never forces the full consent/privacy wall unless we truly have no refresh token
+ * and need one. Prefer silent → account picker.
  */
 export const reconnectWorkspace = async (): Promise<{ user: User; accessToken: string } | null> => {
   try {
-    return await runGooglePopup(true);
+    const hasRefresh = hasStoredRefreshToken();
+    if (hasRefresh) {
+      // We still have a refresh token but silent server refresh failed (e.g. missing
+      // client secret). A plain account picker reissues an access token without the
+      // privacy/scopes wall. Keep existing refresh.
+      try {
+        return await runGooglePopup('account');
+      } catch (err: any) {
+        // If Google rejects because scopes changed, fall through to consent once.
+        const code = String(err?.code || err?.message || '');
+        if (!code.includes('popup-closed') && !code.includes('cancelled')) {
+          console.warn('[gdeck-auth] account reconnect failed, one consent pass:', code);
+          return await runGooglePopup('consent');
+        }
+        throw err;
+      }
+    }
+    // No refresh on device — must consent once to capture offline token forever.
+    return await runGooglePopup('consent');
   } catch (error: any) {
     console.error('Workspace reconnect error:', error);
     throw error;
   }
+};
+
+/**
+ * Best-effort silent restore using Firebase + stored refresh. Used on boot and
+ * visibility so the user never sees landing / consent just because the 1h access
+ * token aged out.
+ */
+export const trySilentSessionRestore = async (): Promise<{
+  user: User;
+  accessToken: string;
+} | null> => {
+  await persistenceReady;
+  try {
+    await auth.authStateReady();
+  } catch {
+    /* older SDKs */
+  }
+  const token = await ensureFreshAccessToken();
+  const user = auth.currentUser;
+  if (user && token) {
+    persistUserProfile(user);
+    return { user, accessToken: token };
+  }
+  return null;
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
@@ -588,9 +678,13 @@ export const logout = async () => {
   try {
     await signOut(auth);
   } catch {}
-  clearAllTokenStorage();
-  clearUserProfile();
-  // Intentionally do NOT clear GDECK_USER_DATA_KEYS — pins, Pro, chat, onboarding stay.
+  // Soft sign-out:
+  //  - Drop the short-lived access token (session ends in the UI)
+  //  - KEEP the Google offline refresh token so the next "Sign in" is silent
+  //    (no privacy / scopes consent wall — that was the #1 user complaint)
+  //  - KEEP profile + GDECK_USER_DATA_KEYS (Pro ledger, pins, onboarding, chat)
+  // Hard wipe + Google revoke only happens in deleteAccountPermanently().
+  clearAccessTokenOnly();
 };
 
 export const deleteAccountPermanently = async () => {

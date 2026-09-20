@@ -111,7 +111,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
           {!isRestoring && (
             <p className="text-xs text-[#5f6368] leading-relaxed">
               Your account data on this device was <span className="font-semibold text-[#1f1f1f]">not erased</span>.
-              Google access tokens expire about every hour — one reconnect restores Workspace silently for future refreshes.
+              Pro status, pins, and chat history stay local. Reconnect picks your Google account — you will{' '}
+              <span className="font-semibold text-[#1f1f1f]">not</span> see the privacy policy or scopes wall again.
             </p>
           )}
 
