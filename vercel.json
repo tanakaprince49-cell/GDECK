@@ -4,8 +4,20 @@
   "framework": "vite",
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api/$1"
+      "source": "/checkout/success",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/checkout/cancel",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/terms",
+      "destination": "/index.html"
     }
   ]
 }
