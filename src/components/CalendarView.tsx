@@ -34,6 +34,11 @@ import {
 import { ConfirmModal } from './ConfirmModal';
 import { GoogleCalendarIcon } from './GoogleIcons';
 import { FormattedDescription, isValidUrl, normalizeUrl } from '../utils/textFormatter';
+import { usePlan } from '../context/PlanContext';
+import { ProBadge } from './ProBadge';
+import { MeetingPrepPackModal } from './MeetingPrepPackModal';
+import { SmartFollowUpModal } from './SmartFollowUpModal';
+import { Sparkles } from 'lucide-react';
 
 interface CalendarViewProps {
   token: string;
@@ -58,6 +63,10 @@ const GOOGLE_COLORS = [
 ];
 
 export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverview }) => {
+  const { isPro, requirePro } = usePlan();
+  const [prepModalEvent, setPrepModalEvent] = useState<CalendarEvent | null>(null);
+  const [followUpModalEvent, setFollowUpModalEvent] = useState<CalendarEvent | null>(null);
+
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -1659,28 +1668,70 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
             </div>
 
             {/* Footer with Video Call action */}
-            <div className="flex items-center justify-between px-6 py-4 bg-[#f8fafd] border-t border-[#dadce0]">
-              {(selectedEvent.hangoutLink ||
-                selectedEvent.location?.includes('meet.google.com') ||
-                selectedEvent.location?.includes('zoom.us') ||
-                selectedEvent.location?.includes('luma.com')) ? (
-                <a
-                  href={
-                    selectedEvent.hangoutLink ||
-                    (isValidUrl(selectedEvent.location || '')
-                      ? normalizeUrl(selectedEvent.location || '')
-                      : 'https://meet.google.com/new')
-                  }
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-5 py-2.5 bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full text-xs font-bold flex items-center gap-2 transition-all shadow-xs"
+            <div className="flex items-center justify-between px-6 py-4 bg-[#f8fafd] border-t border-[#dadce0] flex-wrap gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                {(selectedEvent.hangoutLink ||
+                  selectedEvent.location?.includes('meet.google.com') ||
+                  selectedEvent.location?.includes('zoom.us') ||
+                  selectedEvent.location?.includes('luma.com')) && (
+                  <a
+                    href={
+                      selectedEvent.hangoutLink ||
+                      (isValidUrl(selectedEvent.location || '')
+                        ? normalizeUrl(selectedEvent.location || '')
+                        : 'https://meet.google.com/new')
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-4 py-2 bg-[#1a73e8] hover:bg-[#1557b0] text-white rounded-full text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                  >
+                    <Video className="w-3.5 h-3.5" />
+                    <span>Join Meeting</span>
+                  </a>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      !requirePro(
+                        'Meeting Prep Packs',
+                        'One-click briefing doc with relevant emails, Drive files, and attendee details.'
+                      )
+                    ) {
+                      return;
+                    }
+                    setPrepModalEvent(selectedEvent);
+                  }}
+                  className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-full text-xs font-semibold flex items-center gap-1.5 border border-purple-200 transition-colors cursor-pointer"
+                  title="Generate Meeting Prep Pack (Pro)"
                 >
-                  <Video className="w-4 h-4" />
-                  <span>Join Video Meeting</span>
-                </a>
-              ) : (
-                <div />
-              )}
+                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Prep Pack</span>
+                  <ProBadge size="xs" featureTitle="Meeting Prep Packs" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (
+                      !requirePro(
+                        'Smart Follow-Up Generator',
+                        'Generate follow-up email drafts with action items assigned to attendees.'
+                      )
+                    ) {
+                      return;
+                    }
+                    setFollowUpModalEvent(selectedEvent);
+                  }}
+                  className="px-3.5 py-2 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-full text-xs font-semibold flex items-center gap-1.5 border border-slate-200 transition-colors cursor-pointer"
+                  title="Generate Meeting Follow-Up Email (Pro)"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Follow-Up</span>
+                  <ProBadge size="xs" featureTitle="Smart Follow-Up Generator" />
+                </button>
+              </div>
 
               <button
                 onClick={() => setSelectedEvent(null)}
@@ -1692,6 +1743,21 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
           </div>
         </div>
       )}
+
+      {/* Pro Modals */}
+      <MeetingPrepPackModal
+        isOpen={!!prepModalEvent}
+        onClose={() => setPrepModalEvent(null)}
+        event={prepModalEvent}
+        token={token}
+      />
+
+      <SmartFollowUpModal
+        isOpen={!!followUpModalEvent}
+        onClose={() => setFollowUpModalEvent(null)}
+        event={followUpModalEvent}
+        token={token}
+      />
 
       {/* 5. CONFIRM DELETE MODAL */}
       <ConfirmModal

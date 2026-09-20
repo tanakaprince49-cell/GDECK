@@ -40,6 +40,7 @@ export interface ToolDefinition {
   badgeColor: string;
   webUrl: string;
   defaultPinned?: boolean;
+  isPro?: boolean;
 }
 
 export const ALL_WORKSPACE_TOOLS: ToolDefinition[] = [

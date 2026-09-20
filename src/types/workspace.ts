@@ -47,6 +47,7 @@ export interface GmailMessageItem {
   subject?: string;
   date?: string;
   body?: string;
+  bodyText?: string;
   htmlBody?: string;
   isStarred?: boolean;
   isUnread?: boolean;
@@ -67,6 +68,7 @@ export interface CalendarEvent {
   colorId?: string;
   hangoutLink?: string;
   conferenceData?: any;
+  attendees?: { email?: string; displayName?: string; responseStatus?: string }[];
 }
 
 export interface TaskList {

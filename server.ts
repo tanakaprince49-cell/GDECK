@@ -3,6 +3,7 @@ import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
+import { payonifyRouter } from "./src/lib/payonify-routes";
 
 dotenv.config();
 
@@ -159,8 +160,18 @@ async function startServer() {
     next();
   });
 
-  // Strict request body size limit for JSON payload protection
-  app.use(express.json({ limit: "2mb" }));
+  // Strict request body size limit for JSON payload protection with rawBody verification support for Webhooks
+  app.use(
+    express.json({
+      limit: "2mb",
+      verify: (req: any, _res, buf) => {
+        req.rawBody = buf.toString("utf8");
+      },
+    })
+  );
+
+  // Payonify Payment & Webhook Routes
+  app.use("/api/payonify", payonifyRouter);
 
   // In-memory sliding rate limiter for AI endpoints (protect against abuse & denial of service)
   const ipRequestCounts = new Map<string, { count: number; resetTime: number }>();

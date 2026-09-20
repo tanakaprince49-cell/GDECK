@@ -55,6 +55,12 @@ import {
   OutgoingAttachment,
 } from '../services/workspace';
 import { ConfirmModal } from './ConfirmModal';
+import { usePlan } from '../context/PlanContext';
+import { ProBadge } from './ProBadge';
+import { EmailToTaskEventModal } from './EmailToTaskEventModal';
+import { DeepThreadSummaryModal } from './DeepThreadSummaryModal';
+import { TonePolishStudioModal } from './TonePolishStudioModal';
+import { Sparkles, Zap } from 'lucide-react';
 import {
   GmailIcon,
   GoogleDriveIcon,
@@ -260,6 +266,50 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
   const [inlineReplyText, setInlineReplyText] = useState<string>('');
   const [inlineReplyAttachments, setInlineReplyAttachments] = useState<OutgoingAttachment[]>([]);
   const [isSendingQuickReply, setIsSendingQuickReply] = useState<boolean>(false);
+
+  // Pro Features State
+  const { isPro, requirePro } = usePlan();
+  const [magicEmailToTaskModalOpen, setMagicEmailToTaskModalOpen] = useState<boolean>(false);
+  const [deepThreadSummaryModalOpen, setDeepThreadSummaryModalOpen] = useState<boolean>(false);
+  const [tonePolishModalOpen, setTonePolishModalOpen] = useState<boolean>(false);
+  const [tonePolishTarget, setTonePolishTarget] = useState<'reply' | 'compose'>('reply');
+
+  const handleOpenMagicEmailToTask = (msg: GmailMessageItem) => {
+    if (
+      !requirePro(
+        '1-Click Email to Task/Event',
+        'Automatically create a scheduled Google Calendar event and a Google Task with the meeting link pre-attached.'
+      )
+    ) {
+      return;
+    }
+    setMagicEmailToTaskModalOpen(true);
+  };
+
+  const handleOpenDeepSummary = (msg: GmailMessageItem) => {
+    if (
+      !requirePro(
+        'Deep Email Thread Summarization',
+        'Instant TL;DR bullet points and action items for long email threads.'
+      )
+    ) {
+      return;
+    }
+    setDeepThreadSummaryModalOpen(true);
+  };
+
+  const handleOpenTonePolish = (target: 'reply' | 'compose') => {
+    if (
+      !requirePro(
+        'Tone & Polish Studio',
+        '1-click rewrite drafts for executive, casual, or formal tones.'
+      )
+    ) {
+      return;
+    }
+    setTonePolishTarget(target);
+    setTonePolishModalOpen(true);
+  };
 
   const loadMessages = async (folder = activeFolder, query = searchQuery, category = activeCategory) => {
     setLoading(true);
@@ -947,7 +997,29 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                   </button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Pro Magic Action: 1-Click Email to Task & Event */}
+                  <button
+                    onClick={() => handleOpenMagicEmailToTask(selectedMessage)}
+                    className="px-3 py-1.5 text-xs font-semibold text-[#7e22ce] bg-[#faf5ff] hover:bg-[#f3e8ff] rounded-full border border-[#e9d5ff] flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                    title="1-Click Convert email to scheduled Calendar event and Google Task"
+                  >
+                    <Zap className="w-3.5 h-3.5 fill-current text-purple-600" />
+                    <span>Convert to Task & Event</span>
+                    <ProBadge size="xs" featureTitle="1-Click Email to Task & Event" />
+                  </button>
+
+                  {/* Pro Magic Action: Deep Thread TL;DR */}
+                  <button
+                    onClick={() => handleOpenDeepSummary(selectedMessage)}
+                    className="px-3 py-1.5 text-xs font-semibold text-[#1a73e8] bg-[#f0f4f9] hover:bg-[#e8f0fe] rounded-full border border-[#dadce0] flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Synthesize email thread highlights into executive bullets & action items"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 fill-current text-[#1a73e8]" />
+                    <span>Thread TL;DR</span>
+                    <ProBadge size="xs" featureTitle="Deep Email Thread Summarization" />
+                  </button>
+
                   {/* Download Message as .eml file */}
                   <button
                     onClick={handleExportEml}
@@ -1140,6 +1212,16 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                           <Paperclip className="w-4 h-4" />
                         </button>
                         <button type="button" className="p-1.5 hover:bg-[#f0f4f9] rounded-full cursor-pointer"><Smile className="w-4 h-4" /></button>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenTonePolish('reply')}
+                          className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-full border border-purple-200 flex items-center gap-1 transition-colors cursor-pointer ml-1"
+                          title="Tone & Polish Studio (Executive, Formal, Casual)"
+                        >
+                          <Sparkles className="w-3 h-3 fill-current text-purple-600" />
+                          <span>Tone Studio</span>
+                          <ProBadge size="xs" featureTitle="Tone & Polish Studio" />
+                        </button>
                       </div>
                       <button
                         onClick={handleSendQuickReply}
@@ -1802,6 +1884,41 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
         isLoading={false}
         onConfirm={handleConfirmPermanentDelete}
         onCancel={() => setPermanentDeleteTarget(null)}
+      />
+
+      {/* PRO MAGIC ACTION: 1-CLICK EMAIL TO TASK & EVENT MODAL */}
+      <EmailToTaskEventModal
+        isOpen={magicEmailToTaskModalOpen}
+        onClose={() => setMagicEmailToTaskModalOpen(false)}
+        message={selectedMessage}
+        token={token}
+        onSuccess={() => {
+          setSuccessMsg('Calendar event & Google Task created with pre-attached meeting link!');
+          setTimeout(() => setSuccessMsg(null), 3500);
+        }}
+      />
+
+      {/* PRO MAGIC ACTION: DEEP THREAD TL;DR MODAL */}
+      <DeepThreadSummaryModal
+        isOpen={deepThreadSummaryModalOpen}
+        onClose={() => setDeepThreadSummaryModalOpen(false)}
+        message={selectedMessage}
+      />
+
+      {/* PRO MAGIC ACTION: TONE & POLISH STUDIO MODAL */}
+      <TonePolishStudioModal
+        isOpen={tonePolishModalOpen}
+        onClose={() => setTonePolishModalOpen(false)}
+        originalText={tonePolishTarget === 'reply' ? inlineReplyText : emailBody}
+        onApplyPolishedText={(polished) => {
+          if (tonePolishTarget === 'reply') {
+            setInlineReplyText(polished);
+          } else {
+            setEmailBody(polished);
+          }
+          setSuccessMsg('Draft replaced with polished tone version!');
+          setTimeout(() => setSuccessMsg(null), 2500);
+        }}
       />
     </div>
   );

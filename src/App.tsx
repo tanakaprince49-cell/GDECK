@@ -59,6 +59,12 @@ import { NotificationToast } from './components/NotificationToast';
 import { PrivacyPolicyView } from './components/PrivacyPolicyView';
 import { TermsOfServiceView } from './components/TermsOfServiceView';
 import { LandingView } from './components/LandingView';
+import { usePlan } from './context/PlanContext';
+import { UpgradeModal } from './components/UpgradeModal';
+import { OmniSearchModal } from './components/OmniSearchModal';
+import { ProBadge } from './components/ProBadge';
+import { CheckoutSuccessView } from './components/CheckoutSuccessView';
+import { CheckoutCancelView } from './components/CheckoutCancelView';
 import {
   ALL_WORKSPACE_TOOLS,
   CATEGORIES,
@@ -89,11 +95,39 @@ export default function App() {
     if (typeof window !== 'undefined') {
       const path = window.location.pathname.toLowerCase();
       const search = window.location.search.toLowerCase();
+      if (path.includes('checkout/success') || search.includes('checkout/success') || search.includes('session_id')) return 'checkout_success';
+      if (path.includes('checkout/cancel') || search.includes('checkout/cancel')) return 'checkout_cancel';
       if (path.includes('privacy') || search.includes('privacy')) return 'privacy';
       if (path.includes('terms') || search.includes('terms')) return 'terms';
     }
     return 'overview';
   });
+
+  // Subscription Plan & Features
+  const {
+    tier,
+    isPro,
+    trialDaysRemaining,
+    openUpgradeModal,
+    accounts,
+    activeAccount,
+    switchAccount,
+  } = usePlan();
+
+  const [omniSearchOpen, setOmniSearchOpen] = useState<boolean>(false);
+
+  // Global Keyboard Shortcut for Omni-Search (Cmd+K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setOmniSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
   const [showDeleteAccountModal, setShowDeleteAccountModal] = useState<boolean>(false);
@@ -327,7 +361,7 @@ export default function App() {
 
           {/* Center: Google Search Pill */}
           {!needsAuth && token && (
-            <div ref={searchRef} className="hidden md:flex flex-1 max-w-2xl mx-auto relative">
+            <div ref={searchRef} className="hidden md:flex flex-1 max-w-2xl mx-auto relative items-center gap-2">
               <div className="w-full relative flex items-center">
                 <div className="absolute left-4 pointer-events-none text-[#5f6368]">
                   <Search className="w-4 h-4" />
@@ -341,16 +375,29 @@ export default function App() {
                     setGlobalSearchQuery(e.target.value);
                     setShowSearchResults(true);
                   }}
-                  className="w-full pl-11 pr-10 py-2.5 bg-[#f0f4f9] hover:bg-[#e9eef6] focus:bg-white text-sm text-[#1f1f1f] placeholder-[#5f6368] rounded-full border border-transparent focus:border-[#1a73e8] focus:shadow-[0_1px_3px_1px_rgba(60,64,67,0.15)] transition-all outline-none"
+                  className="w-full pl-11 pr-24 py-2.5 bg-[#f0f4f9] hover:bg-[#e9eef6] focus:bg-white text-sm text-[#1f1f1f] placeholder-[#5f6368] rounded-full border border-transparent focus:border-[#1a73e8] focus:shadow-[0_1px_3px_1px_rgba(60,64,67,0.15)] transition-all outline-none"
                 />
-                {globalSearchQuery && (
+                <div className="absolute right-2.5 flex items-center gap-1">
+                  {globalSearchQuery && (
+                    <button
+                      onClick={() => setGlobalSearchQuery('')}
+                      className="p-1 text-[#5f6368] hover:text-[#1f1f1f] rounded-full hover:bg-slate-200 cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
-                    onClick={() => setGlobalSearchQuery('')}
-                    className="absolute right-3.5 p-1 text-[#5f6368] hover:text-[#1f1f1f] rounded-full hover:bg-slate-200 cursor-pointer"
+                    type="button"
+                    onClick={() => setOmniSearchOpen(true)}
+                    className="px-2 py-0.5 text-[11px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md border border-purple-200 flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Omni-Search across Gmail, Calendar, Drive, Tasks (Cmd+K)"
                   >
-                    <X className="w-4 h-4" />
+                    <Sparkles className="w-3 h-3 text-purple-600" />
+                    <span className="hidden lg:inline">Omni</span>
+                    <kbd className="text-[10px] bg-white px-1 py-0.2 rounded border border-purple-200 text-purple-600 font-mono">⌘K</kbd>
+                    <ProBadge size="xs" showLockOnFree={false} />
                   </button>
-                )}
+                </div>
               </div>
 
               {/* Quick Search Dropdown */}
@@ -408,6 +455,48 @@ export default function App() {
             )}
             {user ? (
               <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Subscription Status Pill */}
+                {tier === 'trial' ? (
+                  <button
+                    onClick={() =>
+                      openUpgradeModal({
+                        title: '14-Day Free Pro Trial Active',
+                        desc: `You have ${trialDaysRemaining} days remaining in your full-access trial. Upgrade anytime for $12/month.`,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 bg-purple-50 rounded-full border border-purple-200 transition-colors cursor-pointer"
+                    title="14-Day Free Pro Trial Active - Click to view or upgrade"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 fill-purple-600 text-purple-600" />
+                    <span className="hidden sm:inline">Pro Trial: {trialDaysRemaining}d</span>
+                    <span className="sm:hidden">Trial</span>
+                  </button>
+                ) : tier === 'pro' ? (
+                  <button
+                    onClick={() =>
+                      openUpgradeModal({
+                        title: 'G-Deck Pro Member',
+                        desc: 'Your Pro subscription ($12/mo) is active with unlimited AI assists and cross-app automations.',
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-200 bg-purple-100 rounded-full border border-purple-300 transition-colors cursor-pointer"
+                    title="G-Deck Pro Member"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 fill-purple-600 text-purple-600" />
+                    <span className="hidden sm:inline">Pro Active</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => openUpgradeModal()}
+                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 bg-purple-50 rounded-full border border-purple-200 transition-colors cursor-pointer"
+                    title="Upgrade to G-Deck Pro ($12/month)"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-purple-600" />
+                    <span>Upgrade</span>
+                    <ProBadge size="xs" showLockOnFree={false} />
+                  </button>
+                )}
+
                 {/* Security Center Quick Access Button */}
                 <button
                   id="direct-header-security-btn"
@@ -546,6 +635,47 @@ export default function App() {
                         <span className="mt-2 text-[10px] font-semibold text-[#188038] bg-[#e6f4ea] px-2.5 py-0.5 rounded-full border border-[#ceead6] flex items-center gap-1">
                           <ShieldCheck className="w-3 h-3" /> Connected via OAuth
                         </span>
+                      </div>
+
+                      {/* Multi-Account Switching (Pro Feature) */}
+                      <div className="py-2.5 border-b border-[#f1f3f4]">
+                        <div className="flex items-center justify-between px-2 py-1 text-[11px] font-bold text-[#5f6368] uppercase tracking-wider">
+                          <span>Google Accounts</span>
+                          <ProBadge size="xs" featureTitle="Multiple Google Accounts" />
+                        </div>
+                        <div className="space-y-1 mt-1">
+                          {accounts.map((acc) => (
+                            <button
+                              key={acc.id}
+                              type="button"
+                              onClick={() => {
+                                if (switchAccount(acc.id)) {
+                                  setShowProfileMenu(false);
+                                }
+                              }}
+                              className={`w-full px-2.5 py-1.5 text-xs rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
+                                activeAccount.id === acc.id
+                                  ? 'bg-purple-50 text-purple-900 font-semibold'
+                                  : 'hover:bg-[#f0f4f9] text-[#1f1f1f]'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <div className="w-5 h-5 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                  {acc.name[0]}
+                                </div>
+                                <div className="flex flex-col text-left truncate">
+                                  <span className="truncate">{acc.name}</span>
+                                  <span className="text-[10px] text-[#5f6368] truncate">{acc.email}</span>
+                                </div>
+                              </div>
+                              {activeAccount.id === acc.id ? (
+                                <Check className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                              ) : !isPro ? (
+                                <Lock className="w-3 h-3 text-slate-400 shrink-0" />
+                              ) : null}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       <div className="pt-3 space-y-1.5">
@@ -948,7 +1078,30 @@ export default function App() {
             : 'max-w-7xl p-2 sm:p-4 md:p-6 lg:p-8'
         }`}
       >
-        {needsAuth || !token ? (
+        {activeTab === 'privacy' ? (
+          <PrivacyPolicyView onBack={() => setActiveTab('overview')} />
+        ) : activeTab === 'terms' ? (
+          <TermsOfServiceView onBack={() => setActiveTab('overview')} />
+        ) : activeTab === 'checkout_success' ? (
+          <CheckoutSuccessView
+            onReturnToDashboard={() => {
+              window.history.replaceState({}, '', '/');
+              setActiveTab('overview');
+            }}
+          />
+        ) : activeTab === 'checkout_cancel' ? (
+          <CheckoutCancelView
+            onReturnToDashboard={() => {
+              window.history.replaceState({}, '', '/');
+              setActiveTab('overview');
+            }}
+            onRetry={() => {
+              window.history.replaceState({}, '', '/');
+              setActiveTab('overview');
+              openUpgradeModal();
+            }}
+          />
+        ) : needsAuth || !token ? (
           /* High-Converting SEO Landing Screen */
           <LandingView
             onSignIn={handleSignIn}
@@ -1117,12 +1270,6 @@ export default function App() {
               }
               return null;
             })()}
-            {activeTab === 'privacy' && (
-              <PrivacyPolicyView onBack={() => setActiveTab('overview')} />
-            )}
-            {activeTab === 'terms' && (
-              <TermsOfServiceView onBack={() => setActiveTab('overview')} />
-            )}
           </div>
         )}
       </main>
@@ -1196,6 +1343,20 @@ export default function App() {
         userEmail={user?.email}
         onOpenPrivacyPolicy={() => setActiveTab('privacy')}
         onOpenDeleteAccount={() => setShowDeleteAccountModal(true)}
+      />
+
+      {/* G-Deck Pro Subscription & Upgrade Modal */}
+      <UpgradeModal />
+
+      {/* Omni-Search Across Workspace Modal (Cmd+K) */}
+      <OmniSearchModal
+        isOpen={omniSearchOpen}
+        onClose={() => setOmniSearchOpen(false)}
+        token={token}
+        onNavigateTab={(tab) => {
+          setActiveTab(tab);
+          setOmniSearchOpen(false);
+        }}
       />
 
       {/* G-Pilot AI Assistant */}

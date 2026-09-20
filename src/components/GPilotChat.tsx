@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2, Brain, Plus, Sparkles, Mail, Calendar, Video, ArrowRight } from 'lucide-react';
+import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2, Brain, Plus, Sparkles, Mail, Calendar, Video, ArrowRight, Lock } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { GPilotIcon, GmailIcon, GoogleCalendarIcon, GoogleMeetIcon, GoogleTasksIcon } from './GoogleIcons';
+import { usePlan } from '../context/PlanContext';
+import { ProBadge } from './ProBadge';
 import { 
   listGmailMessages, 
   sendGmailMessage, 
@@ -247,6 +249,15 @@ const GPILOT_TOOLS = [
 ];
 
 export default function GPilotChat({ token, userName }: GPilotChatProps) {
+  const {
+    isPro,
+    aiQueriesUsed,
+    maxFreeAiQueries,
+    incrementAiQuery,
+    requirePro,
+    openUpgradeModal,
+  } = usePlan();
+
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [showMemories, setShowMemories] = useState(false);
@@ -724,6 +735,40 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
       setMessages(prev => [...prev, { id: generateUniqueMsgId('ai'), role: 'model', content: reply }]);
       return;
     }
+
+    // Check Cross-Workspace Synthesis query gate
+    const isCrossWorkspace = /across.*(drive|email|calendar|task)|summarize.*(drive|client email|project update)/i.test(textToSend);
+    if (isCrossWorkspace && !isPro) {
+      const allowed = requirePro(
+        'Cross-Workspace Synthesis',
+        'Summarize all project updates across your Drive docs and client emails this week with G-Deck Pro.'
+      );
+      if (!allowed) {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: generateUniqueMsgId('pro-req'),
+            role: 'model',
+            content: '🔒 **G-Deck Pro Feature**: Cross-workspace synthesis across Drive docs and Gmail threads requires G-Deck Pro ($12/month). Upgrade to unlock unlimited multi-tool intelligence.',
+          },
+        ]);
+        return;
+      }
+    }
+
+    // Check Free AI Tier monthly limits (10 free assists/month)
+    const allowed = incrementAiQuery();
+    if (!allowed) {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: generateUniqueMsgId('ai-limit'),
+          role: 'model',
+          content: '🔒 **Monthly AI Limit Reached**: You’ve unlocked 10/10 free AI assists this month. Upgrade to G-Deck Pro for unlimited AI.',
+        },
+      ]);
+      return;
+    }
     
     const newContext = pruneClientContext([...apiContext, { role: 'user', parts: [{ text: textToSend }] }]);
     setApiContext(newContext);
@@ -783,6 +828,20 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-bold text-[#1f1f1f] font-['Google_Sans',Roboto,sans-serif]">G-Pilot</h3>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fbe618] text-[#0B0F17] border border-[#fbbc04]">AI</span>
+                  {isPro ? (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
+                      <Sparkles className="w-2.5 h-2.5 fill-current" /> Unlimited AI
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => openUpgradeModal({ isAiLimit: aiQueriesUsed >= maxFreeAiQueries })}
+                      className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 flex items-center gap-1 cursor-pointer transition-colors"
+                      title="Free monthly assists. Click to unlock Unlimited AI with G-Deck Pro."
+                    >
+                      <span>AI: {aiQueriesUsed}/{maxFreeAiQueries}</span>
+                      <ProBadge size="xs" showLockOnFree={false} />
+                    </button>
+                  )}
                 </div>
                 <p className="text-[10px] text-[#5f6368] font-semibold tracking-wider uppercase">WORKSPACE AI • REAL-TIME ACCURATE</p>
               </div>
@@ -924,17 +983,28 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               { label: 'Check calendar today', prompt: 'What events and meetings do I have on my calendar today?', icon: <GoogleCalendarIcon className="w-4 h-4 shrink-0" /> },
               { label: 'Read unread emails', prompt: 'Read my latest unread emails', icon: <GmailIcon className="w-4 h-4 shrink-0" /> },
               { label: 'Check my tasks', prompt: 'What to-do items and tasks do I have scheduled?', icon: <GoogleTasksIcon className="w-4 h-4 shrink-0" /> },
+              { label: 'Cross-Workspace Synthesis', prompt: 'Summarize all project updates across my Drive docs and client emails this week', icon: <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />, isPro: true },
               { label: 'Create Meet link', prompt: 'Create a new Google Meet link for me', icon: <GoogleMeetIcon className="w-4 h-4 shrink-0" /> },
               { label: 'Schedule meeting', prompt: 'I want to schedule a meeting on my calendar', icon: <GoogleCalendarIcon className="w-4 h-4 shrink-0" /> },
             ].map((chip, idx) => (
               <button
                 key={idx}
-                onClick={() => handleSend(chip.prompt)}
+                onClick={() => {
+                  if (chip.isPro && !isPro) {
+                    requirePro(
+                      'Cross-Workspace Synthesis',
+                      'Summarize all project updates across your Drive docs and client emails this week with G-Deck Pro.'
+                    );
+                    return;
+                  }
+                  handleSend(chip.prompt);
+                }}
                 disabled={isLoading}
                 className="inline-flex items-center gap-1.5 px-3 py-1 bg-white hover:bg-[#e8f0fe] border border-[#dadce0] rounded-full text-[11px] font-medium text-[#444746] hover:text-[#1a73e8] hover:border-[#1a73e8]/40 whitespace-nowrap transition-all shadow-2xs cursor-pointer disabled:opacity-50"
               >
                 {chip.icon}
                 <span>{chip.label}</span>
+                {chip.isPro && <ProBadge size="xs" />}
               </button>
             ))}
           </div>
