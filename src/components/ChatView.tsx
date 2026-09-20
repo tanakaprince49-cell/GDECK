@@ -30,8 +30,15 @@ import {
   User,
   Lightbulb,
 } from 'lucide-react';
-import { ChatMessage } from '../types/workspace';
-import { listChatSpaces, sendChatMessage, createMeetingSpace } from '../services/workspace';
+import { ChatMessage, ChatSpace } from '../types/workspace';
+import {
+  listChatSpaces,
+  listChatMessages,
+  sendChatMessage,
+  createChatSpace,
+  setupDirectMessage,
+  createMeetingSpace,
+} from '../services/workspace';
 
 interface ChatViewProps {
   token: string;
@@ -56,91 +63,19 @@ interface ChatConversation {
   type: 'dm' | 'space';
 }
 
-const DEFAULT_CONVERSATIONS: ChatConversation[] = [
-  {
-    id: 'dm-hijab',
-    name: 'hijabzulfiqar2001@gmail.com',
-    email: 'hijabzulfiqar2001@gmail.com',
-    avatarType: 'silhouette',
-    lastMessage: 'You: hello',
-    date: 'Mar 5',
-    unread: false,
-    status: 'active',
-    type: 'dm',
-  },
-  {
-    id: 'dm-angie',
-    name: 'Angie Varona',
-    email: 'angie.varona@workspace.internal',
-    avatarType: 'initial',
-    avatarInitial: 'A',
-    avatarBg: 'bg-[#0b57d0]',
-    lastMessage: 'You: hey',
-    date: 'Dec 2025',
-    unread: false,
-    status: 'active',
-    type: 'dm',
-  },
-  {
-    id: 'dm-zach',
-    name: 'zachmarketmove@gmail.com',
-    email: 'zachmarketmove@gmail.com',
-    avatarType: 'silhouette',
-    lastMessage: 'You: hello',
-    date: 'Dec 2025',
-    unread: false,
-    status: 'away',
-    type: 'dm',
-  },
-];
-
-const DEFAULT_MESSAGES: Record<string, ChatMessage[]> = {
-  'dm-hijab': [
-    {
-      name: 'msg-h1',
-      text: 'hello',
-      createTime: '2026-03-05T14:20:00Z',
-      sender: {
-        name: 'You',
-        displayName: 'You',
-      },
-    },
-  ],
-  'dm-angie': [
-    {
-      name: 'msg-a1',
-      text: 'hey',
-      createTime: '2025-12-18T10:15:00Z',
-      sender: {
-        name: 'You',
-        displayName: 'You',
-      },
-    },
-  ],
-  'dm-zach': [
-    {
-      name: 'msg-z1',
-      text: 'hello',
-      createTime: '2025-12-14T09:40:00Z',
-      sender: {
-        name: 'You',
-        displayName: 'You',
-      },
-    },
-  ],
-};
-
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🎉', '🚀', '🔥', '👏', '💡', '✅', '👀', '💯', '☕️'];
 
 export const ChatView: React.FC<ChatViewProps> = ({
   token,
   onBackToOverview,
-  userName = 'Tanaka Prince',
-  userEmail = 'tanakaprince49@gmail.com',
+  userName = 'You',
+  userEmail = '',
   userPhoto,
 }) => {
-  // Navigation & panels
-  const [sidebarOpen, setSidebarOpen] = useState<boolean>(true);
+  // Navigation & panels — sidebar closed by default on phones (drawer)
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(() =>
+    typeof window !== 'undefined' ? window.innerWidth >= 768 : true
+  );
   const [activeShortcut, setActiveShortcut] = useState<'home' | 'mentions' | 'starred'>('home');
   const [shortcutsOpen, setShortcutsOpen] = useState<boolean>(true);
   const [dmsOpen, setDmsOpen] = useState<boolean>(true);
@@ -155,12 +90,16 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [statusMenuOpen, setStatusMenuOpen] = useState<boolean>(false);
   const [userStatus, setUserStatus] = useState<'active' | 'dnd' | 'away'>('active');
 
-  // Conversation state
-  const [conversations, setConversations] = useState<ChatConversation[]>(DEFAULT_CONVERSATIONS);
+  // Conversation state — live Google Chat only (no fake seed data)
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<ChatConversation | null>(null);
-  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>(DEFAULT_MESSAGES);
+  const [messagesMap, setMessagesMap] = useState<Record<string, ChatMessage[]>>({});
   const [messageInput, setMessageInput] = useState<string>('');
   const [isSending, setIsSending] = useState<boolean>(false);
+  const [loadingSpaces, setLoadingSpaces] = useState<boolean>(true);
+  const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
+  const [spacesError, setSpacesError] = useState<string | null>(null);
+  const [messagesError, setMessagesError] = useState<string | null>(null);
   const [showEmojiPicker, setShowEmojiPicker] = useState<boolean>(false);
   const [isGeneratingMeet, setIsGeneratingMeet] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -196,50 +135,155 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   }, [selectedConversation, messagesMap]);
 
-  // Sync Google Chat spaces if account has access
-  useEffect(() => {
-    async function fetchSpaces() {
+  const mapSpaceToConversation = (sp: ChatSpace): ChatConversation => {
+    const isDm =
+      sp.spaceType === 'DIRECT_MESSAGE' ||
+      sp.isDirectMessage === true ||
+      sp.type === 'DIRECT_MESSAGE';
+    const label =
+      sp.displayName ||
+      sp.lastMessageSnippet ||
+      (sp.name ? sp.name.replace(/^spaces\//, '') : 'Chat');
+    let date = '';
+    if (sp.lastMessageTime) {
       try {
-        const live = await listChatSpaces(token);
-        if (live && live.length > 0) {
-          const formatted: ChatConversation[] = live.map((sp) => ({
-            id: sp.name,
-            name: sp.displayName || sp.name.replace('spaces/', ''),
-            avatarType: sp.spaceType === 'DIRECT_MESSAGE' ? 'initial' : 'silhouette',
-            avatarInitial: sp.displayName ? sp.displayName[0].toUpperCase() : 'S',
-            avatarBg: 'bg-[#00796b]',
-            lastMessage: 'Active Google Chat space',
-            date: 'Today',
-            unread: false,
-            type: sp.spaceType === 'DIRECT_MESSAGE' ? 'dm' : 'space',
-          }));
-
-          setConversations((prev) => {
-            const currentIds = new Set(prev.map((c) => c.id));
-            const fresh = formatted.filter((f) => !currentIds.has(f.id));
-            return [...prev, ...fresh];
-          });
-        }
+        date = new Date(sp.lastMessageTime).toLocaleDateString(undefined, {
+          month: 'short',
+          day: 'numeric',
+        });
       } catch {
-        // Consumer fallback
+        date = '';
       }
     }
-    fetchSpaces();
+    return {
+      id: sp.name,
+      name: label,
+      avatarType: isDm ? 'initial' : 'silhouette',
+      avatarInitial: label ? label[0].toUpperCase() : 'C',
+      avatarBg: isDm ? 'bg-[#0b57d0]' : 'bg-[#00796b]',
+      lastMessage: sp.lastMessageSnippet || (isDm ? 'Direct message' : 'Space'),
+      date: date || '',
+      unread: (sp.unreadCount || 0) > 0,
+      type: isDm ? 'dm' : 'space',
+      status: sp.status === 'away' ? 'away' : 'active',
+    };
+  };
+
+  const refreshSpaces = async () => {
+    setLoadingSpaces(true);
+    setSpacesError(null);
+    try {
+      const live = await listChatSpaces(token);
+      const formatted = (live || []).map(mapSpaceToConversation);
+      // Prefer real spaces only — drop any non-spaces/ local stubs
+      setConversations(formatted);
+      // Keep selection if still present
+      setSelectedConversation((prev) => {
+        if (!prev) return null;
+        return formatted.find((c) => c.id === prev.id) || null;
+      });
+    } catch (err: any) {
+      const msg =
+        err?.message ||
+        'Could not load Google Chat. Your account may need Chat enabled, or re-connect to grant Chat scopes.';
+      setSpacesError(msg);
+      setConversations([]);
+    } finally {
+      setLoadingSpaces(false);
+    }
+  };
+
+  // Load real Google Chat spaces
+  useEffect(() => {
+    if (!token) return;
+    refreshSpaces();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
-  // Send message
+  // Load messages when a real space is opened
+  useEffect(() => {
+    if (!token || !selectedConversation?.id) return;
+    if (!selectedConversation.id.startsWith('spaces/')) return;
+
+    let cancelled = false;
+    (async () => {
+      setLoadingMessages(true);
+      setMessagesError(null);
+      try {
+        const msgs = await listChatMessages(token, selectedConversation.id);
+        if (cancelled) return;
+        const normalized: ChatMessage[] = (msgs || []).map((m) => ({
+          name: m.name,
+          text: m.text || '',
+          createTime: m.createTime,
+          sender: {
+            name: m.sender?.name,
+            displayName:
+              m.sender?.displayName ||
+              (m.sender?.name ? String(m.sender.name).split('/').pop() : 'Member'),
+            avatarUrl: m.sender?.avatarUrl,
+          },
+          reactions: m.reactions || {},
+          userReactions: m.userReactions || [],
+        }));
+        setMessagesMap((prev) => ({
+          ...prev,
+          [selectedConversation.id]: normalized,
+        }));
+        // Update last message snippet on the list
+        const last = normalized[normalized.length - 1];
+        if (last?.text) {
+          setConversations((prev) =>
+            prev.map((c) =>
+              c.id === selectedConversation.id
+                ? {
+                    ...c,
+                    lastMessage: last.text || c.lastMessage,
+                    date: last.createTime
+                      ? new Date(last.createTime).toLocaleDateString(undefined, {
+                          month: 'short',
+                          day: 'numeric',
+                        })
+                      : c.date,
+                  }
+                : c
+            )
+          );
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setMessagesError(err?.message || 'Failed to load messages for this chat.');
+        }
+      } finally {
+        if (!cancelled) setLoadingMessages(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [token, selectedConversation?.id]);
+
+  // Send message via Google Chat API
   const handleSendMessage = async () => {
     if (!selectedConversation || !messageInput.trim() || isSending) return;
     const text = messageInput.trim();
+    if (!selectedConversation.id.startsWith('spaces/')) {
+      setToastMessage('This chat is not connected to Google Chat yet.');
+      return;
+    }
+
     setMessageInput('');
     setIsSending(true);
+    setMessagesError(null);
 
-    const newMsg: ChatMessage = {
-      name: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    const optimisticId = `local-${Date.now()}`;
+    const optimistic: ChatMessage = {
+      name: optimisticId,
       text,
       createTime: new Date().toISOString(),
       sender: {
-        name: 'You',
+        name: 'users/me',
         displayName: userName || 'You',
         avatarUrl: userPhoto,
       },
@@ -249,9 +293,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
     setMessagesMap((prev) => ({
       ...prev,
-      [selectedConversation.id]: [...(prev[selectedConversation.id] || []), newMsg],
+      [selectedConversation.id]: [...(prev[selectedConversation.id] || []), optimistic],
     }));
-
     setConversations((prev) =>
       prev.map((c) =>
         c.id === selectedConversation.id
@@ -260,16 +303,39 @@ export const ChatView: React.FC<ChatViewProps> = ({
       )
     );
 
-    if (selectedConversation.id.startsWith('spaces/')) {
-      try {
-        await sendChatMessage(token, selectedConversation.id, text);
-      } catch {
-        // fallback
-      }
+    try {
+      const sent = await sendChatMessage(token, selectedConversation.id, text);
+      setMessagesMap((prev) => {
+        const list = prev[selectedConversation.id] || [];
+        return {
+          ...prev,
+          [selectedConversation.id]: list.map((m) =>
+            m.name === optimisticId
+              ? {
+                  ...m,
+                  name: sent?.name || m.name,
+                  createTime: sent?.createTime || m.createTime,
+                  text: sent?.text || text,
+                }
+              : m
+          ),
+        };
+      });
+    } catch (err: any) {
+      // Roll back optimistic message
+      setMessagesMap((prev) => ({
+        ...prev,
+        [selectedConversation.id]: (prev[selectedConversation.id] || []).filter(
+          (m) => m.name !== optimisticId
+        ),
+      }));
+      setMessageInput(text);
+      setMessagesError(err?.message || 'Failed to send message.');
+      setToastMessage(err?.message || 'Failed to send message.');
+    } finally {
+      setIsSending(false);
+      setShowEmojiPicker(false);
     }
-
-    setIsSending(false);
-    setShowEmojiPicker(false);
   };
 
   // Google Meet 1-click video call
@@ -317,84 +383,61 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setIsGeneratingMeet(false);
   };
 
-  // Create new DM
-  const handleCreateNewChat = (e: React.FormEvent) => {
+  // Create / open a real DM via Google Chat spaces.setup
+  const handleCreateNewChat = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newChatEmail.trim()) return;
+    if (!newChatEmail.trim() || isSending) return;
     const email = newChatEmail.trim();
-    const id = `dm-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
-    const newConv: ChatConversation = {
-      id,
-      name: email,
-      email,
-      avatarType: 'initial',
-      avatarInitial: email[0].toUpperCase(),
-      avatarBg: 'bg-[#0b57d0]',
-      lastMessage: 'Conversation started',
-      date: 'Just now',
-      type: 'dm',
-      status: 'active',
-    };
-
-    setConversations((prev) => [newConv, ...prev]);
-    setSelectedConversation(newConv);
-    setMessagesMap((prev) => ({
-      ...prev,
-      [id]: [
-        {
-          name: `msg-sys-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          text: `Conversation started with ${email}`,
-          createTime: new Date().toISOString(),
-          sender: {
-            name: 'Google Chat',
-            displayName: 'Google Chat',
-          },
-        },
-      ],
-    }));
-
-    setNewChatEmail('');
-    setShowNewChatModal(false);
-    setToastMessage(`Started chat with ${email}`);
+    setIsSending(true);
+    try {
+      const space = await setupDirectMessage(token, email);
+      const conv = mapSpaceToConversation({
+        ...space,
+        displayName: space.displayName || email,
+        spaceType: space.spaceType || 'DIRECT_MESSAGE',
+        isDirectMessage: true,
+      });
+      setConversations((prev) => {
+        const without = prev.filter((c) => c.id !== conv.id);
+        return [conv, ...without];
+      });
+      setSelectedConversation(conv);
+      setMessagesMap((prev) => ({ ...prev, [conv.id]: prev[conv.id] || [] }));
+      setNewChatEmail('');
+      setShowNewChatModal(false);
+      setSidebarOpen(false);
+      setToastMessage(`Opened chat with ${email}`);
+    } catch (err: any) {
+      setToastMessage(
+        err?.message ||
+          'Could not start DM. Re-connect Google to grant Chat membership scopes, and ensure Chat is on for both accounts.'
+      );
+    } finally {
+      setIsSending(false);
+    }
   };
 
-  // Create new Space
-  const handleCreateSpace = (e: React.FormEvent) => {
+  // Create a real Google Chat space
+  const handleCreateSpace = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSpaceName.trim()) return;
+    if (!newSpaceName.trim() || isSending) return;
     const spaceName = newSpaceName.trim();
-    const id = `space-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
-
-    const newConv: ChatConversation = {
-      id,
-      name: spaceName,
-      avatarType: 'silhouette',
-      lastMessage: `Space created: #${spaceName}`,
-      date: 'Just now',
-      type: 'space',
-    };
-
-    setConversations((prev) => [newConv, ...prev]);
-    setSelectedConversation(newConv);
-    setMessagesMap((prev) => ({
-      ...prev,
-      [id]: [
-        {
-          name: `msg-space-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          text: `Welcome to #${spaceName}! Collaborate and share files here.`,
-          createTime: new Date().toISOString(),
-          sender: {
-            name: 'Google Chat',
-            displayName: 'Google Chat',
-          },
-        },
-      ],
-    }));
-
-    setNewSpaceName('');
-    setShowSpaceModal(false);
-    setToastMessage(`Created space #${spaceName}`);
+    setIsSending(true);
+    try {
+      const space = await createChatSpace(token, spaceName, 'SPACE');
+      const conv = mapSpaceToConversation(space);
+      setConversations((prev) => [conv, ...prev.filter((c) => c.id !== conv.id)]);
+      setSelectedConversation(conv);
+      setMessagesMap((prev) => ({ ...prev, [conv.id]: prev[conv.id] || [] }));
+      setNewSpaceName('');
+      setShowSpaceModal(false);
+      setSidebarOpen(false);
+      setToastMessage(`Created space #${spaceName}`);
+    } catch (err: any) {
+      setToastMessage(err?.message || 'Could not create space. Check Chat scopes / Workspace Chat access.');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   // Toggle reaction
@@ -453,7 +496,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   return (
     <div
       id="google-chat-screen"
-      className="bg-[#f8fafd] w-full min-h-0 h-full md:min-h-[760px] md:h-[calc(100dvh-80px)] flex flex-col font-sans select-none text-[#1f1f1f] rounded-2xl overflow-hidden relative shadow-sm border border-[#e0e2e6]"
+      className="bg-[#f8fafd] w-full min-h-0 h-full md:min-h-[760px] md:h-[calc(100dvh-80px)] flex flex-col font-sans select-none text-[#1f1f1f] rounded-none md:rounded-2xl overflow-hidden relative shadow-none md:shadow-sm border-0 md:border border-[#e0e2e6]"
     >
       {/* Toast */}
       {toastMessage && (
@@ -528,8 +571,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
           </div>
         </div>
 
-        {/* Right Controls: Active Status, Help, Settings, Waffle, Profile */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Right Controls */}
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
           {/* Status Dropdown */}
           <div className="relative">
             <button
@@ -634,11 +677,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
         </div>
       </div>
 
-      {/* ================= MAIN CONTENT: SIDEBAR + 2 FLOATING WHITE CARDS + COMPANION RAIL ================= */}
-      <div className="flex-1 flex overflow-hidden p-2 gap-3 bg-[#f8fafd]">
-        {/* ================= 1. LEFT SIDEBAR ================= */}
+      {/* ================= MAIN CONTENT ================= */}
+      <div className="flex-1 flex overflow-hidden p-0 sm:p-2 gap-0 sm:gap-3 bg-[#f8fafd] relative min-h-0">
+        {/* Mobile sidebar backdrop */}
         {sidebarOpen && (
-          <div className="w-60 flex flex-col shrink-0 overflow-y-auto px-2 select-none">
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-black/35 md:hidden"
+            aria-label="Close chat menu"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        {/* ================= 1. LEFT SIDEBAR (drawer on mobile) ================= */}
+        {sidebarOpen && (
+          <div className="fixed md:static inset-y-0 left-0 z-50 md:z-auto w-[min(18rem,88vw)] md:w-60 flex flex-col shrink-0 overflow-y-auto px-3 md:px-2 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] select-none bg-[#f8fafd] md:bg-transparent shadow-2xl md:shadow-none">
             {/* "+ New chat" Button */}
             <button
               onClick={() => setShowNewChatModal(true)}
@@ -741,7 +793,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
                       return (
                         <button
                           key={conv.id}
-                          onClick={() => setSelectedConversation(conv)}
+                          onClick={() => {
+                            setSelectedConversation(conv);
+                            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                              setSidebarOpen(false);
+                            }
+                          }}
                           className={`w-full text-left px-2.5 py-1.5 rounded-xl text-xs flex items-center gap-2.5 transition-all cursor-pointer ${
                             isSelected
                               ? 'bg-[#d3e3fd] text-[#041e49] font-medium'
@@ -909,9 +966,36 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
           {/* Conversations list matching screenshot */}
           <div className="flex-1 overflow-y-auto divide-y divide-[#f1f3f4]">
-            {filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-[#5f6368]">
-                <p className="text-xs">No conversations found.</p>
+            {loadingSpaces ? (
+              <div className="p-10 text-center text-[#5f6368] space-y-2">
+                <div className="w-6 h-6 mx-auto border-2 border-[#1a73e8] border-t-transparent rounded-full animate-spin" />
+                <p className="text-xs font-medium">Loading Google Chat…</p>
+              </div>
+            ) : spacesError ? (
+              <div className="p-6 text-center text-[#5f6368] space-y-3">
+                <p className="text-xs font-semibold text-[#1f1f1f]">Couldn’t load chats</p>
+                <p className="text-[11px] leading-relaxed">{spacesError}</p>
+                <button
+                  type="button"
+                  onClick={() => refreshSpaces()}
+                  className="px-4 py-2 rounded-full bg-[#1a73e8] text-white text-xs font-bold cursor-pointer"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : filteredConversations.length === 0 ? (
+              <div className="p-8 text-center text-[#5f6368] space-y-3">
+                <p className="text-sm font-semibold text-[#1f1f1f]">No chats yet</p>
+                <p className="text-xs leading-relaxed max-w-xs mx-auto">
+                  Start a direct message or create a space. Data comes from your real Google Chat account.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowNewChatModal(true)}
+                  className="px-4 py-2 rounded-full bg-[#1a73e8] text-white text-xs font-bold cursor-pointer"
+                >
+                  New chat
+                </button>
               </div>
             ) : (
               filteredConversations.map((conv) => {
@@ -920,7 +1004,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 return (
                   <button
                     key={conv.id}
-                    onClick={() => setSelectedConversation(conv)}
+                    onClick={() => {
+                            setSelectedConversation(conv);
+                            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                              setSidebarOpen(false);
+                            }
+                          }}
                     className={`w-full text-left px-5 py-3.5 flex items-start gap-3.5 transition-colors cursor-pointer ${
                       isSelected ? 'bg-[#e8f0fe]' : 'hover:bg-[#f8fafd]'
                     }`}
@@ -1059,15 +1148,38 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
               {/* Headings */}
               <h3 className="text-xl font-normal text-[#1f1f1f] mb-2">
-                No conversation selected
+                {loadingSpaces ? 'Loading your chats…' : 'Pick a conversation'}
               </h3>
               <p className="text-sm text-[#444746] max-w-sm leading-relaxed">
-                Use the toggle to switch between single and<br />split pane modes
+                {spacesError
+                  ? spacesError
+                  : 'Open a direct message or space from the list — messages load live from Google Chat.'}
               </p>
+              <div className="flex items-center gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(true)}
+                  className="md:hidden px-4 py-2 rounded-full bg-[#e8f0fe] text-[#1a73e8] text-xs font-bold cursor-pointer"
+                >
+                  Open chats
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowNewChatModal(true)}
+                  className="px-4 py-2 rounded-full bg-[#1a73e8] text-white text-xs font-bold cursor-pointer"
+                >
+                  New chat
+                </button>
+              </div>
             </div>
           ) : (
             /* ACTIVE CONVERSATION INSIDE WHITE CARD */
-            <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
+            <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden bg-white">
+              {(loadingMessages || messagesError) && (
+                <div className={`px-4 py-2 text-[11px] font-medium border-b ${messagesError ? 'bg-[#fce8e6] text-[#c5221f] border-[#fad2cf]' : 'bg-[#e8f0fe] text-[#1a73e8] border-[#d2e3fc]'}`}>
+                  {loadingMessages ? 'Loading messages…' : messagesError}
+                </div>
+              )}
               {/* Header */}
               <div className="px-6 py-3.5 border-b border-[#dadce0] bg-white flex items-center justify-between gap-4 shrink-0">
                 <div className="flex items-center gap-3 min-w-0">
@@ -1555,27 +1667,35 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 />
               </div>
 
-              <div>
-                <p className="text-[11px] font-semibold text-[#5f6368] uppercase tracking-wider mb-2">
-                  Suggestions
-                </p>
-                <div className="space-y-1">
-                  {DEFAULT_CONVERSATIONS.map((c) => (
-                    <button
-                      key={c.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedConversation(c);
-                        setShowNewChatModal(false);
-                      }}
-                      className="w-full px-3 py-2 rounded-xl text-left hover:bg-[#f1f3f4] flex items-center justify-between text-xs cursor-pointer"
-                    >
-                      <span className="font-medium text-[#1f1f1f] truncate">{c.name}</span>
-                      <span className="text-[11px] text-[#0b57d0]">Message</span>
-                    </button>
-                  ))}
+              {conversations.filter((c) => c.type === 'dm').length > 0 && (
+                <div>
+                  <p className="text-[11px] font-semibold text-[#5f6368] uppercase tracking-wider mb-2">
+                    Recent DMs
+                  </p>
+                  <div className="space-y-1 max-h-40 overflow-y-auto">
+                    {conversations
+                      .filter((c) => c.type === 'dm')
+                      .slice(0, 6)
+                      .map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            setSelectedConversation(c);
+                            setShowNewChatModal(false);
+                            if (typeof window !== 'undefined' && window.innerWidth < 768) {
+                              setSidebarOpen(false);
+                            }
+                          }}
+                          className="w-full px-3 py-2 rounded-xl text-left hover:bg-[#f1f3f4] flex items-center justify-between text-xs cursor-pointer"
+                        >
+                          <span className="font-medium text-[#1f1f1f] truncate">{c.name}</span>
+                          <span className="text-[11px] text-[#0b57d0]">Open</span>
+                        </button>
+                      ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#dadce0]">
                 <button

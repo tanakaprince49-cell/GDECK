@@ -638,8 +638,8 @@ export default function App() {
 
           {/* Right: Menu · alerts · avatar — tools search has NO Omni inside */}
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 justify-end ml-auto">
-            {/* Single hamburger — right side, never beside the logo */}
-            {user && (
+            {/* THE only home-screen hamburger */}
+            {!needsAuth && token && (
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -724,7 +724,7 @@ export default function App() {
                 </a>
 
                 {/* 9-dot Google App Launcher (Waffle Menu) */}
-                <div ref={waffleRef} className="relative hidden xs:block">
+                <div ref={waffleRef} className="relative hidden lg:block">
                   <button
                     id="waffle-menu-btn"
                     onClick={() => setShowWaffleMenu(!showWaffleMenu)}
@@ -1215,16 +1215,7 @@ export default function App() {
         {isFullscreen && (
           <div className="gdeck-mobile-tool-chrome" id="mobile-tool-topbar">
             <div className="gdeck-mobile-tool-bar">
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(true)}
-                className="p-2.5 rounded-full text-[#1f1f1f] hover:bg-[#f1f3f4] cursor-pointer shrink-0"
-                aria-label="Open menu"
-                title="Menu"
-                id="mobile-tool-menu-btn"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
+              {/* Back only — tools keep their own ☰ for sidebars (no double hamburger) */}
               <button
                 type="button"
                 onClick={goHome}
@@ -1351,7 +1342,7 @@ export default function App() {
                 onFocusHandled={() => setOmniFocus(null)}
 
                 userName={displayName || undefined}
-                userEmail={user?.email || 'tanakaprince49@gmail.com'}
+                userEmail={displayEmail || undefined}
                 userPhoto={user?.photoURL || undefined}
               />
             )}
@@ -1378,7 +1369,7 @@ export default function App() {
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
                 userName={displayName || undefined}
-                userEmail={user?.email || 'tanakaprince49@gmail.com'}
+                userEmail={displayEmail || undefined}
                 userPhoto={user?.photoURL || undefined}
               />
             )}
@@ -1388,7 +1379,7 @@ export default function App() {
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
                 userName={displayName || undefined}
-                userEmail={user?.email || 'tanakaprince49@gmail.com'}
+                userEmail={displayEmail || undefined}
                 userPhoto={user?.photoURL || undefined}
               />
             )}
@@ -1421,7 +1412,7 @@ export default function App() {
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
                 userName={displayName || undefined}
-                userEmail={user?.email || 'tanakaprince49@gmail.com'}
+                userEmail={displayEmail || undefined}
                 userPhoto={user?.photoURL || undefined}
               />
             )}

@@ -1226,23 +1226,42 @@ export async function deleteTask(token: string, tasklistId: string, taskId: stri
 }
 
 // ---------------- Google Chat ----------------
+/** Normalize a space resource name to `spaces/{id}`. */
+function normalizeSpaceName(spaceName: string): string {
+  if (!spaceName) return spaceName;
+  if (spaceName.startsWith('spaces/')) return spaceName;
+  return `spaces/${spaceName}`;
+}
+
 export async function listChatSpaces(token: string): Promise<ChatSpace[]> {
+  // filter=SPACE_FILTER covers rooms + DMs the user is a member of
+  const url =
+    'https://chat.googleapis.com/v1/spaces?pageSize=100&filter=' +
+    encodeURIComponent('spaceType = "SPACE" OR spaceType = "DIRECT_MESSAGE" OR spaceType = "GROUP_CHAT"');
   try {
-    const data = await googleFetch('https://chat.googleapis.com/v1/spaces', token);
-    return data?.spaces || [];
+    const data = await googleFetch(url, token);
+    return (data?.spaces || []) as ChatSpace[];
   } catch (err: any) {
-    // Some consumer accounts don't have Google Chat Spaces enabled
-    console.warn('Google Chat Spaces query notice:', err);
-    throw err;
+    // Fallback without filter (older API / partial scope)
+    try {
+      const data = await googleFetch('https://chat.googleapis.com/v1/spaces?pageSize=100', token);
+      return (data?.spaces || []) as ChatSpace[];
+    } catch (err2: any) {
+      console.warn('Google Chat Spaces query notice:', err2?.message || err2);
+      throw err2;
+    }
   }
 }
 
 export async function listChatMessages(token: string, spaceName: string): Promise<ChatMessage[]> {
+  const space = normalizeSpaceName(spaceName);
   const data = await googleFetch(
-    `https://chat.googleapis.com/v1/${spaceName}/messages?pageSize=25`,
+    `https://chat.googleapis.com/v1/${space}/messages?pageSize=50&orderBy=createTime desc`,
     token
   );
-  return data?.messages || [];
+  const msgs = (data?.messages || []) as ChatMessage[];
+  // API returns newest first when orderBy desc — reverse for chat UI (oldest → newest)
+  return [...msgs].reverse();
 }
 
 export async function sendChatMessage(
@@ -1250,7 +1269,8 @@ export async function sendChatMessage(
   spaceName: string,
   text: string
 ): Promise<ChatMessage> {
-  return googleFetch(`https://chat.googleapis.com/v1/${spaceName}/messages`, token, {
+  const space = normalizeSpaceName(spaceName);
+  return googleFetch(`https://chat.googleapis.com/v1/${space}/messages`, token, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text }),
@@ -1262,12 +1282,42 @@ export async function createChatSpace(
   displayName: string,
   spaceType: 'SPACE' | 'GROUP_CHAT' = 'SPACE'
 ): Promise<ChatSpace> {
-  return googleFetch('https://chat.googleapis.com/v1/spaces', token, {
+  return googleFetch('https://chat.googleapis.com/v1/spaces?spaceType=' + spaceType, token, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       spaceType,
       displayName,
+    }),
+  });
+}
+
+/**
+ * Find-or-create a DIRECT_MESSAGE space with a user by email (People/Chat membership).
+ * Uses spaces.setup which creates a DM when given a single user membership.
+ * https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces/setup
+ */
+export async function setupDirectMessage(
+  token: string,
+  userEmail: string
+): Promise<ChatSpace> {
+  const email = userEmail.trim();
+  if (!email) throw new Error('Email is required');
+  return googleFetch('https://chat.googleapis.com/v1/spaces:setup', token, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      space: {
+        spaceType: 'DIRECT_MESSAGE',
+      },
+      memberships: [
+        {
+          member: {
+            name: `users/${email}`,
+            type: 'HUMAN',
+          },
+        },
+      ],
     }),
   });
 }
