@@ -492,6 +492,17 @@ export default function App() {
         setNeedsAuth(false);
         setAuthRestoring(false);
         setAuthError(null);
+
+        // First-time signup only: welcome + “better on laptop/desktop” tip.
+        // Returning users (onboarding already completed) never see this again.
+        try {
+          const done = localStorage.getItem('gdeck_onboarding_completed') === 'true';
+          if (!done) {
+            setShowOnboarding(true);
+          }
+        } catch {
+          setShowOnboarding(true);
+        }
       }
     } catch (err: any) {
       console.error('Sign-in error:', err);
@@ -565,9 +576,21 @@ export default function App() {
     try {
       localStorage.setItem('gdeck_onboarding', JSON.stringify(prefs));
       localStorage.setItem('gdeck_onboarding_completed', 'true');
+      localStorage.setItem('gdeck_desktop_tip_seen', 'true');
     } catch {}
     setShowOnboarding(false);
   };
+
+  // If a brand-new account restores via silent auth (rare first paint), still show onboarding once.
+  useEffect(() => {
+    if (!token || needsAuth || showOnboarding) return;
+    try {
+      const done = localStorage.getItem('gdeck_onboarding_completed') === 'true';
+      if (!done) setShowOnboarding(true);
+    } catch {
+      /* ignore */
+    }
+  }, [token, needsAuth, showOnboarding]);
 
   // Filter tools for global search
   const filteredSearchTools = ALL_WORKSPACE_TOOLS.filter((t) => {
@@ -1660,17 +1683,19 @@ export default function App() {
         <GPilotChat token={token} userName={onboardingPrefs?.userName} />
       )}
 
-      {/* Onboarding Wizard */}
+      {/* Onboarding Wizard — first signup only (desktop tip + name) */}
       <OnboardingModal
         isOpen={showOnboarding}
         onComplete={handleCompleteOnboarding}
         onClose={() => {
           try {
             localStorage.setItem('gdeck_onboarding_completed', 'true');
+            localStorage.setItem('gdeck_desktop_tip_seen', 'true');
           } catch {}
           setShowOnboarding(false);
         }}
         initialTheme="light"
+        initialName={displayName}
         onDeleteAccount={() => setShowDeleteAccountModal(true)}
       />
 

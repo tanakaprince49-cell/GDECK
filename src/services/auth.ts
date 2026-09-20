@@ -156,6 +156,7 @@ function clearAllTokenStorage() {
 export const GDECK_USER_DATA_KEYS = [
   'gdeck_onboarding',
   'gdeck_onboarding_completed',
+  'gdeck_desktop_tip_seen',
   'gdeck_pinned_tools',
   'gdeck_plan_tier',
   'gdeck_pro_expires_at',
