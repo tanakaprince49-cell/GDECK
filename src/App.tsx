@@ -62,6 +62,7 @@ import { LandingView } from './components/LandingView';
 import { usePlan } from './context/PlanContext';
 import { UpgradeModal } from './components/UpgradeModal';
 import { OmniSearchModal } from './components/OmniSearchModal';
+import { WorkspaceFocusTarget } from './types/focus';
 import { ProBadge } from './components/ProBadge';
 import { CheckoutSuccessView } from './components/CheckoutSuccessView';
 import { CheckoutCancelView } from './components/CheckoutCancelView';
@@ -114,6 +115,8 @@ export default function App() {
   } = usePlan();
 
   const [omniSearchOpen, setOmniSearchOpen] = useState<boolean>(false);
+  // A search result the destination view should open directly, then clear.
+  const [omniFocus, setOmniFocus] = useState<WorkspaceFocusTarget | null>(null);
 
   // Global Keyboard Shortcut for Omni-Search (Cmd+K / Ctrl+K)
   useEffect(() => {
@@ -1088,6 +1091,8 @@ export default function App() {
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
                 onNavigateTab={(tab) => setActiveTab(tab)}
+                focusTarget={omniFocus}
+                onFocusHandled={() => setOmniFocus(null)}
               />
             )}
             {/* 2. Google Drive */}
@@ -1096,6 +1101,8 @@ export default function App() {
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
                 onNavigateTab={(tab) => setActiveTab(tab)}
+                focusTarget={omniFocus}
+                onFocusHandled={() => setOmniFocus(null)}
               />
             )}
             {/* 3. Google Docs */}
@@ -1103,6 +1110,9 @@ export default function App() {
               <DocsView
                 token={token}
                 onBackToOverview={() => setActiveTab('overview')}
+                focusTarget={omniFocus}
+                onFocusHandled={() => setOmniFocus(null)}
+
                 userName={user?.displayName || 'Tanaka Prince'}
                 userEmail={user?.email || 'tanakaprince49@gmail.com'}
                 userPhoto={user?.photoURL || undefined}
@@ -1114,7 +1124,12 @@ export default function App() {
             )}
             {/* 5. Google Calendar */}
             {activeTab === 'calendar' && (
-              <CalendarView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <CalendarView
+                token={token}
+                onBackToOverview={() => setActiveTab('overview')}
+                focusTarget={omniFocus}
+                onFocusHandled={() => setOmniFocus(null)}
+              />
             )}
             {/* 6. Google Meet */}
             {activeTab === 'meet' && (
@@ -1146,7 +1161,12 @@ export default function App() {
             )}
             {/* 10. Google Tasks */}
             {activeTab === 'tasks' && (
-              <TasksView token={token} onBackToOverview={() => setActiveTab('overview')} />
+              <TasksView
+                token={token}
+                onBackToOverview={() => setActiveTab('overview')}
+                focusTarget={omniFocus}
+                onFocusHandled={() => setOmniFocus(null)}
+              />
             )}
 
             {/* Supplementary Utilities */}
@@ -1288,8 +1308,9 @@ export default function App() {
         isOpen={omniSearchOpen}
         onClose={() => setOmniSearchOpen(false)}
         token={token}
-        onNavigateTab={(tab) => {
-          setActiveTab(tab);
+        onOpenResult={(target) => {
+          setActiveTab(target.source);
+          setOmniFocus(target);
           setOmniSearchOpen(false);
         }}
       />

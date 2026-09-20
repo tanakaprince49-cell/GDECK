@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { WorkspaceFocusTarget } from '../types/focus';
 import {
   Check,
   Plus,
@@ -31,14 +32,19 @@ import { GoogleTasksIcon } from './GoogleIcons';
 interface TasksViewProps {
   token: string;
   onBackToOverview?: () => void;
+  /** Task to open straight away (from Omni-Search). */
+  focusTarget?: WorkspaceFocusTarget | null;
+  onFocusHandled?: () => void;
 }
 
-export const TasksView: React.FC<TasksViewProps> = ({ token, onBackToOverview }) => {
+export const TasksView: React.FC<TasksViewProps> = ({ token, onBackToOverview, focusTarget, onFocusHandled }) => {
   const [taskLists, setTaskLists] = useState<TaskList[]>([
     { id: 'default', title: 'My Tasks' },
     { id: 'work', title: 'Work & Workspace' },
   ]);
   const [selectedListId, setSelectedListId] = useState<string>('default');
+  // Task list chosen from outside (Omni-Search); keeps the list loader from reverting it.
+  const focusedListIdRef = useRef<string | null>(null);
   const [tasks, setTasks] = useState<TaskItem[]>([
     {
       id: 't1',
@@ -92,7 +98,7 @@ export const TasksView: React.FC<TasksViewProps> = ({ token, onBackToOverview })
       const lists = await listTaskLists(token);
       if (lists && lists.length > 0) {
         setTaskLists(lists);
-        if (!selectedListId || !lists.some((l) => l.id === selectedListId)) {
+        if ((!selectedListId || !lists.some((l) => l.id === selectedListId)) && !focusedListIdRef.current) {
           setSelectedListId(lists[0].id);
         }
       }
@@ -116,6 +122,18 @@ export const TasksView: React.FC<TasksViewProps> = ({ token, onBackToOverview })
       setLoadingTasks(false);
     }
   };
+
+  // Search hit -> switch to the task's own list and open its details.
+  useEffect(() => {
+    if (!focusTarget || focusTarget.source !== 'tasks') return;
+    if (focusTarget.listId) {
+      focusedListIdRef.current = focusTarget.listId;
+      setSelectedListId(focusTarget.listId);
+    }
+    if (focusTarget.item) setSelectedTask(focusTarget.item);
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTarget]);
 
   useEffect(() => {
     loadTaskLists();

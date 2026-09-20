@@ -36,6 +36,7 @@ import { GoogleCalendarIcon } from './GoogleIcons';
 import { FormattedDescription, isValidUrl, normalizeUrl } from '../utils/textFormatter';
 import { usePlan } from '../context/PlanContext';
 import { ProBadge } from './ProBadge';
+import { WorkspaceFocusTarget } from '../types/focus';
 import { MeetingPrepPackModal } from './MeetingPrepPackModal';
 import { SmartFollowUpModal } from './SmartFollowUpModal';
 
@@ -43,6 +44,9 @@ import { SmartFollowUpModal } from './SmartFollowUpModal';
 interface CalendarViewProps {
   token: string;
   onBackToOverview?: () => void;
+  /** Event to open straight away (from Omni-Search). */
+  focusTarget?: WorkspaceFocusTarget | null;
+  onFocusHandled?: () => void;
 }
 
 type CalendarViewMode = 'month' | 'week' | 'day' | 'schedule';
@@ -62,7 +66,7 @@ const GOOGLE_COLORS = [
   { id: '11', name: 'Tomato', bg: 'bg-[#d50000]', text: 'text-white', hex: '#d50000' },
 ];
 
-export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverview }) => {
+export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverview, focusTarget, onFocusHandled }) => {
   const { isPro, requirePro } = usePlan();
   const [prepModalEvent, setPrepModalEvent] = useState<CalendarEvent | null>(null);
   const [followUpModalEvent, setFollowUpModalEvent] = useState<CalendarEvent | null>(null);
@@ -329,6 +333,23 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
       setIsDayDrawerOpen(true);
     }
   };
+
+  // Search hit -> open that event's details and move the calendar to its date.
+  useEffect(() => {
+    if (!focusTarget || focusTarget.source !== 'calendar') return;
+    const evt: CalendarEvent | null =
+      focusTarget.item || events.find((e) => e.id === focusTarget.id) || null;
+    if (!evt) {
+      setError('That event is no longer in this calendar.');
+      onFocusHandled?.();
+      return;
+    }
+    setSelectedEvent(evt);
+    const when = evt.start?.dateTime || evt.start?.date;
+    if (when) handleSelectDate(new Date(when), false);
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTarget, events]);
 
   // Navigation handlers
   const year = currentDate.getFullYear();

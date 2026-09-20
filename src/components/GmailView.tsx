@@ -57,6 +57,7 @@ import {
 import { ConfirmModal } from './ConfirmModal';
 import { usePlan } from '../context/PlanContext';
 import { ProBadge } from './ProBadge';
+import { WorkspaceFocusTarget } from '../types/focus';
 import { EmailToTaskEventModal } from './EmailToTaskEventModal';
 import { DeepThreadSummaryModal } from './DeepThreadSummaryModal';
 import { TonePolishStudioModal } from './TonePolishStudioModal';
@@ -78,6 +79,9 @@ interface GmailViewProps {
   token: string;
   onBackToOverview?: () => void;
   onNavigateTab?: (tab: string) => void;
+  /** Item to open straight away (from Omni-Search). */
+  focusTarget?: WorkspaceFocusTarget | null;
+  onFocusHandled?: () => void;
 }
 
 type MailFolder = 'inbox' | 'starred' | 'snoozed' | 'sent' | 'drafts' | 'trash';
@@ -210,7 +214,7 @@ const formatBytes = (bytes: number): string => {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
 };
 
-export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, onNavigateTab }) => {
+export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, onNavigateTab, focusTarget, onFocusHandled }) => {
   const [messages, setMessages] = useState<GmailMessageItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -350,6 +354,18 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
       setLoadingDetails(false);
     }
   };
+
+  // Open the exact message a cross-workspace search landed on, then leave the list
+  // filtered by the same phrase so closing the reading pane returns to those results.
+  useEffect(() => {
+    if (!focusTarget || focusTarget.source !== 'gmail') return;
+    const q = (focusTarget.query || '').trim();
+    if (q) setSearchQuery(q);
+    void loadMessages(activeFolder, q, activeCategory);
+    void handleOpenMessage((focusTarget.item || { id: focusTarget.id }) as GmailMessageItem);
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTarget]);
 
   const handleToggleStar = async (msg: GmailMessageItem, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();

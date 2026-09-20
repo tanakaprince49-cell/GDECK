@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, X, ExternalLink, Lock } from 'lucide-react';
+import { Search, X, ChevronRight, Lock } from 'lucide-react';
+import { WorkspaceFocusTarget } from '../types/focus';
 import { usePlan } from '../context/PlanContext';
 import { listGmailMessages, listCalendarEvents, listDriveFiles, listTaskLists, listTasks } from '../services/workspace';
 import { GmailIcon, GoogleCalendarIcon, GoogleDriveIcon, GoogleTasksIcon } from './GoogleIcons';
@@ -9,7 +10,8 @@ interface OmniSearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   token: string | null;
-  onNavigateTab: (tabId: string) => void;
+  /** Opens the exact item in the right view, not just the tab. */
+  onOpenResult: (target: WorkspaceFocusTarget) => void;
 }
 
 type Source = 'gmail' | 'calendar' | 'drive' | 'tasks';
@@ -20,7 +22,10 @@ interface FlatResult {
   title: string;
   subtitle: string;
   meta?: string;
-  href?: string;
+  /** Which view can display this record. */
+  tab: 'gmail' | 'calendar' | 'drive' | 'docs' | 'tasks';
+  item: any;
+  listId?: string;
   unread?: boolean;
 }
 
@@ -37,7 +42,7 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
   isOpen,
   onClose,
   token,
-  onNavigateTab,
+  onOpenResult,
 }) => {
   const { isPro, openUpgradeModal } = usePlan();
   const [query, setQuery] = useState<string>('');
@@ -80,7 +85,7 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
       const q = query.trim().toLowerCase();
       try {
         const [emails, events, files, taskLists] = await Promise.all([
-          listGmailMessages(token, 15, query).catch(() => []),
+          listGmailMessages(token, 15, query, 'all').catch(() => []),
           listCalendarEvents(token).catch(() => []),
           listDriveFiles(token, query).catch(() => []),
           listTaskLists(token).catch(() => []),
@@ -103,7 +108,11 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
         // Every list, not just the first one.
         const lists = (taskLists || []).slice(0, 6);
         const perList = await Promise.all(
-          lists.map((l: any) => listTasks(token, l.id).catch(() => []))
+          lists.map((l: any) =>
+            listTasks(token, l.id)
+              .then((items) => (items || []).map((t: any) => ({ ...t, __listId: l.id, __listTitle: l.title })))
+              .catch(() => [] as any[])
+          )
         );
         if (requestId !== requestIdRef.current) return;
 
@@ -133,12 +142,12 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
       out.push({
         key: `gmail-${m.id}`,
         source: 'gmail',
+        tab: 'gmail',
+        item: m,
         title: m.subject || '(no subject)',
-        subtitle: m.snippet || m.from || '',
+        subtitle: [m.from, m.snippet].filter(Boolean).join(' — '),
         meta: m.date,
         unread: m.isUnread,
-        // No external deep link: the in-app Gmail view already lists this thread.
-        href: undefined,
       })
     );
 
@@ -146,10 +155,11 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
       out.push({
         key: `cal-${e.id}`,
         source: 'calendar',
+        tab: 'calendar',
+        item: e,
         title: e.summary || '(untitled event)',
         subtitle: e.location || (e.start?.dateTime ? new Date(e.start.dateTime).toLocaleString() : 'No location'),
         meta: e.start?.dateTime ? new Date(e.start.dateTime).toLocaleDateString() : undefined,
-        href: e.htmlLink,
       })
     );
 
@@ -157,10 +167,12 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
       out.push({
         key: `drive-${f.id}`,
         source: 'drive',
+        // Google Docs open in the in-app editor; everything else in the Drive browser.
+        tab: f.mimeType === 'application/vnd.google-apps.document' ? 'docs' : 'drive',
+        item: f,
         title: f.name || 'Untitled',
         subtitle: f.owners?.[0]?.displayName ? `Owned by ${f.owners[0].displayName}` : 'In your Drive',
         meta: f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString() : undefined,
-        href: f.webViewLink,
       })
     );
 
@@ -168,14 +180,18 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
       out.push({
         key: `task-${t.id}`,
         source: 'tasks',
+        tab: 'tasks',
+        item: t,
+        listId: t.__listId,
         title: t.title || 'Untitled task',
-        subtitle: t.notes || (t.status === 'completed' ? 'Completed' : 'Pending'),
-        href: undefined,
+        subtitle: [t.notes || (t.status === 'completed' ? 'Completed' : 'Pending'), t.__listTitle]
+          .filter(Boolean)
+          .join(' · '),
       })
     );
 
     return out;
-  }, [gmailResults, calendarResults, driveResults, taskResults, query]);
+  }, [gmailResults, calendarResults, driveResults, taskResults]);
 
   const visible = useMemo(
     () => (activeFilter === 'all' ? results : results.filter((r) => r.source === activeFilter)),
@@ -184,11 +200,13 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
 
   const activate = (r: FlatResult | undefined) => {
     if (!r) return;
-    if (r.href) {
-      window.open(r.href, '_blank', 'noopener,noreferrer');
-    } else {
-      onNavigateTab(r.source);
-    }
+    onOpenResult({
+      source: r.tab,
+      id: String(r.item?.id ?? ''),
+      query: query.trim(),
+      item: r.item,
+      ...(r.listId ? { listId: r.listId } : {}),
+    });
     onClose();
   };
 
@@ -421,11 +439,9 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
                             </span>
                             <span className="shrink-0 flex items-center gap-1.5 pt-0.5">
                               {r.meta && <span className="text-[10px] text-[#9aa0a6] tabular-nums">{r.meta}</span>}
-                              {r.href ? (
-                                <ExternalLink className="w-3.5 h-3.5 text-[#9aa0a6]" />
-                              ) : (
-                                <span className="text-[10px] font-semibold text-[#1a73e8]">Open tab</span>
-                              )}
+                              <ChevronRight
+                                className={`w-4 h-4 ${cursor === i ? 'text-[#1a73e8]' : 'text-[#dadce0]'}`}
+                              />
                             </span>
                           </button>
                         ))}

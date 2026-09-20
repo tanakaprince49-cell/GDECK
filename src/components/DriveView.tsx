@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { WorkspaceFocusTarget } from '../types/focus';
 import {
   Folder,
   FileText,
@@ -65,6 +66,9 @@ interface DriveViewProps {
   token: string;
   onBackToOverview?: () => void;
   onNavigateTab?: (tab: string) => void;
+  /** File to select straight away (from Omni-Search). */
+  focusTarget?: WorkspaceFocusTarget | null;
+  onFocusHandled?: () => void;
 }
 
 type DriveNavSection = 'my-drive' | 'shared' | 'recent' | 'starred' | 'trash';
@@ -77,7 +81,7 @@ interface UploadItem {
   error?: string;
 }
 
-export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, onNavigateTab }) => {
+export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, onNavigateTab, focusTarget, onFocusHandled }) => {
   const [files, setFiles] = useState<DriveFile[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -158,6 +162,18 @@ export const DriveView: React.FC<DriveViewProps> = ({ token, onBackToOverview, o
       console.warn('Storage quota fetch failed:', err);
     }
   };
+
+  // Search hit -> show the file selected and inspected, with the list filtered to the phrase.
+  useEffect(() => {
+    if (!focusTarget || focusTarget.source !== 'drive') return;
+    const file = focusTarget.item as DriveFile | null;
+    const q = (focusTarget.query || '').trim();
+    if (q) setSearchQuery(q);
+    if (file) setSelectedFile(file);
+    void loadFiles(q, 'all', 'my-drive');
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTarget]);
 
   useEffect(() => {
     loadFiles(searchQuery, selectedCategory, activeNav);

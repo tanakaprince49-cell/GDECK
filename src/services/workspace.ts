@@ -550,6 +550,8 @@ export async function listGmailMessages(
     queryParts.push('in:drafts');
   } else if (folder === 'trash') {
     queryParts.push('in:trash');
+  } else if (folder === 'all') {
+    // All Mail: used by cross-workspace search, which must not miss archived or sent mail.
   } else {
     // inbox
     queryParts.push('in:inbox');

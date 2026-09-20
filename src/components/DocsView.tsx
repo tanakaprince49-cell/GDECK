@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { WorkspaceFocusTarget } from '../types/focus';
 import {
   CheckCircle2,
   ChevronDown,
@@ -30,6 +31,9 @@ import { DOC_TEMPLATES, DocTemplate } from './docs/docsData';
 interface DocsViewProps {
   token: string;
   onBackToOverview?: () => void;
+  /** Document to open straight away (from Omni-Search). */
+  focusTarget?: WorkspaceFocusTarget | null;
+  onFocusHandled?: () => void;
   userName?: string;
   userEmail?: string;
   userPhoto?: string;
@@ -41,9 +45,14 @@ export const DocsView: React.FC<DocsViewProps> = ({
   userName,
   userEmail,
   userPhoto,
+  focusTarget,
+  onFocusHandled,
 }) => {
   // Document state
   const [docs, setDocs] = useState<DriveFile[]>([]);
+  // Id of a document opened from outside (Omni-Search), so the initial list load does not
+  // replace it with the most recently edited doc.
+  const openedByFocusRef = useRef<string | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedDoc, setSelectedDoc] = useState<DriveFile | null>(null);
   const [docTitle, setDocTitle] = useState<string>('Untitled document');
@@ -150,8 +159,10 @@ export const DocsView: React.FC<DocsViewProps> = ({
     try {
       const files = await searchDocs(token);
       setDocs(files);
-      if (files.length > 0 && !selectedDoc) {
-        const firstDoc = files[0];
+      const externallyPicked = openedByFocusRef.current !== null;
+      if (files.length > 0 && !selectedDoc && !externallyPicked) {
+        const match = focusTarget?.source === 'docs' ? files.find((f) => f.id === openedByFocusRef.current) : null;
+        const firstDoc = match || files[0];
         setSelectedDoc(firstDoc);
         setDocTitle(firstDoc.name);
         try {
@@ -166,7 +177,7 @@ export const DocsView: React.FC<DocsViewProps> = ({
             editorRef.current.innerHTML = DOC_TEMPLATES[1].htmlContent;
           }
         }
-      } else if (!selectedDoc && editorRef.current) {
+      } else if (!selectedDoc && !externallyPicked && editorRef.current) {
         setDocTitle(DOC_TEMPLATES[1].title);
         editorRef.current.innerHTML = DOC_TEMPLATES[1].htmlContent;
       }
@@ -208,6 +219,18 @@ export const DocsView: React.FC<DocsViewProps> = ({
       setTimeout(updateStatsAndOutline, 100);
     }
   };
+
+  // Search hit on a Google Doc -> open its content in the editor.
+  useEffect(() => {
+    if (!focusTarget || focusTarget.source !== 'docs') return;
+    const doc = focusTarget.item as DriveFile | null;
+    if (doc?.id) {
+      openedByFocusRef.current = doc.id;
+      void handleSelectDoc(doc);
+    }
+    onFocusHandled?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTarget]);
 
   // Create new blank document
   const handleNewDoc = async () => {
