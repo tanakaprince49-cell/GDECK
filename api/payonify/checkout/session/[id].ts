@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { retrieveCheckoutSession, isCheckoutSessionPaid, livemodeMatches } from '../../../../src/lib/payonify.js';
 import { PayonifyStore } from '../../../../src/lib/payonify-store.js';
+import { computePeriodEndIso, intervalForPlanId } from '../../../../src/lib/billing-period.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -41,18 +42,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         planId: order.planId,
         currency: order.currency,
         amountCents: order.amountCents,
-        interval: order.planId.includes('annual') ? 'year' : 'month',
+        interval: intervalForPlanId(order.planId),
         status: 'active',
         currentPeriodStart: new Date().toISOString(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        nextBillingAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        currentPeriodEnd: computePeriodEndIso(new Date(), order.planId),
+        nextBillingAt: computePeriodEndIso(new Date(), order.planId),
         failureCount: 0,
         createdAt: new Date().toISOString(),
       });
       order = PayonifyStore.getOrder(order.id);
     }
 
-    return res.status(200).json({ session, order });
+    const subscription = order?.userId
+      ? PayonifyStore.getSubscriptionByUser(order.userId)
+      : undefined;
+
+    return res.status(200).json({ session, order, subscription });
   } catch (error: any) {
     console.error('Failed to retrieve Payonify session:', error);
     return res.status(error.status || 500).json({

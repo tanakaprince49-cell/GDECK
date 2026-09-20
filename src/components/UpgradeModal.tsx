@@ -42,6 +42,10 @@ export const UpgradeModal: React.FC = () => {
     upgradeToPro,
     tier,
     isPro,
+    proPlanId,
+    proExpiresLabel,
+    proDaysRemaining,
+    needsRenewal,
     aiQueriesUsed,
     aiQueriesRemaining,
     maxFreeAiQueries,
@@ -135,18 +139,30 @@ export const UpgradeModal: React.FC = () => {
       ? '0 remaining'
       : `${freeRemaining} of ${maxFreeAiQueries} remaining`;
 
-  const headline = upgradeModalContext?.isAiLimit
+  const isRenewal = !!(upgradeModalContext?.isRenewal || needsRenewal);
+
+  const headline = isPro
+    ? 'Your G-Deck Pro is active'
+    : upgradeModalContext?.isAiLimit
     ? freeRemaining === 0
       ? `You've used all ${maxFreeAiQueries} free AI messages`
       : `Free AI messages running low`
+    : isRenewal
+    ? 'Renew G-Deck Pro to keep access'
     : upgradeModalContext?.title
     ? `Unlock ${upgradeModalContext.title}`
     : 'One plan. Everything unlocked.';
 
-  const subline = upgradeModalContext?.isAiLimit
+  const subline = isPro
+    ? `Unlimited AI is unlocked until ${proExpiresLabel || 'the end of your paid period'}${
+        proDaysRemaining > 0 ? ` · ${proDaysRemaining} day${proDaysRemaining === 1 ? '' : 's'} left` : ''
+      }. Pay again before then to extend without interruption.`
+    : upgradeModalContext?.isAiLimit
     ? freeRemaining === 0
       ? `0 of ${maxFreeAiQueries} free G-Pilot messages left this month. Upgrade for ${selected.price}/${selected.id === 'pro_annual' ? 'yr' : 'mo'} for unlimited AI.`
       : `${freeLeftLabel} this month on the free plan. Upgrade for ${selected.price}/${selected.id === 'pro_annual' ? 'yr' : 'mo'} for unlimited AI.`
+    : isRenewal
+    ? `Your last Pro period ended. Checkout again (${selected.price}/${selected.id === 'pro_annual' ? 'yr' : 'mo'}) to unlock unlimited AI and every Pro feature for another billing period.`
     : upgradeModalContext?.desc || 'Everything below is unlocked across your whole Google workspace.';
 
   return (
@@ -182,11 +198,59 @@ export const UpgradeModal: React.FC = () => {
         {/* Body */}
         <div className="px-5 sm:px-6 py-4 overflow-y-auto space-y-4 flex-1">
           {isPro ? (
-            <div className="p-4 rounded-2xl bg-[#e6f4ea] border border-[#ceead6] text-[#137333] space-y-1">
-              <p className="text-sm font-bold">Pro is active on this account</p>
-              <p className="text-xs">
-                Unlimited AI and every cross-tool automation are already unlocked.
+            <div className="space-y-3">
+              <div className="p-4 rounded-2xl bg-[#e6f4ea] border border-[#ceead6] text-[#137333] space-y-1">
+                <p className="text-sm font-bold">Pro is active on this account</p>
+                <p className="text-xs">
+                  Unlimited AI and every cross-tool automation are unlocked until{' '}
+                  <span className="font-bold">{proExpiresLabel || 'the end of this period'}</span>
+                  {proDaysRemaining > 0
+                    ? ` (${proDaysRemaining} day${proDaysRemaining === 1 ? '' : 's'} left)`
+                    : ''}
+                  .
+                </p>
+                <p className="text-[11px] text-[#137333]/90 pt-1">
+                  G-Deck does not auto-charge. When this period ends you&apos;ll drop back to Free
+                  (10 AI messages/month) until you pay again.
+                </p>
+              </div>
+              <p className="text-[11px] text-[#5f6368] leading-relaxed">
+                Want to extend early? Pay for another {selected.id === 'pro_annual' ? 'year' : 'month'} below —
+                the new period stacks on top of your current end date.
               </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {(['usd', 'zwg'] as const).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => selectCurrency(c)}
+                    className={`px-2 py-0.5 rounded-full text-[11px] font-semibold cursor-pointer ${
+                      currency === c ? 'bg-[#e8f0fe] text-[#1a73e8]' : 'text-[#5f6368] hover:bg-[#f1f3f4]'
+                    }`}
+                  >
+                    {c === 'usd' ? 'USD $' : 'ZWG'}
+                  </button>
+                ))}
+              </div>
+              <div className="space-y-2">
+                {plans.map((plan) => {
+                  const active = plan.id === selected.id;
+                  return (
+                    <button
+                      key={plan.id}
+                      onClick={() => {
+                        setPlanId(plan.id);
+                        setCheckoutError(null);
+                      }}
+                      className={`w-full flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-2xl border text-left cursor-pointer ${
+                        active ? 'border-[#7e22ce] bg-[#faf5ff]' : 'border-[#dadce0] bg-white hover:bg-[#f8fafd]'
+                      }`}
+                    >
+                      <span className="text-[13px] font-bold text-[#1f1f1f]">{plan.label}</span>
+                      <span className="text-sm font-extrabold text-[#1f1f1f]">{plan.price}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           ) : (
             <>
@@ -338,16 +402,14 @@ export const UpgradeModal: React.FC = () => {
               </div>
               <p className="text-[11px] text-[#5f6368] leading-relaxed">
                 Secure checkout by Payonify. Pay by card from anywhere in the world, or with EcoCash
-                or OneMoney in Zimbabwe. Cancel anytime — Pro runs to the end of the period you paid
-                for.
+                or OneMoney in Zimbabwe. No auto-charge. Pro runs to the end of the period you paid for, then you renew by checkout.
               </p>
             </>
           )}
         </div>
 
-        {/* Footer CTA */}
-        {!isPro && (
-          <div className="px-5 sm:px-6 py-4 border-t border-[#f1f3f4] bg-[#f8fafd]">
+        {/* Footer CTA — free users upgrade; Pro users can renew/extend early */}
+        <div className="px-5 sm:px-6 py-4 border-t border-[#f1f3f4] bg-[#f8fafd]">
             <button
               onClick={handlePayonifyCheckout}
               disabled={isProcessing}
@@ -361,8 +423,11 @@ export const UpgradeModal: React.FC = () => {
               ) : (
                 <>
                   <span>
-                    Upgrade for {selected.price}
-                    {planId === 'pro_annual' ? '/year' : '/month'}
+                    {isPro
+                      ? `Extend Pro · ${selected.price}${planId === 'pro_annual' ? '/year' : '/month'}`
+                      : isRenewal
+                      ? `Renew Pro · ${selected.price}${planId === 'pro_annual' ? '/year' : '/month'}`
+                      : `Upgrade for ${selected.price}${planId === 'pro_annual' ? '/year' : '/month'}`}
                   </span>
                   <ArrowRight className="w-4 h-4" />
                 </>
@@ -381,8 +446,10 @@ export const UpgradeModal: React.FC = () => {
               <Coffee className="w-3 h-3" />
               <span>Prefer a one-off? Buy me a coffee</span>
             </a>
+            <p className="text-[10px] text-[#5f6368] text-center mt-2 leading-relaxed">
+              No auto-renewal — when the paid period ends, Pro turns off until you check out again.
+            </p>
           </div>
-        )}
 
         {/* Dev-only plan switcher; stripped from production bundles at build time */}
         {import.meta.env.DEV && (
@@ -419,14 +486,27 @@ export const UpgradeModal: React.FC = () => {
                 Free 0 left
               </button>
               <button
-                onClick={() => setMockPlan('pro', 45)}
+                onClick={() => setMockPlan('pro', 45, { planId: 'pro_monthly', expiresInMs: 60 * 1000 })}
+                className="px-2 py-0.5 rounded-md border font-medium cursor-pointer bg-white hover:bg-slate-100 border-slate-200"
+                title="Pro that expires in 60s (test auto-downgrade)"
+              >
+                Pro 60s
+              </button>
+              <button
+                onClick={() => setMockPlan('pro', 45, { planId: 'pro_monthly' })}
                 className={`px-2 py-0.5 rounded-md border font-medium cursor-pointer transition-colors ${
                   tier === 'pro'
                     ? 'bg-blue-100 text-blue-800 border-blue-300 font-bold'
                     : 'bg-white hover:bg-slate-100 border-slate-200'
                 }`}
               >
-                Pro
+                Pro 1mo
+              </button>
+              <button
+                onClick={() => setMockPlan('pro', 45, { planId: 'pro_annual' })}
+                className="px-2 py-0.5 rounded-md border font-medium cursor-pointer bg-white hover:bg-slate-100 border-slate-200"
+              >
+                Pro 1yr
               </button>
             </div>
           </div>

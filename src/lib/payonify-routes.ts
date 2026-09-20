@@ -16,6 +16,7 @@ import {
 } from './payonify.js';
 import { PayonifyStore } from './payonify-store.js';
 import { getPayonifyEnv } from './payonify-env.js';
+import { computePeriodEndIso, intervalForPlanId } from './billing-period.js';
 
 export const payonifyRouter = express.Router();
 
@@ -187,20 +188,25 @@ payonifyRouter.get('/checkout/session/:id', async (req, res) => {
         planId: order.planId,
         currency: order.currency,
         amountCents: order.amountCents,
-        interval: order.planId.includes('annual') ? 'year' : 'month',
+        interval: intervalForPlanId(order.planId),
         status: 'active',
         currentPeriodStart: new Date().toISOString(),
-        currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        nextBillingAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+        currentPeriodEnd: computePeriodEndIso(new Date(), order.planId),
+        nextBillingAt: computePeriodEndIso(new Date(), order.planId),
         failureCount: 0,
         createdAt: new Date().toISOString(),
       });
       order = PayonifyStore.getOrder(order.id);
     }
 
+    const subscription = order?.userId
+      ? PayonifyStore.getSubscriptionByUser(order.userId)
+      : undefined;
+
     res.json({
       session,
       order,
+      subscription,
     });
   } catch (error: any) {
     console.error('Failed to retrieve Payonify session:', error);
@@ -411,11 +417,11 @@ payonifyRouter.post('/webhooks', (req, res) => {
             planId: order?.planId || 'pro_monthly',
             currency: (order?.currency || 'usd') as 'usd' | 'zwg',
             amountCents: order?.amountCents || 1200,
-            interval: order?.planId?.includes('annual') ? 'year' : 'month',
+            interval: intervalForPlanId(order?.planId),
             status: 'active',
             currentPeriodStart: new Date().toISOString(),
-            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            nextBillingAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            currentPeriodEnd: computePeriodEndIso(new Date(), order?.planId || 'pro_monthly'),
+            nextBillingAt: computePeriodEndIso(new Date(), order?.planId || 'pro_monthly'),
             failureCount: 0,
             createdAt: new Date().toISOString(),
           });
@@ -528,11 +534,11 @@ payonifyRouter.post('/test/mock-webhook-replay', (req, res) => {
     planId,
     currency: 'usd',
     amountCents: 1200,
-    interval: 'month',
+    interval: intervalForPlanId(planId),
     status: 'active',
     currentPeriodStart: new Date().toISOString(),
-    currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    nextBillingAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    currentPeriodEnd: computePeriodEndIso(new Date(), planId),
+    nextBillingAt: computePeriodEndIso(new Date(), planId),
     failureCount: 0,
     createdAt: new Date().toISOString(),
   });

@@ -110,6 +110,9 @@ export default function App() {
   const {
     tier,
     isPro,
+    proExpiresLabel,
+    proDaysRemaining,
+    needsRenewal,
     openUpgradeModal,
     accounts,
     activeAccount,
@@ -460,26 +463,57 @@ export default function App() {
             {user ? (
               <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Subscription Status Pill */}
-                {tier === 'pro' ? (
+                {isPro ? (
                   <button
                     onClick={() =>
                       openUpgradeModal({
                         title: 'G-Deck Pro Member',
-                        desc: 'Your Pro subscription ($12/mo) is active with unlimited AI assists and cross-app automations.',
+                        desc: proExpiresLabel
+                          ? `Pro is active until ${proExpiresLabel}${proDaysRemaining > 0 ? ` (${proDaysRemaining}d left)` : ''}. Pay again before then to keep Pro without interruption.`
+                          : 'Your Pro period is active. Pay again at the end of the period to renew.',
                       })
                     }
                     className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-200 bg-purple-100 rounded-full border border-purple-300 transition-colors cursor-pointer"
-                    title="G-Deck Pro Member"
+                    title={
+                      proExpiresLabel
+                        ? `Pro active until ${proExpiresLabel}`
+                        : 'G-Deck Pro Member'
+                    }
+                    id="header-pro-status-pill"
                   >
-                    <span className="hidden sm:inline">Pro Active</span>
+                    <span className="hidden sm:inline">
+                      {proDaysRemaining > 0 && proDaysRemaining <= 7
+                        ? `Pro · ${proDaysRemaining}d left`
+                        : 'Pro Active'}
+                    </span>
+                    <span className="sm:hidden">Pro</span>
                   </button>
                 ) : (
                   <button
-                    onClick={() => openUpgradeModal()}
-                    className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 bg-purple-50 rounded-full border border-purple-200 transition-colors cursor-pointer"
-                    title="Upgrade to G-Deck Pro ($12/month)"
+                    onClick={() =>
+                      openUpgradeModal(
+                        needsRenewal
+                          ? {
+                              isRenewal: true,
+                              title: 'Pro period ended',
+                              desc: 'Your Pro period ended. Pay again to unlock unlimited AI and every Pro feature.',
+                            }
+                          : undefined
+                      )
+                    }
+                    className={`inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors cursor-pointer ${
+                      needsRenewal
+                        ? 'text-amber-900 hover:bg-amber-100 bg-amber-50 border-amber-300'
+                        : 'text-purple-700 hover:bg-purple-100 bg-purple-50 border-purple-200'
+                    }`}
+                    title={
+                      needsRenewal
+                        ? 'Pro period ended — renew to keep Pro'
+                        : 'Upgrade to G-Deck Pro ($12/month)'
+                    }
+                    id="header-upgrade-pill"
                   >
-                    <span>Upgrade</span>
+                    <span>{needsRenewal ? 'Renew Pro' : 'Upgrade'}</span>
                     <ProBadge size="xs" showLockOnFree={false} />
                   </button>
                 )}

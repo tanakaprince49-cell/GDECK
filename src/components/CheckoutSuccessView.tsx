@@ -14,10 +14,12 @@ interface CheckoutSuccessViewProps {
 }
 
 export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onReturnToDashboard }) => {
-  const { upgradeToPro } = usePlan();
+  const { activatePro, proExpiresLabel, proPlanId, proDaysRemaining } = usePlan();
   const [loading, setLoading] = useState<boolean>(true);
   const [sessionDetails, setSessionDetails] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activatedPlanId, setActivatedPlanId] = useState<string | null>(null);
+  const [activatedExpires, setActivatedExpires] = useState<string | null>(null);
 
   const queryParams = new URLSearchParams(window.location.search);
   const sessionId = queryParams.get('session_id');
@@ -66,9 +68,39 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
         setSessionDetails(data);
 
         // Grant access on Payonify's own paid signal, never on "the fetch worked".
+        // Period length comes from the plan that was actually billed.
         if (isPaidSession(data?.session)) {
           if (isMounted) {
-            upgradeToPro();
+            let stashedPlanId: string | undefined;
+            let stashedOrderId: string | undefined;
+            try {
+              const stashed = sessionStorage.getItem(CHECKOUT_STASH_KEY);
+              if (stashed) {
+                const parsed = JSON.parse(stashed);
+                stashedPlanId = parsed?.planId;
+                stashedOrderId = parsed?.orderId;
+              }
+            } catch { /* ignore */ }
+
+            const planId =
+              data?.order?.planId ||
+              data?.session?.metadata?.plan_id ||
+              stashedPlanId ||
+              'pro_monthly';
+            const resolvedOrderId = data?.order?.id || orderId || stashedOrderId;
+            const serverPeriodEnd =
+              data?.subscription?.currentPeriodEnd ||
+              data?.order?.metadata?.period_end ||
+              undefined;
+
+            activatePro({
+              planId,
+              orderId: resolvedOrderId || undefined,
+              expiresAt: serverPeriodEnd,
+              paidAt: data?.order?.paidAt || new Date().toISOString(),
+            });
+            setActivatedPlanId(planId);
+            setActivatedExpires(serverPeriodEnd || null);
             try { sessionStorage.removeItem(CHECKOUT_STASH_KEY); } catch { /* ignore */ }
             setLoading(false);
           }
@@ -93,7 +125,7 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
     return () => {
       isMounted = false;
     };
-  }, [sessionId, orderId, upgradeToPro]);
+  }, [sessionId, orderId, activatePro]);
 
   return (
     <div className="min-h-screen bg-[#f8fafd] flex items-center justify-center p-4">
@@ -145,14 +177,27 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
               </span>
               <h1 className="text-2xl font-extrabold text-[#1f1f1f] tracking-tight">Welcome to G-Deck Pro!</h1>
               <p className="text-sm text-[#444746] max-w-md mx-auto">
-                Your payment was processed successfully. All cross-tool automations, unlimited AI assists, and Omni-Search have been unlocked.
+                Your payment was processed successfully. Unlimited AI and every Pro feature are unlocked until the end of this billing period — then you&apos;ll need to pay again to renew.
               </p>
             </div>
 
             <div className="bg-[#f0f4f9] rounded-2xl p-4 text-xs space-y-2 text-left border border-[#dadce0]">
-              <div className="flex justify-between">
+              <div className="flex justify-between gap-3">
                 <span className="text-[#5f6368]">Plan:</span>
-                <span className="font-semibold text-[#1f1f1f]">G-Deck Pro ($12/month)</span>
+                <span className="font-semibold text-[#1f1f1f] text-right">
+                  {activatedPlanId === 'pro_annual'
+                    ? 'G-Deck Pro · Annual ($120/yr)'
+                    : activatedPlanId === 'pro_monthly_zwg'
+                    ? 'G-Deck Pro · Monthly (ZWG 320)'
+                    : 'G-Deck Pro · Monthly ($12/mo)'}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-[#5f6368]">Valid until:</span>
+                <span className="font-semibold text-[#1f1f1f] text-right">
+                  {proExpiresLabel || '—'}
+                  {proDaysRemaining > 0 ? ` · ${proDaysRemaining} day${proDaysRemaining === 1 ? '' : 's'} left` : ''}
+                </span>
               </div>
               {orderId && (
                 <div className="flex justify-between">
@@ -168,7 +213,7 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
               )}
               <div className="flex justify-between">
                 <span className="text-[#5f6368]">Status:</span>
-                <span className="text-[#137333] font-bold">Active & Paid</span>
+                <span className="text-[#137333] font-bold">Active & Paid · renews by checkout</span>
               </div>
             </div>
 

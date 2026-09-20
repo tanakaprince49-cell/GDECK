@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { verifyWebhookSignature } from '../../src/lib/payonify.js';
 import { getPayonifyEnv } from '../../src/lib/payonify-env.js';
 import { PayonifyStore } from '../../src/lib/payonify-store.js';
+import { computePeriodEndIso, intervalForPlanId } from '../../src/lib/billing-period.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {
@@ -102,11 +103,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             planId: order?.planId || 'pro_monthly',
             currency: (order?.currency || 'usd') as 'usd' | 'zwg',
             amountCents: order?.amountCents || 1200,
-            interval: order?.planId?.includes('annual') ? 'year' : 'month',
+            interval: intervalForPlanId(order?.planId),
             status: 'active',
             currentPeriodStart: new Date().toISOString(),
-            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            nextBillingAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            currentPeriodEnd: computePeriodEndIso(new Date(), order?.planId || 'pro_monthly'),
+            nextBillingAt: computePeriodEndIso(new Date(), order?.planId || 'pro_monthly'),
             failureCount: 0,
             createdAt: new Date().toISOString(),
           });
