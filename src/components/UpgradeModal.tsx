@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Check, ArrowRight, RefreshCw, ShieldCheck, Coffee } from 'lucide-react';
+import { X, Check, ArrowRight, RefreshCw, ShieldCheck, Coffee, CreditCard, Smartphone } from 'lucide-react';
 import { usePlan, PlanTier } from '../context/PlanContext';
 import { CHECKOUT_STASH_KEY } from './CheckoutSuccessView';
 import { SUPPORT_CAMPAIGN_URL } from '../constants/support';
@@ -260,9 +260,25 @@ export const UpgradeModal: React.FC = () => {
                 })}
               </div>
 
+              {/* Payment methods — cards from anywhere, mobile money in Zimbabwe */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#dadce0] bg-white text-[10px] font-semibold text-[#444746]">
+                  <CreditCard className="w-3 h-3 text-[#1a73e8]" />
+                  Cards · anywhere in the world
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#dadce0] bg-white text-[10px] font-semibold text-[#444746]">
+                  <Smartphone className="w-3 h-3 text-[#188033]" />
+                  EcoCash · Zimbabwe
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[#dadce0] bg-white text-[10px] font-semibold text-[#444746]">
+                  <Smartphone className="w-3 h-3 text-[#188033]" />
+                  OneMoney · Zimbabwe
+                </span>
+              </div>
               <p className="text-[11px] text-[#5f6368] leading-relaxed">
-                Secure checkout by Payonify. Card, EcoCash or OneMoney. Cancel anytime — Pro runs to
-                the end of the period you paid for.
+                Secure checkout by Payonify. Pay by card from anywhere in the world, or with EcoCash
+                or OneMoney in Zimbabwe. Cancel anytime — Pro runs to the end of the period you paid
+                for.
               </p>
             </>
           )}
