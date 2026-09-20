@@ -12,6 +12,10 @@ export default defineConfig(() => {
       },
     },
     server: {
+      // Sandbox/remote previews reach the dev server through a proxy hostname that Vite's
+      // host allowlist rejects by default. Opt in with VITE_ALLOWED_HOSTS='*'; unset, the
+      // behaviour is exactly as before.
+      allowedHosts: process.env.VITE_ALLOWED_HOSTS === '*' ? true : undefined,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
