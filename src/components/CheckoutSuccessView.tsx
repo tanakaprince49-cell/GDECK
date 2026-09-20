@@ -2,6 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, ArrowRight, ShieldCheck, Sparkles, RefreshCw } from 'lucide-react';
 import { usePlan } from '../context/PlanContext';
 
+/** Set by UpgradeModal just before redirecting to Payonify's hosted checkout. */
+export const CHECKOUT_STASH_KEY = 'gdeck_checkout_stash';
+
+/** Mirrors server-side isCheckoutSessionPaid: Payonify must report the money state. */
+const isPaidSession = (session: any): boolean =>
+  !!session && (session.payment_status === 'paid' || session.status === 'complete');
+
 interface CheckoutSuccessViewProps {
   onReturnToDashboard: () => void;
 }
@@ -20,32 +27,62 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
     let isMounted = true;
 
     const verifySession = async () => {
-      if (!sessionId) {
-        // Fallback if accessed directly or via mock
-        upgradeToPro();
-        setLoading(false);
+      // Payonify cannot echo the session id back into success_url (no {CHECKOUT_SESSION_ID}
+      // substitution), so UpgradeModal stashes it at checkout start. A ?session_id= param is
+      // still honoured for links that carry one.
+      let resolvedSessionId = sessionId;
+      if (!resolvedSessionId) {
+        try {
+          const stashed = sessionStorage.getItem(CHECKOUT_STASH_KEY);
+          if (stashed) {
+            const parsed = JSON.parse(stashed);
+            if (!orderId || !parsed?.orderId || parsed.orderId === orderId) {
+              resolvedSessionId = parsed?.sessionId || null;
+            }
+          }
+        } catch {
+          /* malformed stash -- treat as absent */
+        }
+      }
+
+      if (!resolvedSessionId) {
+        // Previously this branch called upgradeToPro(), which handed out Pro to anyone who
+        // opened /checkout/success with no query string at all.
+        if (isMounted) {
+          setError('We could not find a Payonify checkout session for this visit. Pro unlocks only once a payment is confirmed.');
+          setLoading(false);
+        }
         return;
       }
 
       try {
-        const res = await fetch(`/api/payonify/checkout/session/${sessionId}`);
+        const res = await fetch(`/api/payonify/checkout/session/${resolvedSessionId}`);
         const data = await res.json();
 
         if (!res.ok) {
           throw new Error(data.error || 'Failed to verify session');
         }
 
+        setSessionDetails(data);
+
+        // Grant access on Payonify's own paid signal, never on "the fetch worked".
+        if (isPaidSession(data?.session)) {
+          if (isMounted) {
+            upgradeToPro();
+            try { sessionStorage.removeItem(CHECKOUT_STASH_KEY); } catch { /* ignore */ }
+            setLoading(false);
+          }
+          return;
+        }
+
         if (isMounted) {
-          setSessionDetails(data);
-          // Unlock Pro client state
-          upgradeToPro();
+          setError('Payonify has not marked this session as paid yet. If you finished the transfer or card payment, retry in a few seconds.');
           setLoading(false);
         }
       } catch (err: any) {
         if (isMounted) {
-          console.warn('Session verification fallback:', err);
-          // Fulfill subscription on client
-          upgradeToPro();
+          console.warn('Payonify session verification failed:', err);
+          setError(err?.message || 'We could not reach Payonify to confirm your payment. No charge was recorded as verified yet.');
           setLoading(false);
         }
       }
@@ -56,7 +93,7 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
     return () => {
       isMounted = false;
     };
-  }, [sessionId, upgradeToPro]);
+  }, [sessionId, orderId, upgradeToPro]);
 
   return (
     <div className="min-h-screen bg-[#f8fafd] flex items-center justify-center p-4">
@@ -67,6 +104,35 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
             <h2 className="text-lg font-bold text-[#1f1f1f]">Confirming your payment with Payonify...</h2>
             <p className="text-xs text-[#5f6368]">Finalizing your G-Deck Pro subscription. Please do not close this window.</p>
           </div>
+        ) : error ? (
+          <>
+            <div className="w-16 h-16 bg-[#fce8e6] text-[#c5221f] rounded-full flex items-center justify-center mx-auto shadow-xs">
+              <XCircle className="w-10 h-10" />
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-2xl font-extrabold text-[#1f1f1f] tracking-tight">Payment not confirmed yet</h1>
+              <p className="text-sm text-[#444746] max-w-md mx-auto">{error}</p>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setError(null); setLoading(true); window.location.reload(); }}
+                className="flex-1 py-3.5 px-6 bg-white border border-[#dadce0] hover:bg-[#f0f4f9] text-[#1f1f1f] font-bold text-sm rounded-2xl cursor-pointer transition-all"
+              >
+                <span className="inline-flex items-center gap-2">
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Retry verification</span>
+                </span>
+              </button>
+              <button
+                onClick={onReturnToDashboard}
+                className="flex-1 py-3.5 px-6 bg-gradient-to-r from-purple-700 to-blue-600 hover:from-purple-800 hover:to-blue-700 text-white font-bold text-sm rounded-2xl cursor-pointer transition-all"
+              >
+                Back to G-Deck
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <div className="w-16 h-16 bg-[#e6f4ea] text-[#137333] rounded-full flex items-center justify-center mx-auto shadow-xs">

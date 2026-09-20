@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { getPayonifyEnv } from './payonify-env';
+import { getPayonifyEnv } from './payonify-env.js';
 
 export class PayonifyError extends Error {
   code?: string;
@@ -39,12 +39,17 @@ export interface PayonifyCheckoutSession {
   id: string;
   object: 'checkout_session';
   status: 'requires_payment_method' | 'open' | 'complete' | 'expired';
-  amount: { value: number; currency: string };
+  /** Payonify returns flat amounts, e.g. amount_total: 1200 (cents) + currency: 'usd' */
+  amount_total?: number;
+  amount_subtotal?: number;
+  currency?: string;
+  payment_status?: 'requires_payment_method' | 'paid' | 'failed' | 'refunded';
   url: string;
   success_url: string;
   cancel_url: string;
   client_secret: string;
-  livemode: boolean;
+  /** Payonify serialises this as the string "false"/"true", not a JSON boolean */
+  livemode: boolean | string;
   created: number;
   expires_at: number;
   metadata?: Record<string, string>;
@@ -179,6 +184,27 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
   }
   metadata.order_id = params.orderId;
 
+  // Payonify validates redirect URLs itself, and it rejects Stripe-style template
+  // placeholders: a success_url containing "{CHECKOUT_SESSION_ID}" comes back as
+  // 422 parameter_invalid "success URL is invalid." Fail fast with an actionable
+  // message rather than letting the upstream 422 surface as a 500.
+  const redirectUrls: Array<['successUrl' | 'cancelUrl', string]> = [
+    ['successUrl', params.successUrl],
+    ['cancelUrl', params.cancelUrl],
+  ];
+  for (const [field, value] of redirectUrls) {
+    if (!value) {
+      throw new PayonifyError(`Payonify requires ${field} to be set`, 400, 'missing_redirect_url');
+    }
+    if (/[{}]/.test(value)) {
+      throw new PayonifyError(
+        `Payonify does not support template placeholders in ${field} (upstream 422 "success URL is invalid"). Use a plain URL and reconcile the session via metadata.order_id.`,
+        400,
+        'invalid_redirect_url'
+      );
+    }
+  }
+
   const payload: any = {
     line_items,
     mode: 'payment',
@@ -198,38 +224,27 @@ export async function createCheckoutSession(params: CreateCheckoutSessionParams)
     payload.payment_method_types = params.paymentMethodTypes;
   }
 
-  try {
-    return await payonifyRequest<PayonifyCheckoutSession>('POST', '/v1/checkout/sessions', payload);
-  } catch (err: any) {
-    // In test mode, if the upstream Payonify endpoint returns an unhandled response or is unreachable,
-    // generate a graceful test checkout redirection so testing and demos are never blocked.
-    const env = getPayonifyEnv();
-    if (env.mode === 'test') {
-      console.warn('Payonify upstream test session call failed, providing local sandbox session fallback:', err.message);
-      const fallbackSessionId = `cs_test_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-      const totalAmount = line_items.reduce((acc, i) => acc + i.unit_amount * (i.quantity || 1), 0);
-      const resolvedSuccessUrl = params.successUrl.replace('{CHECKOUT_SESSION_ID}', fallbackSessionId);
-      
-      return {
-        id: fallbackSessionId,
-        object: 'checkout_session',
-        client_secret: `cs_sec_${Date.now()}`,
-        status: 'open',
-        url: resolvedSuccessUrl,
-        success_url: params.successUrl,
-        cancel_url: params.cancelUrl,
-        amount: {
-          currency,
-          value: totalAmount,
-        },
-        livemode: false,
-        created: Math.floor(Date.now() / 1000),
-        expires_at: Math.floor(Date.now() / 1000) + 3600,
-        metadata,
-      };
-    }
-    throw err;
-  }
+  // No sandbox fallback here on purpose: an unreachable/4xx Payonify must surface as a
+  // checkout error, never as a fabricated session that the success page could treat as paid.
+  return await payonifyRequest<PayonifyCheckoutSession>('POST', '/v1/checkout/sessions', payload);
+}
+
+/**
+ * A session counts as paid only when Payonify itself says so.
+ * `status: 'complete'` is the checkout-flow state, `payment_status: 'paid'` is the
+ * money state -- accept either, and never infer success from the session simply existing.
+ */
+export function isCheckoutSessionPaid(session?: PayonifyCheckoutSession | null): boolean {
+  if (!session) return false;
+  return session.payment_status === 'paid' || session.status === 'complete';
+}
+
+/** Resolves the flat amount_total/currency fields with a plan-level fallback. */
+export function readSessionAmount(session: PayonifyCheckoutSession, fallbackCents: number, fallbackCurrency: 'usd' | 'zwg') {
+  return {
+    amountCents: typeof session.amount_total === 'number' ? session.amount_total : fallbackCents,
+    currency: (session.currency as 'usd' | 'zwg') || fallbackCurrency,
+  };
 }
 
 /**

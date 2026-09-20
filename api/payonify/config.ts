@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { getPayonifyEnv } from '../../src/lib/payonify-env';
-import { GDECK_PLANS } from '../../src/lib/payonify-routes';
+import { getPayonifyEnv } from '../../src/lib/payonify-env.js';
+import { GDECK_PLANS } from '../../src/lib/payonify-routes.js';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');

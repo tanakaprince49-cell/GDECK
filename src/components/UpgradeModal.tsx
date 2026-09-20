@@ -15,6 +15,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { usePlan, PlanTier } from '../context/PlanContext';
+import { CHECKOUT_STASH_KEY } from './CheckoutSuccessView';
 
 export const UpgradeModal: React.FC = () => {
   const {
@@ -84,6 +85,16 @@ export const UpgradeModal: React.FC = () => {
       }
 
       if (data.url) {
+        // Payonify cannot append the session id to success_url, so hand it to the success
+        // page out-of-band; the server also keys the order off metadata.order_id.
+        try {
+          sessionStorage.setItem(
+            CHECKOUT_STASH_KEY,
+            JSON.stringify({ sessionId: data.sessionId, orderId: data.orderId, planId })
+          );
+        } catch {
+          /* private mode / storage disabled -- verification then relies on ?session_id= only */
+        }
         // Redirect customer to Payonify hosted checkout
         window.location.href = data.url;
       } else {

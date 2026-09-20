@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { verifyWebhookSignature } from '../../src/lib/payonify';
-import { PayonifyStore } from '../../src/lib/payonify-store';
+import { verifyWebhookSignature } from '../../src/lib/payonify.js';
+import { PayonifyStore } from '../../src/lib/payonify-store.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

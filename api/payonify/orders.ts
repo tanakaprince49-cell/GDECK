@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { PayonifyStore } from '../../src/lib/payonify-store';
+import { PayonifyStore } from '../../src/lib/payonify-store.js';
 
 export default function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');

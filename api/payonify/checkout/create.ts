@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createCheckoutSession } from '../../../src/lib/payonify';
-import { PayonifyStore } from '../../../src/lib/payonify-store';
-import { GDECK_PLANS } from '../../../src/lib/payonify-routes';
+import { createCheckoutSession, readSessionAmount } from '../../../src/lib/payonify.js';
+import { PayonifyStore } from '../../../src/lib/payonify-store.js';
+import { GDECK_PLANS } from '../../../src/lib/payonify-routes.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Enable CORS
@@ -33,7 +33,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const protocol = (req.headers['x-forwarded-proto'] as string) || (host.includes('localhost') ? 'http' : 'https');
     const origin = `${protocol}://${host}`;
 
-    const successUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`;
+    // Payonify has no {CHECKOUT_SESSION_ID} template substitution (Stripe-only) and 422s on
+    // braces in redirect URLs, so the order id is the correlation key here. The session id is
+    // returned to the client, which stashes it for the success page to verify with.
+    const successUrl = `${origin}/checkout/success?order_id=${orderId}`;
     const cancelUrl = `${origin}/checkout/cancel?order_id=${orderId}`;
 
     // 1. Record pending order in DB
@@ -84,8 +87,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       userId: effectiveEmail,
       status: session.status,
       url: session.url,
-      currency: session.amount?.currency || plan.currency,
-      amountCents: session.amount?.value || plan.amountCents,
+      currency: readSessionAmount(session, plan.amountCents, plan.currency).currency,
+      amountCents: readSessionAmount(session, plan.amountCents, plan.currency).amountCents,
       clientSecret: session.client_secret,
       createdAt: new Date().toISOString(),
     });

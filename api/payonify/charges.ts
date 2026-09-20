@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createCharge } from '../../src/lib/payonify';
-import { PayonifyStore } from '../../src/lib/payonify-store';
-import { GDECK_PLANS } from '../../src/lib/payonify-routes';
+import { createCharge } from '../../src/lib/payonify.js';
+import { PayonifyStore } from '../../src/lib/payonify-store.js';
+import { GDECK_PLANS } from '../../src/lib/payonify-routes.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');

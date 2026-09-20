@@ -2,14 +2,16 @@ import express from 'express';
 import crypto from 'node:crypto';
 import {
   createCheckoutSession,
+  readSessionAmount,
+  isCheckoutSessionPaid,
   retrieveCheckoutSession,
   createCharge,
   createRefund,
   verifyWebhookSignature,
   PayonifyError,
-} from './payonify';
-import { PayonifyStore } from './payonify-store';
-import { getPayonifyEnv } from './payonify-env';
+} from './payonify.js';
+import { PayonifyStore } from './payonify-store.js';
+import { getPayonifyEnv } from './payonify-env.js';
 
 export const payonifyRouter = express.Router();
 
@@ -76,7 +78,8 @@ payonifyRouter.post('/checkout/create', async (req, res) => {
     const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:3000';
     const origin = `${protocol}://${host}`;
 
-    const successUrl = `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}&order_id=${orderId}`;
+    // No {CHECKOUT_SESSION_ID}: Payonify 422s on template placeholders in redirect URLs.
+    const successUrl = `${origin}/checkout/success?order_id=${orderId}`;
     const cancelUrl = `${origin}/checkout/cancel?order_id=${orderId}`;
 
     // 1. Record pending order in DB
@@ -125,8 +128,8 @@ payonifyRouter.post('/checkout/create', async (req, res) => {
       userId: effectiveEmail,
       status: session.status,
       url: session.url,
-      currency: session.amount?.currency || plan.currency,
-      amountCents: session.amount?.value || plan.amountCents,
+      currency: readSessionAmount(session, plan.amountCents, plan.currency).currency,
+      amountCents: readSessionAmount(session, plan.amountCents, plan.currency).amountCents,
       clientSecret: session.client_secret,
       createdAt: new Date().toISOString(),
     });
@@ -163,8 +166,8 @@ payonifyRouter.get('/checkout/session/:id', async (req, res) => {
 
     let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
 
-    // Check if session is complete
-    if (session.status === 'complete' && order && order.status !== 'paid') {
+    // Fulfil only on Payonify's own paid signal (payment_status), not on mere existence
+    if (isCheckoutSessionPaid(session) && order && order.status !== 'paid') {
       PayonifyStore.updateOrderStatus(order.id, 'paid', new Date().toISOString());
       // Fulfill subscription
       PayonifyStore.upsertSubscription({

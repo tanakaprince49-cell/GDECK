@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { retrieveCheckoutSession } from '../../../../src/lib/payonify';
-import { PayonifyStore } from '../../../../src/lib/payonify-store';
+import { retrieveCheckoutSession, isCheckoutSessionPaid } from '../../../../src/lib/payonify.js';
+import { PayonifyStore } from '../../../../src/lib/payonify-store.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -25,7 +25,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let order = orderId ? PayonifyStore.getOrder(orderId) : undefined;
 
-    if (session.status === 'complete' && order && order.status !== 'paid') {
+    // Provision on Payonify's paid signal only
+    if (isCheckoutSessionPaid(session) && order && order.status !== 'paid') {
       PayonifyStore.updateOrderStatus(order.id, 'paid', new Date().toISOString());
       PayonifyStore.upsertSubscription({
         id: `sub_${Date.now()}`,
