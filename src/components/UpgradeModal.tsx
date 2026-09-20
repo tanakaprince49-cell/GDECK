@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { X, Check, ArrowRight, RefreshCw, ShieldCheck } from 'lucide-react';
+import { X, Check, ArrowRight, RefreshCw, ShieldCheck, Coffee } from 'lucide-react';
 import { usePlan, PlanTier } from '../context/PlanContext';
 import { CHECKOUT_STASH_KEY } from './CheckoutSuccessView';
+import { SUPPORT_CAMPAIGN_URL } from '../constants/support';
 
 /** Every Pro entitlement, taken from what the app actually gates. */
 const PRO_BENEFITS: string[] = [
@@ -293,6 +294,16 @@ export const UpgradeModal: React.FC = () => {
             <p className="text-[10px] text-[#5f6368] text-center mt-2">
               Billing to {activeAccount.email}
             </p>
+            <a
+              href={SUPPORT_CAMPAIGN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center justify-center gap-1.5 text-[10px] font-medium text-[#5f6368] hover:text-[#1a73e8] hover:underline mt-1.5 cursor-pointer"
+              title="Support G-Deck development"
+            >
+              <Coffee className="w-3 h-3" />
+              <span>Prefer a one-off? Buy me a coffee</span>
+            </a>
           </div>
         )}
 

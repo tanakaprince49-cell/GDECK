@@ -72,6 +72,7 @@ import {
   DEFAULT_PINNED_TOOL_IDS,
   ToolDefinition,
 } from './constants/tools';
+import { SUPPORT_CAMPAIGN_URL } from './constants/support';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -1254,6 +1255,16 @@ export default function App() {
               className="text-[#5f6368] hover:text-[#1f1f1f] hover:underline"
             >
               Contact Support
+            </a>
+            <span>•</span>
+            <a
+              href={SUPPORT_CAMPAIGN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#1a73e8] hover:underline cursor-pointer"
+              title="Support G-Deck development"
+            >
+              Buy me a coffee ☕
             </a>
             {user && (
               <>

@@ -7,6 +7,7 @@ import {
   Trash2,
   ShieldCheck,
   Grid,
+  Coffee,
 } from 'lucide-react';
 import {
   GoogleLogo,
@@ -15,6 +16,7 @@ import {
   ALL_WORKSPACE_TOOLS,
   ToolDefinition,
 } from '../constants/tools';
+import { SUPPORT_CAMPAIGN_URL } from '../constants/support';
 
 interface LandingViewProps {
   onSignIn: () => void;
@@ -154,6 +156,16 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <span className="flex items-center gap-1.5 font-medium">
               <Lock className="w-3.5 h-3.5 text-[#1a73e8]" /> 100% Client-Side Privacy
             </span>
+            <a
+              href={SUPPORT_CAMPAIGN_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 font-medium text-[#5f6368] hover:text-[#1f1f1f] hover:underline transition-colors"
+              title="Support G-Deck development"
+            >
+              <Coffee className="w-3.5 h-3.5 text-[#1a73e8]" />
+              <span>Can’t connect yet? Buy the developer a coffee</span>
+            </a>
           </div>
         </div>
 
@@ -339,6 +351,16 @@ export const LandingView: React.FC<LandingViewProps> = ({
             <GoogleLogo className="w-5 h-5" />
             <span>{isLoggingIn ? 'Connecting...' : 'Get Started Free with Google'}</span>
           </button>
+          <a
+            href={SUPPORT_CAMPAIGN_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-white/90 hover:text-white hover:underline transition-colors"
+            title="Support G-Deck development"
+          >
+            <Coffee className="w-3.5 h-3.5" />
+            <span>Prefer to just help out? Buy me a coffee</span>
+          </a>
         </div>
       </section>
     </div>
