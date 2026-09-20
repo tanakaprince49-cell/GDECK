@@ -264,25 +264,50 @@ html.gdeck-mobile-tool-open body {
 
 .gdeck-mobile-tool-bar {
   flex-shrink: 0;
-  height: 2.75rem;
+  min-height: 3rem;
   display: flex;
   align-items: center;
-  gap: 0.15rem;
-  padding: 0 0.35rem;
+  gap: 0.35rem;
+  padding: 0.35rem 0.65rem;
   background: #ffffff;
 }
 
-.gdeck-mobile-tool-search {
+.gdeck-mobile-tool-search-row {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin: 0 0.5rem 0.5rem;
-  padding: 0.45rem 0.75rem;
+  gap: 0.65rem;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.gdeck-mobile-tool-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.55rem 0.85rem;
   background: #f0f4f9;
   border-radius: 999px;
   position: relative;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
+}
+
+.gdeck-mobile-omni-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  height: 2.75rem;
+  padding: 0 0.9rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #6b21a8;
+  background: #faf5ff;
+  border: 1px solid #e9d5ff;
+  cursor: pointer;
 }
 
 .gdeck-mobile-tool-search-results {
@@ -459,5 +484,67 @@ html.gdeck-mobile-tool-open body {
   /* Hide redundant tool-internal "Back to Overview" that we already hide via md: */
   .gdeck-mobile-tool-body [id$="back-to-overview-btn"] {
     display: none !important;
+  }
+}
+
+
+/* ========== Mobile breathing room (uncramp) ========== */
+@media (max-width: 767px) {
+  /* Home / overview content needs air */
+  main:not(.gdeck-mobile-tool-mode) {
+    padding-left: max(0.875rem, env(safe-area-inset-left)) !important;
+    padding-right: max(0.875rem, env(safe-area-inset-right)) !important;
+    padding-top: 0.75rem !important;
+    padding-bottom: 1.25rem !important;
+    gap: 1rem;
+  }
+
+  /* Overview sections */
+  #root .space-y-5 > :not([hidden]) ~ :not([hidden]),
+  #root .space-y-8 > :not([hidden]) ~ :not([hidden]) {
+    /* rely on utility; boost card gaps below */
+  }
+
+  .google-card,
+  .google-card-interactive {
+    border-radius: 1.15rem !important;
+  }
+
+  .google-card {
+    padding: 1.1rem !important;
+  }
+
+  /* Pinned tool tiles: more gap, taller, readable */
+  .google-card-interactive {
+    min-height: 148px !important;
+    padding: 1rem !important;
+  }
+
+  /* Feed cards (calendar/mail etc) */
+  .google-card .divide-y > * {
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+  }
+
+  /* Header: never crush search vs actions */
+  header.sticky > div {
+    gap: 0.65rem !important;
+  }
+
+  /* Notification + avatar not glued */
+  header.sticky .flex.items-center.gap-1\.5 {
+    gap: 0.5rem;
+  }
+
+  /* Footer less cramped */
+  footer {
+    padding-top: 1.25rem !important;
+    padding-bottom: 1.25rem !important;
+  }
+
+  /* Landing / reconnect cards */
+  #landing-reconnect-btn,
+  [id="landing-reconnect-btn"] {
+    min-height: 48px;
   }
 }
