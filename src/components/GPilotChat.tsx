@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2, Brain, Plus, Sparkles, Mail, Calendar, Video, ArrowRight, Lock } from 'lucide-react';
+import { X, Send, Loader2, AlertTriangle, CheckCircle, Trash2, Brain, Plus, Mail, Calendar, Video, ArrowRight, Lock } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { GPilotIcon, GmailIcon, GoogleCalendarIcon, GoogleMeetIcon, GoogleTasksIcon } from './GoogleIcons';
 import { usePlan } from '../context/PlanContext';
@@ -830,7 +830,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-[#fbe618] text-[#0B0F17] border border-[#fbbc04]">AI</span>
                   {isPro ? (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200 flex items-center gap-1">
-                      <Sparkles className="w-2.5 h-2.5 fill-current" /> Unlimited AI
+                      Unlimited AI
                     </span>
                   ) : (
                     <button
@@ -983,7 +983,7 @@ export default function GPilotChat({ token, userName }: GPilotChatProps) {
               { label: 'Check calendar today', prompt: 'What events and meetings do I have on my calendar today?', icon: <GoogleCalendarIcon className="w-4 h-4 shrink-0" /> },
               { label: 'Read unread emails', prompt: 'Read my latest unread emails', icon: <GmailIcon className="w-4 h-4 shrink-0" /> },
               { label: 'Check my tasks', prompt: 'What to-do items and tasks do I have scheduled?', icon: <GoogleTasksIcon className="w-4 h-4 shrink-0" /> },
-              { label: 'Cross-Workspace Synthesis', prompt: 'Summarize all project updates across my Drive docs and client emails this week', icon: <Sparkles className="w-3.5 h-3.5 text-purple-600 shrink-0" />, isPro: true },
+              { label: 'Cross-Workspace Synthesis', prompt: 'Summarize all project updates across my Drive docs and client emails this week', isPro: true },
               { label: 'Create Meet link', prompt: 'Create a new Google Meet link for me', icon: <GoogleMeetIcon className="w-4 h-4 shrink-0" /> },
               { label: 'Schedule meeting', prompt: 'I want to schedule a meeting on my calendar', icon: <GoogleCalendarIcon className="w-4 h-4 shrink-0" /> },
             ].map((chip, idx) => (

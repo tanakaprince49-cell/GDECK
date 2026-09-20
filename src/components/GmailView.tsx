@@ -60,7 +60,7 @@ import { ProBadge } from './ProBadge';
 import { EmailToTaskEventModal } from './EmailToTaskEventModal';
 import { DeepThreadSummaryModal } from './DeepThreadSummaryModal';
 import { TonePolishStudioModal } from './TonePolishStudioModal';
-import { Sparkles, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import {
   GmailIcon,
   GoogleDriveIcon,
@@ -1015,7 +1015,6 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                     className="px-3 py-1.5 text-xs font-semibold text-[#1a73e8] bg-[#f0f4f9] hover:bg-[#e8f0fe] rounded-full border border-[#dadce0] flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="Synthesize email thread highlights into executive bullets & action items"
                   >
-                    <Sparkles className="w-3.5 h-3.5 fill-current text-[#1a73e8]" />
                     <span>Thread TL;DR</span>
                     <ProBadge size="xs" featureTitle="Deep Email Thread Summarization" />
                   </button>
@@ -1218,7 +1217,6 @@ export const GmailView: React.FC<GmailViewProps> = ({ token, onBackToOverview, o
                           className="px-2.5 py-1 text-xs font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-full border border-purple-200 flex items-center gap-1 transition-colors cursor-pointer ml-1"
                           title="Tone & Polish Studio (Executive, Formal, Casual)"
                         >
-                          <Sparkles className="w-3 h-3 fill-current text-purple-600" />
                           <span>Tone Studio</span>
                           <ProBadge size="xs" featureTitle="Tone & Polish Studio" />
                         </button>

@@ -22,7 +22,6 @@ import {
   List,
   ListOrdered,
   Layers,
-  Sparkles,
 } from 'lucide-react';
 import { SlideItem } from './slidesData';
 

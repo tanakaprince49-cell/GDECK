@@ -3,7 +3,6 @@ import {
   X,
   Calendar,
   CheckSquare,
-  Sparkles,
   Check,
   Video,
   Clock,

@@ -29,7 +29,6 @@ import {
   Sigma,
   Table,
   Layers,
-  Sparkles,
   Download,
 } from 'lucide-react';
 import { SheetMetadata, DriveFile } from '../types/workspace';

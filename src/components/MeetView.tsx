@@ -22,7 +22,6 @@ import {
   MoreVertical,
   Link,
   Clock,
-  Sparkles,
   Send,
   X,
 } from 'lucide-react';

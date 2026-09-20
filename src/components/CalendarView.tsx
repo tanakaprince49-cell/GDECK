@@ -38,7 +38,7 @@ import { usePlan } from '../context/PlanContext';
 import { ProBadge } from './ProBadge';
 import { MeetingPrepPackModal } from './MeetingPrepPackModal';
 import { SmartFollowUpModal } from './SmartFollowUpModal';
-import { Sparkles } from 'lucide-react';
+
 
 interface CalendarViewProps {
   token: string;
@@ -1706,7 +1706,6 @@ export const CalendarView: React.FC<CalendarViewProps> = ({ token, onBackToOverv
                   className="px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-800 rounded-full text-xs font-semibold flex items-center gap-1.5 border border-purple-200 transition-colors cursor-pointer"
                   title="Generate Meeting Prep Pack (Pro)"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                   <span>Prep Pack</span>
                   <ProBadge size="xs" featureTitle="Meeting Prep Packs" />
                 </button>

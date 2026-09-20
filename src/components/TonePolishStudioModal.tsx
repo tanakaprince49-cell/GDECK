@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   X,
-  Sparkles,
   Check,
   RotateCcw,
   Briefcase,
@@ -208,7 +207,6 @@ Output ONLY the rewritten text without conversational commentary or markdown quo
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <div className="font-bold text-[#7e22ce] flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 fill-current" />
                 <span className="capitalize">{activeTone} Polished Version:</span>
               </div>
               <button

@@ -11,7 +11,6 @@ import {
   ChevronDown,
   Search,
   Pin,
-  Sparkles,
   LayoutGrid,
   Check,
   Star,
@@ -394,7 +393,6 @@ export default function App() {
                     className="px-2 py-0.5 text-[11px] font-semibold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-md border border-purple-200 flex items-center gap-1 cursor-pointer transition-colors"
                     title="Omni-Search across Gmail, Calendar, Drive, Tasks (Cmd+K)"
                   >
-                    <Sparkles className="w-3 h-3 text-purple-600" />
                     <span className="hidden lg:inline">Omni</span>
                     <kbd className="text-[10px] bg-white px-1 py-0.2 rounded border border-purple-200 text-purple-600 font-mono">⌘K</kbd>
                     <ProBadge size="xs" showLockOnFree={false} />
@@ -469,7 +467,6 @@ export default function App() {
                     className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 bg-purple-50 rounded-full border border-purple-200 transition-colors cursor-pointer"
                     title="14-Day Free Pro Trial Active - Click to view or upgrade"
                   >
-                    <Sparkles className="w-3.5 h-3.5 fill-purple-600 text-purple-600" />
                     <span className="hidden sm:inline">Pro Trial: {trialDaysRemaining}d</span>
                     <span className="sm:hidden">Trial</span>
                   </button>
@@ -484,7 +481,6 @@ export default function App() {
                     className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-800 hover:bg-purple-200 bg-purple-100 rounded-full border border-purple-300 transition-colors cursor-pointer"
                     title="G-Deck Pro Member"
                   >
-                    <Sparkles className="w-3.5 h-3.5 fill-purple-600 text-purple-600" />
                     <span className="hidden sm:inline">Pro Active</span>
                   </button>
                 ) : (
@@ -493,7 +489,6 @@ export default function App() {
                     className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-purple-700 hover:bg-purple-100 bg-purple-50 rounded-full border border-purple-200 transition-colors cursor-pointer"
                     title="Upgrade to G-Deck Pro ($12/month)"
                   >
-                    <Sparkles className="w-3.5 h-3.5 text-purple-600" />
                     <span>Upgrade</span>
                     <ProBadge size="xs" showLockOnFree={false} />
                   </button>

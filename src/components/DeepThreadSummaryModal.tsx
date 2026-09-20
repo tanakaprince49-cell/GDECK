@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
   X,
-  Sparkles,
   Mail,
   Copy,
   Check,
@@ -154,7 +153,7 @@ ${actionItems.map((a) => `[ ] ${a}`).join('\n')}
               <div className="p-4 rounded-2xl bg-purple-50/60 border border-purple-200 space-y-2">
                 <div className="flex items-center justify-between font-bold text-purple-900">
                   <span className="flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 fill-current" /> Thread TL;DR Highlights
+                    Thread TL;DR Highlights
                   </span>
                   <span className="text-[10px] bg-purple-200/60 text-purple-800 px-2 py-0.5 rounded-full">
                     Executive Brief

@@ -9,7 +9,6 @@ import {
   FileSpreadsheet,
   CheckCircle2,
   Pin,
-  Sparkles,
   Search,
   Filter,
   SlidersHorizontal,
@@ -420,7 +419,6 @@ export const OverviewView: React.FC<OverviewViewProps> = ({
                         className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-[10px] font-semibold flex items-center gap-1 border border-purple-200 transition-colors cursor-pointer"
                         title="Generate Meeting Prep Pack (Pro)"
                       >
-                        <Sparkles className="w-3 h-3 text-purple-600" />
                         <span className="hidden sm:inline">Prep Pack</span>
                         <ProBadge size="xs" featureTitle="Meeting Prep Packs" />
                       </button>

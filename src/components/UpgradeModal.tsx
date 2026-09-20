@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   X,
-  Sparkles,
   Check,
   Zap,
   Lock,
@@ -191,7 +190,6 @@ export const UpgradeModal: React.FC = () => {
 
           <div className="flex items-center gap-2 mb-2.5">
             <div className="inline-flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white">
-              <Sparkles className="w-3.5 h-3.5 fill-current" />
               <span>G-DECK PRO TIER</span>
             </div>
             <div className="inline-flex items-center gap-1 bg-emerald-500/30 backdrop-blur-md px-2.5 py-1 rounded-full text-[11px] font-semibold text-emerald-100 border border-emerald-400/30">
@@ -403,7 +401,6 @@ export const UpgradeModal: React.FC = () => {
 
               <div className="p-3 rounded-2xl bg-[#f0f4f9] border border-[#dadce0] space-y-1">
                 <div className="flex items-center gap-1.5 text-[#1a73e8] font-bold text-xs">
-                  <Sparkles className="w-3.5 h-3.5 fill-current" />
                   <span>Unlimited Workspace AI</span>
                 </div>
                 <p className="text-[11px] text-[#444746] leading-relaxed">
@@ -444,7 +441,6 @@ export const UpgradeModal: React.FC = () => {
               disabled={isProcessing}
               className="w-full sm:w-auto py-3 px-4 bg-white hover:bg-slate-50 text-purple-700 text-xs font-bold rounded-2xl border border-purple-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer transition-all disabled:opacity-50"
             >
-              <Sparkles className="w-3.5 h-3.5 fill-current" />
               <span>Start 14-Day Free Trial (No Card)</span>
             </button>
 

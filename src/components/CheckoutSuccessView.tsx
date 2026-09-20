@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, XCircle, ArrowRight, ShieldCheck, Sparkles, RefreshCw } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowRight, ShieldCheck, RefreshCw } from 'lucide-react';
 import { usePlan } from '../context/PlanContext';
 
 /** Set by UpgradeModal just before redirecting to Payonify's hosted checkout. */
@@ -141,7 +141,6 @@ export const CheckoutSuccessView: React.FC<CheckoutSuccessViewProps> = ({ onRetu
 
             <div className="space-y-2">
               <span className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
-                <Sparkles className="w-3 h-3 fill-purple-600" />
                 PAYONIFY VERIFIED
               </span>
               <h1 className="text-2xl font-extrabold text-[#1f1f1f] tracking-tight">Welcome to G-Deck Pro!</h1>

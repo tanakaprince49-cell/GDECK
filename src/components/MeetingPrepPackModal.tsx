@@ -6,7 +6,6 @@ import {
   Users,
   Video,
   ExternalLink,
-  Sparkles,
   Download,
   Check,
   Clock,
@@ -155,7 +154,7 @@ EXECUTIVE BRIEFING & OBJECTIVES:
               <div className="p-4 rounded-2xl bg-[#faf5ff] border border-[#e9d5ff] space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#7e22ce] uppercase tracking-wider flex items-center gap-1.5">
-                    <Sparkles className="w-3.5 h-3.5 fill-current" /> Executive Brief & Talking Points
+                    Executive Brief & Talking Points
                   </span>
                   <span className="text-[10px] bg-purple-200/60 text-purple-800 px-2 py-0.5 rounded-full font-bold">
                     AI Dossier

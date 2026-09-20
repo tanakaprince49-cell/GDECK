@@ -11,7 +11,6 @@ import {
   CheckCheck,
   Smartphone,
   QrCode,
-  Sparkles,
   ArrowLeft,
   MessageSquare,
   Clock,

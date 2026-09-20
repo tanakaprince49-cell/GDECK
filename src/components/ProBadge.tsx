@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, Lock } from 'lucide-react';
+import { Lock } from 'lucide-react';
 import { usePlan } from '../context/PlanContext';
 
 interface ProBadgeProps {
@@ -55,9 +55,7 @@ export const ProBadge: React.FC<ProBadgeProps> = ({
     >
       {!isPro && showLockOnFree ? (
         <Lock className="w-2.5 h-2.5 shrink-0 opacity-80" />
-      ) : (
-        <Sparkles className="w-2.5 h-2.5 shrink-0 fill-current opacity-75" />
-      )}
+      ) : null}
       <span>PRO</span>
     </span>
   );

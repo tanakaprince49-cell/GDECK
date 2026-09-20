@@ -3,7 +3,6 @@ import {
   X,
   Mail,
   Send,
-  Sparkles,
   Check,
   Users,
   Copy,

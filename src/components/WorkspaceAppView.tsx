@@ -3,7 +3,6 @@ import {
   ExternalLink,
   ArrowLeft,
   ShieldCheck,
-  Sparkles,
   Layers,
   Globe,
   Clock,
@@ -100,7 +99,6 @@ export const WorkspaceAppView: React.FC<WorkspaceAppViewProps> = ({
 
           <div className="p-4 rounded-2xl bg-[#f8fafd] border border-[#dadce0]">
             <div className="w-8 h-8 rounded-xl bg-emerald-50 text-[#188038] flex items-center justify-center mb-2">
-              <Sparkles className="w-4 h-4" />
             </div>
             <h3 className="text-xs font-bold text-[#1f1f1f] mb-1">G-Pilot Ready</h3>
             <p className="text-[11px] text-[#5f6368] leading-normal">

@@ -9,7 +9,6 @@ import {
   ExternalLink,
   ArrowRight,
   Clock,
-  Sparkles,
   Lock,
   Tag,
 } from 'lucide-react';
@@ -125,7 +124,6 @@ export const OmniSearchModal: React.FC<OmniSearchModalProps> = ({
           </div>
           <div>
             <div className="inline-flex items-center gap-1 bg-purple-100 text-purple-800 px-2.5 py-0.5 rounded-full text-xs font-bold mb-2">
-              <Sparkles className="w-3 h-3 fill-current" />
               <span>G-DECK PRO FEATURE</span>
             </div>
             <h3 className="text-lg font-bold text-[#1f1f1f]">Unified Global Omni-Search</h3>

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Lock, Unlock, Globe, Copy, Check, Search, FileText, Settings, X, ArrowRight, Sparkles } from 'lucide-react';
+import { Plus, Lock, Unlock, Globe, Copy, Check, Search, FileText, Settings, X, ArrowRight } from 'lucide-react';
 import { DriveFile } from '../../types/workspace';
 import { DOC_TEMPLATES, DocTemplate } from './docsData';
 import { GoogleDocsIcon, GoogleSlidesIcon, GoogleFormsIcon, GoogleSheetsIcon } from '../GoogleIcons';
